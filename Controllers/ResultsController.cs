@@ -109,4 +109,39 @@ public class ResultsController : ControllerBase
             filename = $"Results_Class_{classId}.pdf" 
         });
     }
+
+    [HttpGet("student/{studentId}")]
+    public async Task<IActionResult> GetStudentResult(int studentId)
+    {
+        var student = await _uow.Students.GetByIdAsync(studentId);
+        if (student == null) return NotFound(new { success = false, message = "الطالب غير موجود" });
+
+        var grades = await _uow.StudentGrades.FindAsync(g => g.StudentId == studentId);
+        var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == student.ClassRoomId)).FirstOrDefault();
+        string stage = classRoom?.Stage ?? "ابتدائي";
+
+        decimal total = 0;
+        var allSubjects = new[] { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
+        foreach (var sub in allSubjects)
+        {
+            var exam = grades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore);
+            var att = grades.Where(g => g.SubjectName == sub).Sum(g => g.AttendanceScore);
+            total += exam + att;
+        }
+
+        decimal percentage = _resultsService.CalculatePercentage(total, stage);
+
+        // بناءً على طلبك: افتراض أن جميع المشتركين دفعوا في السنة الماضية
+        decimal debt = 0; // تم إيقاف المديونية بناءً على رغبتك
+
+        return Ok(new
+        {
+            success = true,
+            total = total,
+            percentage = percentage,
+            isPassed = percentage >= 50,
+            hasDebt = debt > 0,
+            debtAmount = debt
+        });
+    }
 }

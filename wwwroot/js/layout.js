@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <div class="sidebar">
             <div class="sidebar-header" style="text-align:center; padding-top:20px; padding-bottom:10px;">
                 <img src="/images/logo.png" alt="شعار المدرسة" style="max-width: 100px; border-radius: 50%; margin-bottom:10px; background-color: white; padding: 5px;">
-                <h2 style="margin: 0; font-size: 1.2rem;">نظام المدارس</h2>
+                <h2 style="margin: 0; font-size: 1.2rem;">نظام ادارة المدرسة </h2>
             </div>
             <ul class="sidebar-menu">
                 ${links.map(link => `

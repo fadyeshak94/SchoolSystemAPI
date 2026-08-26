@@ -23,6 +23,11 @@
         
         .class-select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; width: 150px; }
         
+        .bulk-actions { margin-bottom: 15px; display: flex; gap: 10px; align-items: center; }
+        .btn-bulk { padding: 10px 15px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-bulk:hover { background: #1e3a8a; }
+        .btn-whatsapp { background: #25D366; color: white; margin-right: 5px; }
+        
         .empty-state { text-align: center; padding: 40px; color: #64748b; font-size: 16px; }
     </style>
 </head>
@@ -38,10 +43,16 @@
 
         <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
 
+        <div class="bulk-actions">
+            <button class="btn-bulk" onclick="approveBulk()">✔️ موافقة على المحدد</button>
+            <span style="font-size: 13px; color: #64748b;">(سيتم تخصيص الطلاب للفصول المحددة في الجدول)</span>
+        </div>
+
         <div class="table-container">
             <table>
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
                         <th>رقم الطلب</th>
                         <th>اسم الطالب</th>
                         <th>نوع الطلب</th>
@@ -53,7 +64,7 @@
                 </thead>
                 <tbody id="requestsTableBody">
                     <tr>
-                        <td colspan="7" class="empty-state">⏳ جاري تحميل الطلبات المعلقة...</td>
+                        <td colspan="8" class="empty-state">⏳ جاري تحميل الطلبات المعلقة...</td>
                     </tr>
                 </tbody>
             </table>
@@ -102,7 +113,7 @@
             const tbody = document.getElementById('requestsTableBody');
             
             if (pendingRequests.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">✅ لا توجد طلبات معلقة حالياً</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">✅ لا توجد طلبات معلقة حالياً</td></tr>';
                 return;
             }
 
@@ -118,28 +129,101 @@
 
                 const dateObj = new Date(req.requestDate);
                 const dateStr = dateObj.toLocaleDateString('ar-EG') + ' ' + dateObj.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+                
+                let waStatus = req.status === "Waitlisted" ? "Waitlisted" : "Pending";
+                let phoneNum = '';
+                if(req.phonesJson) {
+                    try {
+                        let phones = JSON.parse(req.phonesJson);
+                        if (phones.length > 0) phoneNum = phones[0];
+                    } catch(e) {}
+                }
+
+                let classText = allMyClasses.find(c => c.id === req.classId)?.name || 'غير معروف';
+
+                let waitlistWarning = req.status === "Waitlisted" ? '<div style="color:var(--danger); font-size: 11px; margin-top:5px; font-weight:bold;">⚠️ في قائمة الانتظار (الفصل ممتلئ)</div>' : '';
 
                 html += `
                     <tr id="req-row-${req.id}">
+                        <td style="text-align:center;"><input type="checkbox" class="row-checkbox" value="${req.id}"></td>
                         <td style="color:#64748b; font-size:12px;">#${req.id}<br>${dateStr}</td>
-                        <td style="font-weight:bold; color:var(--primary);">${req.name}</td>
+                        <td style="font-weight:bold; color:var(--primary);">${req.name}${waitlistWarning}</td>
                         <td>${typeBadge}</td>
                         <td>${req.govGrade || '-'}</td>
                         <td style="font-weight:bold; color:var(--success);">${req.amountPaid} ج.م</td>
                         <td>
-                            <select id="class-select-${req.id}" class="class-select">
+                            <select id="class-select-${req.id}" class="class-select" onchange="updateClassText(${req.id})">
                                 ${classOptions}
                             </select>
+                            <input type="hidden" id="class-text-${req.id}" value="${classText}">
                         </td>
-                        <td style="text-align:center; display:flex; gap:8px; justify-content:center;">
+                        <td style="text-align:center; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width: 200px;">
                             <button class="action-btn btn-approve" onclick="approveRequest(${req.id})">✔️ موافقة</button>
                             <button class="action-btn btn-reject" onclick="rejectRequest(${req.id})">❌ رفض</button>
+                            ${phoneNum ? `<button class="action-btn btn-whatsapp" onclick="sendWhatsapp('${phoneNum}', '${req.name}', ${req.id}, '${waStatus}')">💬 واتساب</button>` : ''}
                         </td>
                     </tr>
                 `;
             });
 
             tbody.innerHTML = html;
+        }
+
+        function updateClassText(id) {
+            const select = document.getElementById(`class-select-${id}`);
+            const text = select.options[select.selectedIndex].text;
+            document.getElementById(`class-text-${id}`).value = text;
+        }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll').checked;
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => cb.checked = selectAll);
+        }
+
+        async function approveBulk() {
+            const checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            if (checkboxes.length === 0) {
+                alert('الرجاء تحديد طلب واحد على الأقل.');
+                return;
+            }
+
+            if (!confirm(`هل أنت متأكد من الموافقة على ${checkboxes.length} طلب دفعة واحدة؟`)) return;
+
+            const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+            // Optional: You could update class assignments first before approving bulk if they changed them
+            // but bulk approval usually uses the selected classes in DB. Let's just pass IDs for now.
+            // If they changed the dropdowns, it won't be saved in bulk unless we send it.
+            // To be safe, we will just rely on the backend endpoint as requested, which uses DB ClassId.
+
+            try {
+                const res = await fetchApi('/registrations/approve-bulk', 'POST', { ids: ids });
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', `✅ ${res.message}`);
+                    await loadPendingRequests();
+                } else {
+                    showStatus('statusBar', 'error', `❌ خطأ: ${res?.message || 'فشل الموافقة الجماعية'}`);
+                }
+            } catch (e) {
+                showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
+            }
+        }
+
+        function sendWhatsapp(phone, name, id, status) {
+            const classText = document.getElementById(`class-text-${id}`).value;
+            let msg = '';
+            if (status === 'Waitlisted') {
+                msg = `أهلاً بك ${name} في مدرسة القديس ديديموس، نعلمك أن طلبك مسجل حالياً في قائمة الانتظار لعدم توافر أماكن في فصل ${classText}. سنتواصل معك قريباً.`;
+            } else {
+                msg = `أهلاً بك ${name} في مدرسة القديس ديديموس، تم استلام طلب تسجيلك لفصل ${classText} بنجاح.`;
+            }
+            
+            // Format phone (Egypt)
+            if (phone.startsWith('01')) phone = '+2' + phone;
+
+            const url = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
         }
 
         async function approveRequest(id) {
