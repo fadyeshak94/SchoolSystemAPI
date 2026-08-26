@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>✏️ تحديث بيانات الطلاب</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+      body { direction: rtl; padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; }
+      .header { background: linear-gradient(135deg, #f59e0b, #b45309); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+      .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+      .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+      .search-box input, .search-box select { padding: 10px; border: 2px solid #ddd; border-radius: 8px; flex: 1; }
+      .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+      .btn-search { background: #3b82f6; }
+      .btn-save { background: #10b981; width: 100%; margin-top: 20px; font-size: 16px; padding: 15px; }
+      
+      .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+      .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #555; }
+      .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; }
+      
+      .status { display: none; padding: 15px; border-radius: 10px; margin-top: 15px; font-weight: bold; text-align: center; }
+      .status.success { background: #d1fae5; color: #065f46; display: block; }
+      .status.error { background: #fee2e2; color: #991b1b; display: block; }
+      .modal-overlay { display: none; position: fixed; top:0; left:0; width: 100%; height:100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+      .modal-overlay.active { display: flex; }
+      .modal-content { background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+      .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+      .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; }
+      
+      .status-bar { padding: 15px; border-radius: 10px; margin-top: 15px; font-weight: bold; text-align: center; display: none; }
+      .status-bar.success { background: #d1fae5; color: #065f46; display: block; }
+      .status-bar.error { background: #fee2e2; color: #991b1b; display: block; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 style="margin: 0;">البحث عن طالب</h3>
+        <button class="btn" style="background: #10b981; color: white;" onclick="window.location.href='/AddStudent.html'">➕ إضافة طالب</button>
+      </div>
+      <div class="search-box">
+        <input type="number" id="searchId" placeholder="رقم الطالب (ID)">
+        <input type="text" id="searchName" placeholder="جزء من اسم الطالب">
+        <select id="searchClass"><option value="">اختر الفصل (اختياري)</option></select>
+        <button class="btn btn-search" onclick="searchStudent()">🔍 بحث</button>
+      </div>
+      
+      <div class="table-container" style="display: none;" id="tableContainer">
+        <table id="studentsTable">
+          <thead>
+            <tr>
+              <th>رقم الطالب</th>
+              <th>الاسم</th>
+              <th>الفصل</th>
+              <th>التليفون</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="searchResults">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>تعديل بيانات الطالب</h3>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group"><label>رقم الطالب (ID)</label><input type="text" id="studentId" disabled></div>
+          <div class="form-group"><label>اسم الطالب</label><input type="text" id="studentName"></div>
+          <div class="form-group"><label>رقم التليفون (موبايل)</label><input type="text" id="phone1"></div>
+          <div class="form-group"><label>رقم تليفون آخر (أب/أم)</label><input type="text" id="phone2"></div>
+          <div class="form-group"><label>النوع</label><select id="gender"><option value="ذكر">ولد</option><option value="أنثى">بنت</option></select></div>
+          <div class="form-group"><label>هل هو شماس؟</label><select id="isDeacon"><option value="false">لا</option><option value="true">نعم</option></select></div>
+          <div class="form-group"><label>السنة الحكومية</label><select id="govGrade"><option value="">-- اختياري --</option></select></div>
+          <div class="form-group"><label>الفصل</label><select id="classId"></select></div>
+        </div>
+        
+        <div id="statusBox" class="status-bar"></div>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button class="btn btn-success" style="flex: 1; padding: 12px; font-size: 16px;" onclick="saveStudent()">💾 حفظ التعديلات</button>
+            <button class="btn" style="flex: 1; padding: 12px; font-size: 16px; background: #94a3b8; color: white;" onclick="closeModal()">❌ إلغاء</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+      let currentStudent = null;
+      let currentRowId = null;
+
+      const GOV_GRADES = [
+          'أولى ابتدائي', 'تانية ابتدائي', 'تالتة ابتدائي', 'رابعة ابتدائي', 'خامسة ابتدائي', 'سادسة ابتدائي',
+          'أولى إعدادي', 'تانية إعدادي', 'تالتة إعدادي',
+          'أولى ثانوي', 'تانية ثانوي', 'تالتة ثانوي', 'خريج'
+      ];
+
+      window.onload = async () => {
+        const govSelect = document.getElementById('govGrade');
+        GOV_GRADES.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g; opt.textContent = g;
+            govSelect.appendChild(opt);
+        });
+
+        try {
+            const data = await fetchApi('/users/me/classes');
+            if(data && data.classes) {
+                populateClassSelect(document.getElementById('searchClass'), data.classes);
+                populateClassSelect(document.getElementById('classId'), data.classes);
+            }
+        } catch(e) {
+            console.error(e);
+        }
+      };
+
+      function populateClassSelect(select, classes) {
+        let lastStage = null;
+        classes.forEach(c => {
+            if (c.stage !== lastStage) {
+                let group = document.createElement('optgroup');
+                group.label = c.stage;
+                select.appendChild(group);
+                lastStage = c.stage;
+            }
+            let opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name + (c.year ? ' (' + c.year + ')' : '');
+            select.lastChild.appendChild(opt);
+        });
+      }
+
+      async function searchStudent() {
+        const id = document.getElementById('searchId').value.trim();
+        const name = document.getElementById('searchName').value.trim();
+        const classId = document.getElementById('searchClass').value;
+        const tbody = document.getElementById('searchResults');
+        const tContainer = document.getElementById('tableContainer');
+        
+        if (!id && !name && !classId) {
+            alert('اكتب الرقم أو الاسم للبحث أو اختر فصلاً');
+            return;
+        }
+
+        tbody.innerHTML = '<tr><td colspan="5">جاري البحث...</td></tr>';
+        tContainer.style.display = 'block';
+
+        let query = '?';
+        if(id) query += `id=${id}&`;
+        if(name) query += `name=${encodeURIComponent(name)}&`;
+        if(classId) query += `classId=${classId}`;
+
+        try {
+            const result = await fetchApi(`/students/search${query}`);
+            tbody.innerHTML = '';
+            if (result && result.success && result.students.length > 0) {
+                result.students.forEach(s => {
+                    let tr = document.createElement('tr');
+                    tr.id = 'row-' + s.id;
+                    tr.innerHTML = `
+                      <td class="td-id">${s.id}</td>
+                      <td class="td-name">${s.name}</td>
+                      <td class="td-class">${s.className}</td>
+                      <td class="td-phone">${s.phone1 || '-'}</td>
+                      <td>
+                        <button class="btn btn-primary" style="padding: 5px 10px; font-size:13px;" onclick="loadStudent(${s.id}, 'row-${s.id}')">✏️ تعديل</button>
+                      </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5">لم يتم العثور على طلاب</td></tr>';
+            }
+        } catch(e) {
+            tbody.innerHTML = `<tr><td colspan="5" style="color:red">خطأ: ${e.message}</td></tr>`;
+        }
+      }
+
+      async function loadStudent(id, rowId) {
+        currentRowId = rowId;
+        try {
+            const s = await fetchApi(`/students/${id}`);
+            if(s) {
+                currentStudent = s;
+                document.getElementById('studentId').value = s.id;
+                document.getElementById('studentName').value = s.name;
+                document.getElementById('phone1').value = s.phone1 || '';
+                document.getElementById('phone2').value = s.phone2 || '';
+                document.getElementById('gender').value = s.gender || 'ذكر';
+                document.getElementById('isDeacon').value = s.isDeacon ? 'true' : 'false';
+                document.getElementById('govGrade').value = s.govGrade || '';
+                document.getElementById('classId').value = s.classRoomId || '';
+                
+                document.getElementById('statusBox').style.display = 'none';
+                document.getElementById('editModal').classList.add('active');
+            }
+        } catch (e) {
+            alert('حدث خطأ في جلب تفاصيل الطالب');
+        }
+      }
+
+      function closeModal() {
+          document.getElementById('editModal').classList.remove('active');
+      }
+
+      async function saveStudent() {
+        if (!currentStudent) return;
+        
+        const payload = {
+            id: currentStudent.id,
+            name: document.getElementById('studentName').value.trim(),
+            phone1: document.getElementById('phone1').value.trim(),
+            phone2: document.getElementById('phone2').value.trim(),
+            gender: document.getElementById('gender').value,
+            isDeacon: document.getElementById('isDeacon').value === 'true',
+            govGrade: document.getElementById('govGrade').value,
+            classId: parseInt(document.getElementById('classId').value)
+        };
+
+        const sb = document.getElementById('statusBox');
+        
+        try {
+            const res = await fetchApi(`/students/${currentStudent.id}`, 'PUT', payload);
+
+            if (res && res.success) {
+                const row = document.getElementById(currentRowId);
+                if (row) {
+                    row.querySelector('.td-name').textContent = payload.name;
+                    row.querySelector('.td-phone').textContent = payload.phone1 || '-';
+                    const classSelect = document.getElementById('classId');
+                    const selectedText = classSelect.options[classSelect.selectedIndex].text;
+                    row.querySelector('.td-class').textContent = selectedText;
+                }
+                closeModal();
+            } else {
+                sb.className = 'status-bar error';
+                sb.textContent = '❌ ' + (res?.message || 'حدث خطأ أثناء الحفظ');
+            }
+        } catch(e) {
+            sb.className = 'status-bar error';
+            sb.textContent = '❌ خطأ: ' + e.message;
+        }
+      }
+    </script>
+      <script src="/js/layout.js"></script>
+  </body>
+</html>

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>🔑 إدارة الصلاحيات</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+      * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin:0; padding:0; }
+      body { direction: rtl; padding: 20px; background: #f0f2f5; }
+      .header { background: linear-gradient(135deg, #dc2626, #991b1b); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+      .header h1 { font-size: 22px; }
+      .card { background:white; border-radius:15px; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.08); margin-bottom:20px; }
+      .card h3 { margin-bottom:15px; font-size:16px; color:#333; }
+      .form-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; align-items:end; }
+      label { font-weight:bold; color:#555; font-size:12px; display:block; margin-bottom:5px; }
+      input, select { width:100%; padding:9px 12px; border:2px solid #ddd; border-radius:8px; font-size:13px; }
+      input:focus, select:focus { border-color:#dc2626; outline:none; }
+      .btn { padding:10px 20px; border:none; border-radius:8px; font-size:13px; cursor:pointer; font-weight:bold; }
+      .btn-primary { background:#dc2626; color:white; }
+      .btn-primary:hover { background:#b91c1c; }
+      .btn-small { padding:6px 12px; font-size:12px; }
+      .btn-key { background:#f9ab00; color:white; }
+      .btn-save-row { background:#1a73e8; color:white; }
+
+      .table-container { background:white; border-radius:15px; box-shadow:0 4px 20px rgba(0,0,0,0.08); overflow:auto; }
+      table { width:100%; border-collapse:collapse; font-size:13px; }
+      th { background:#1a2744; color:white; padding:10px 12px; text-align:center; }
+      td { padding:8px 10px; text-align:center; border-bottom:1px solid #f0f0f0; }
+      tr:nth-child(even) td { background:#fafbfc; }
+      select.role-select { min-width:90px; }
+      .pending-badge { background:#fff3cd; color:#a06d00; padding:3px 8px; border-radius:8px; font-size:11px; font-weight:bold; }
+      .pw-input { width:120px; }
+      .no-data, .error-box { text-align:center; padding:50px; color:#999; font-size:16px; background:white; border-radius:15px; }
+      .error-box { color:#d93025; }
+      .back-btn { background:#e8eaed; border:none; padding:8px 20px; border-radius:10px; cursor:pointer; font-size:14px; margin-bottom:15px; }
+      .back-btn:hover { background:#d2d5d9; }
+      .status-bar { padding:10px 15px; border-radius:10px; margin-bottom:15px; display:none; }
+      .status-bar.success { background:#e6f4ea; color:#0d652d; display:block; border-right:4px solid #0d652d; }
+      .status-bar.error { background:#fce8e6; color:#d93025; display:block; border-right:4px solid #d93025; }
+    </style>
+  </head>
+  <body>
+    
+
+    
+
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="card">
+      <h3>➕ إضافة مستخدم جديد</h3>
+      <div class="form-grid">
+        <div><label>اسم المستخدم</label><input type="text" id="newUsername"></div>
+        <div><label>الإيميل</label><input type="text" id="newEmail"></div>
+        <div><label>نوع الصلاحية</label><select id="newAccessType" onchange="toggleNewAccessType()"><option value="class">فصل واحد</option><option value="stage">مرحلة كاملة</option></select></div>
+        <div id="newClassWrap"><label>الفصل</label><select id="newClass"></select></div>
+        <div id="newStageWrap" style="display:none;"><label>المرحلة</label><select id="newStage"></select></div>
+        <div><label>الدور</label><select id="newRole"><option value="User">مستخدم</option><option value="Admin">أدمن</option></select></div>
+        <div><label>كلمة المرور</label><input type="text" id="newPassword" placeholder="اختياري الآن"></div>
+        <div><button class="btn btn-primary" onclick="addUser()">إضافة</button></div>
+      </div>
+    </div>
+
+    <div id="content"></div>
+
+    <script src="/js/app.js"></script>
+    <script>
+      var classesData = [];
+      var stagesData = [];
+
+      window.onload = () => {
+          requireRole('Admin');
+          loadUsers();
+      }
+
+      function toggleNewAccessType() {
+        var isStage = document.getElementById('newAccessType').value === 'stage';
+        document.getElementById('newClassWrap').style.display = isStage ? 'none' : 'block';
+        document.getElementById('newStageWrap').style.display = isStage ? 'block' : 'none';
+      }
+
+      function populateStageSelect(select) {
+        select.innerHTML = '';
+        stagesData.forEach(function(s) {
+          var opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s;
+          select.appendChild(opt);
+        });
+      }
+
+      async function loadUsers() {
+        try {
+            const data = await fetchApi('/users');
+            if (data && data.success) {
+                classesData = data.classes || [];
+                stagesData = data.stages || [];
+                populateClassSelect(document.getElementById('newClass'));
+                populateStageSelect(document.getElementById('newStage'));
+                renderUsers(data.users || []);
+            } else {
+                document.getElementById('content').innerHTML = '<div class="error-box">❌ ' + (data?.message || 'خطأ غير معروف') + '</div>';
+            }
+        } catch (err) {
+            document.getElementById('content').innerHTML = '<div class="error-box">❌ حدث خطأ: ' + err.message + '</div>';
+        }
+      }
+
+      function populateClassSelect(select, selectedId) {
+        select.innerHTML = '';
+        var lastStage = null;
+        classesData.forEach(function(c) {
+          if (c.stage !== lastStage) {
+            var group = document.createElement('optgroup');
+            group.label = c.stage;
+            group.className = 'stagegroup_' + c.stage.replace(/\s/g, '_');
+            select.appendChild(group);
+            lastStage = c.stage;
+          }
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name + (c.year ? ' (' + c.year + ')' : '');
+          if (selectedId && selectedId.toString() === c.id.toString()) opt.selected = true;
+          select.lastChild.appendChild(opt);
+        });
+      }
+
+      function renderUsers(users) {
+        if (users.length === 0) {
+          document.getElementById('content').innerHTML = '<div class="no-data">📭 لا يوجد مستخدمين</div>';
+          return;
+        }
+
+        var html = '<div class="table-container"><table><thead><tr>';
+        html += '<th>Username</th><th>الإيميل</th><th>نوع الصلاحية</th><th>الفصل / المرحلة</th><th>الدور</th><th>الحالة</th><th>كلمة مرور جديدة</th><th></th>';
+        html += '</tr></thead><tbody>';
+
+        users.forEach(function(u) {
+          var isStage = !!u.stageAccess;
+          html += '<tr data-username="' + u.username + '">';
+          html += '<td><strong>' + u.username + '</strong>' + (u.pendingReset ? '<br><span class="pending-badge">⏳ طلب استعادة</span>' : '') + '</td>';
+          html += '<td style="font-size:11px;">' + (u.email || '') + '</td>';
+          html += '<td><select class="access-type-select" data-username="' + u.username + '" onchange="toggleRowAccessType(this)">';
+          html += '<option value="class"' + (!isStage ? ' selected' : '') + '>فصل واحد</option>';
+          html += '<option value="stage"' + (isStage ? ' selected' : '') + '>مرحلة كاملة</option>';
+          html += '</select></td>';
+          html += '<td>';
+          html += '<select class="class-select" data-username="' + u.username + '" style="' + (isStage ? 'display:none;' : '') + '"></select>';
+          html += '<select class="stage-select" data-username="' + u.username + '" style="' + (isStage ? '' : 'display:none;') + '"></select>';
+          html += '</td>';
+          html += '<td><select class="role-select" data-username="' + u.username + '">';
+          html += '<option value="User"' + (u.role !== 'Admin' ? ' selected' : '') + '>مستخدم</option>';
+          html += '<option value="Admin"' + (u.role === 'Admin' ? ' selected' : '') + '>أدمن</option>';
+          html += '</select></td>';
+          html += '<td>' + (u.hasPassword ? '✅ عنده باسورد' : '⚠️ من غير باسورد') + '</td>';
+          html += '<td><input type="text" class="pw-input" placeholder="كلمة مرور جديدة"></td>';
+          html += '<td>';
+          html += '<button class="btn btn-small btn-save-row" onclick="saveUserRow(this)">💾 حفظ</button> ';
+          html += '<button class="btn btn-small btn-key" onclick="setPassword(this)">🔑 تعيين</button>';
+          html += '</td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+        document.getElementById('content').innerHTML = html;
+
+        document.querySelectorAll('.class-select').forEach(function(select) {
+          var username = select.dataset.username;
+          var user = users.filter(function(u) { return u.username === username; })[0];
+          populateClassSelect(select, user.classId);
+        });
+        document.querySelectorAll('.stage-select').forEach(function(select) {
+          var username = select.dataset.username;
+          var user = users.filter(function(u) { return u.username === username; })[0];
+          populateStageSelect(select);
+          if (user.stageAccess) select.value = user.stageAccess;
+        });
+      }
+
+      function toggleRowAccessType(select) {
+        var row = select.closest('tr');
+        var isStage = select.value === 'stage';
+        row.querySelector('.class-select').style.display = isStage ? 'none' : 'block';
+        row.querySelector('.stage-select').style.display = isStage ? 'block' : 'none';
+      }
+
+      async function saveUserRow(btn) {
+        var row = btn.closest('tr');
+        var username = row.dataset.username;
+        var accessType = row.querySelector('.access-type-select').value;
+        var classId = accessType === 'class' ? row.querySelector('.class-select').value : '';
+        var stageAccess = accessType === 'stage' ? row.querySelector('.stage-select').value : '';
+        var role = row.querySelector('.role-select').value;
+
+        try {
+            const res = await fetchApi(`/users/${username}`, 'PUT', {
+                classId: classId ? parseInt(classId) : null,
+                stageAccess: stageAccess,
+                role: role
+            });
+            if(res && res.success) {
+                showStatus('success', res.message);
+                loadUsers();
+            } else {
+                showStatus('error', res?.message || 'حدث خطأ');
+            }
+        } catch(e) {
+            showStatus('error', e.message);
+        }
+      }
+
+      async function setPassword(btn) {
+        var row = btn.closest('tr');
+        var username = row.dataset.username;
+        var pwInput = row.querySelector('.pw-input');
+        var newPw = pwInput.value.trim();
+
+        if (!newPw || newPw.length < 4) {
+          showStatus('error', '❌ اكتب كلمة مرور 4 حروف على الأقل في الخانة الأول');
+          return;
+        }
+
+        try {
+            const res = await fetchApi(`/users/${username}/password`, 'PUT', { newPassword: newPw });
+            if(res && res.success) {
+                showStatus('success', res.message);
+                pwInput.value = '';
+                loadUsers();
+            } else {
+                showStatus('error', res?.message || 'حدث خطأ');
+            }
+        } catch(e) {
+            showStatus('error', e.message);
+        }
+      }
+
+      async function addUser() {
+        var accessType = document.getElementById('newAccessType').value;
+        var payload = {
+          username: document.getElementById('newUsername').value.trim(),
+          email: document.getElementById('newEmail').value.trim(),
+          classId: accessType === 'class' ? parseInt(document.getElementById('newClass').value) : null,
+          stageAccess: accessType === 'stage' ? document.getElementById('newStage').value : '',
+          role: document.getElementById('newRole').value,
+          password: document.getElementById('newPassword').value.trim()
+        };
+
+        if (!payload.username || (!payload.classId && !payload.stageAccess)) {
+          showStatus('error', '❌ اسم المستخدم، والفصل أو المرحلة مطلوبين');
+          return;
+        }
+
+        try {
+            const res = await fetchApi('/users', 'POST', payload);
+            if(res && res.success) {
+                showStatus('success', res.message);
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newEmail').value = '';
+                document.getElementById('newPassword').value = '';
+                loadUsers();
+            } else {
+                showStatus('error', res?.message || 'حدث خطأ');
+            }
+        } catch(e) {
+            showStatus('error', e.message);
+        }
+      }
+
+      function showStatus(type, message) {
+        var bar = document.getElementById('statusBar');
+        bar.className = 'status-bar ' + type;
+        bar.textContent = message;
+        bar.style.display = 'block';
+      }
+    </script>
+      <script src="/js/layout.js"></script>
+  </body>
+</html>

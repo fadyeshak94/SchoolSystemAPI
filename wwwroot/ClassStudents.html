@@ -1,0 +1,139 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>👥 طلاب الفصل</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .phone-link { color: var(--primary); font-weight: bold; text-decoration: none; direction: ltr; display: inline-block; }
+        @media print { .back-btn, .controls, .header { display: none; } }
+    </style>
+</head>
+<body>    <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="classSelect"></select>
+        <button class="btn btn-search" onclick="loadStudents()" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px;">🔍 عرض الطلبة</button>
+        
+        <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة عادية</button>
+        <button id="exportPdfBtn" class="btn btn-success" onclick="exportPDF()" style="display:none;">📤 تصدير PDF</button>
+        <button id="exportExcelBtn" class="btn btn-success" onclick="exportExcel()" style="display:none; background: #107c41;">📊 تصدير Excel</button>
+    </div>
+
+    <div id="content" class="table-container" style="background: white; padding: 15px; border-radius: 10px;">
+        <div style="text-align:center; padding:20px; color:var(--text-muted);">اختر فصلاً واضغط عرض الطلبة</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => loadClassesDropdown('classSelect', false);
+
+        async function loadStudents() {
+            const classId = document.getElementById('classSelect').value;
+            if (!classId) return;
+
+            document.getElementById('content').innerHTML = '<div class="spinner"></div>';
+            
+            const res = await fetchApi(`/students/class/${classId}`);
+            if (!res || !res.students) {
+                document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ حدث خطأ (تأكد من اختيار فصل صحيح)</div>';
+                return;
+            }
+
+            let html = '<table id="studentsExportTable"><thead><tr><th>#</th><th>🆔 ID</th><th style="text-align:right;">👤 الاسم</th><th>📱 التليفون</th><th>🚻 النوع</th><th>✝️ شماس؟</th><th>🏫 السنة الدراسية</th></tr></thead><tbody>';
+            res.students.forEach((s, idx) => {
+                let phones = [];
+                try { phones = JSON.parse(s.phone) || []; } catch(e) { if(s.phone) phones = [s.phone]; }
+                let phoneStr = '—';
+                if(phones.length > 0) {
+                    let num = typeof phones[0] === 'object' ? phones[0].number : phones[0];
+                    phoneStr = `<a class="phone-link" href="tel:${num}">${num}</a>`;
+                }
+                let gender = s.gender || '—';
+                let isDeacon = s.isDeacon ? 'نعم' : 'لا';
+                if (gender === 'أنثى') isDeacon = '—';
+                let govGrade = s.govGrade || '—';
+
+                html += `<tr>
+                    <td>${idx + 1}</td>
+                    <td>${s.id}</td>
+                    <td style="text-align:right; font-weight:bold;">${s.name}</td>
+                    <td dir="ltr">${phoneStr}</td>
+                    <td>${gender}</td>
+                    <td>${isDeacon}</td>
+                    <td>${govGrade}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('content').innerHTML = html;
+            document.getElementById('exportPdfBtn').style.display = 'inline-block';
+            document.getElementById('exportExcelBtn').style.display = 'inline-block';
+        }
+
+        async function exportPDF() {
+            var classId = document.getElementById('classSelect').value;
+            if (!classId) return;
+
+            const element = document.getElementById('content');
+            // Adding a white background temporarily for PDF generation if needed
+            element.style.backgroundColor = 'white';
+
+            const opt = {
+                margin:       10,
+                filename:     'Class_Students_' + classId + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, backgroundColor: '#ffffff', useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            const btn = document.getElementById('exportPdfBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ جاري...';
+            btn.disabled = true;
+
+            try {
+                await html2pdf().set(opt).from(element).save();
+            } catch (err) {
+                console.error(err);
+                alert('حدث خطأ أثناء الإنشاء.');
+            }
+
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+
+        function exportExcel() {
+            var classId = document.getElementById('classSelect').value;
+            if (!classId) return;
+
+            let table = document.getElementById("studentsExportTable");
+            if(!table) return;
+
+            let csvContent = "";
+            // Extract rows
+            let rows = table.querySelectorAll('tr');
+            for(let i=0; i<rows.length; i++){
+                let row = [], cols = rows[i].querySelectorAll('td, th');
+                for(let j=0; j<cols.length; j++){
+                    let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, '').replace(/"/g, '""');
+                    // Add quotes to prevent issues with commas inside the content
+                    row.push('"' + data + '"');
+                }
+                csvContent += row.join(',') + "\r\n";
+            }
+
+            // UTF-8 BOM to ensure Excel reads Arabic correctly
+            let bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            let blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'Class_Students_' + classId + '.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>
+

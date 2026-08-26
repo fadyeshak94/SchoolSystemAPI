@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>➕ إضافة طالب</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    
+
+    
+
+    <div class="card" style="padding: 30px;">
+        <label>🆔 رقم الطالب (ID):</label>
+        <input type="number" id="studentId" placeholder="جاري الاقتراح..." style="margin-bottom:15px;">
+
+        <label>👤 اسم الطالب:</label>
+        <input type="text" id="studentName" placeholder="الاسم بالكامل" oninput="checkDuplicateName()" style="margin-bottom:15px;">
+        <div id="duplicateWarning" style="display:none;background:rgba(245, 158, 11, 0.2);border-right:4px solid var(--warning);color:#fcd34d;padding:10px 15px;border-radius:10px;margin-top:-10px;margin-bottom:15px;font-size:13px;"></div>
+
+        <label>🏫 المرحلة:</label>
+        <select id="stageSelect" style="margin-bottom:15px;" onchange="filterFirstYearClasses()">
+            <option value="">-- اختر المرحلة --</option>
+        </select>
+
+        <label>🏫 الفصل (السنة الأولى فقط):</label>
+        <select id="classSelect" style="margin-bottom:15px;"><option value="">-- اختر فصل --</option></select>
+
+        <label>⚧ النوع:</label>
+        <select id="studentGender" onchange="toggleDeaconField()" style="margin-bottom:15px;">
+            <option value="">-- اختر --</option>
+            <option value="ذكر">ذكر</option>
+            <option value="أنثى">أنثى</option>
+        </select>
+
+        <div id="deaconField" style="display:none; margin-bottom: 15px;">
+            <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+                <input type="checkbox" id="studentIsDeacon" style="width:auto;margin:0; accent-color:var(--primary);"> مرشوم شماس؟
+            </label>
+        </div>
+
+        <label>🎓 السنة التعليمية الحكومية:</label>
+        <select id="studentGovGrade" style="margin-bottom:15px;"><option value="">-- اختياري --</option></select>
+
+        <label>📱 رقم التليفون:</label>
+        <input type="text" id="studentPhone" placeholder="01xxxxxxxxx" style="margin-bottom:15px;">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:-10px;margin-bottom:18px;">
+            <input type="checkbox" id="studentHasWhatsapp" style="width:auto;margin:0; accent-color:var(--primary);"> 💬 عليه واتساب
+        </label>
+
+        <label>💰 المصروفات المدفوعة (جنيه):</label>
+        <input type="number" id="studentAmountPaid" placeholder="0" min="0" style="margin-bottom:15px;">
+
+        <button class="btn btn-primary" id="addBtn" onclick="submitStudent()" style="width:100%; justify-content:center;">➕ إضافة الطالب</button>
+        <div id="statusBar" class="status-bar" style="margin-top: 15px;"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const GOV_GRADES = [
+            'أولى ابتدائي', 'تانية ابتدائي', 'تالتة ابتدائي', 'رابعة ابتدائي', 'خامسة ابتدائي', 'سادسة ابتدائي',
+            'أولى إعدادي', 'تانية إعدادي', 'تالتة إعدادي',
+            'أولى ثانوي', 'تانية ثانوي', 'تالتة ثانوي', 'خريج'
+        ];
+
+        let allMyClasses = [];
+
+        window.onload = async () => {
+            const govSelect = document.getElementById('studentGovGrade');
+            GOV_GRADES.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g; opt.textContent = g;
+                govSelect.appendChild(opt);
+            });
+
+            suggestNextId();
+            
+            // Load classes and stages
+            const res = await fetchApi('/users/me/classes');
+            if(res && res.classes) {
+                allMyClasses = res.classes;
+                
+                // Extract unique stages
+                const stages = [...new Set(allMyClasses.map(c => c.stage).filter(s => s))];
+                const stageSelect = document.getElementById('stageSelect');
+                stages.forEach(st => {
+                    const opt = document.createElement('option');
+                    opt.value = st; opt.textContent = st;
+                    stageSelect.appendChild(opt);
+                });
+            }
+        };
+
+        function filterFirstYearClasses() {
+            const selectedStage = document.getElementById('stageSelect').value;
+            const classSelect = document.getElementById('classSelect');
+            classSelect.innerHTML = '<option value="">-- اختر فصل --</option>';
+            
+            if (!selectedStage) return;
+
+            // Filter classes for the selected stage and ONLY First Year (1 or أولى)
+            const firstYearClasses = allMyClasses.filter(c => 
+                c.stage === selectedStage && 
+                (c.year == 1 || c.year == '1' || c.year === 'أولى' || c.name.includes('أولى') || c.name.includes('الاول'))
+            );
+
+            firstYearClasses.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + (c.year ? ' (' + c.year + ')' : '');
+                classSelect.appendChild(opt);
+            });
+        }
+
+        async function suggestNextId() {
+            const res = await fetchApi('/students/suggest-id'); 
+            if (res && res.nextId) {
+                document.getElementById('studentId').value = res.nextId;
+            }
+        }
+
+        let dupTimer = null;
+        function checkDuplicateName() {
+            clearTimeout(dupTimer);
+            const name = document.getElementById('studentName').value.trim();
+            const warnBox = document.getElementById('duplicateWarning');
+            
+            if (name.length < 3) { warnBox.style.display = 'none'; return; }
+
+            dupTimer = setTimeout(async () => {
+                const res = await fetchApi(`/students/search?query=${name}`);
+                if (res && res.students && res.students.length > 0) {
+                    let html = '⚠️ في طلاب بأسماء شبيهة متسجلين بالفعل:<br>';
+                    res.students.forEach(s => {
+                        html += `• ${s.name} (${s.className} - ID: ${s.id})<br>`;
+                    });
+                    warnBox.innerHTML = html;
+                    warnBox.style.display = 'block';
+                } else {
+                    warnBox.style.display = 'none';
+                }
+            }, 400);
+        }
+
+        function toggleDeaconField() {
+            const gender = document.getElementById('studentGender').value;
+            document.getElementById('deaconField').style.display = gender === 'ذكر' ? 'block' : 'none';
+            if (gender !== 'ذكر') document.getElementById('studentIsDeacon').checked = false;
+        }
+
+        async function submitStudent() {
+            const id = document.getElementById('studentId').value.trim();
+            const name = document.getElementById('studentName').value.trim();
+            const classId = document.getElementById('classSelect').value;
+            const phone = document.getElementById('studentPhone').value.trim();
+            const gender = document.getElementById('studentGender').value;
+            const isDeacon = document.getElementById('studentIsDeacon').checked;
+            const govGrade = document.getElementById('studentGovGrade').value;
+            const hasWhatsapp = document.getElementById('studentHasWhatsapp').checked;
+            const amountPaid = document.getElementById('studentAmountPaid').value;
+
+            if (!id || !name || !classId) {
+                return showStatus('statusBar', 'error', '❌ يرجى ملء رقم الطالب والاسم واختيار الفصل');
+            }
+
+            const phonesArray = phone ? [{ number: phone, whatsapp: hasWhatsapp }] : [];
+
+            const payload = {
+                id: parseInt(id),
+                name: name,
+                classId: parseInt(classId),
+                gender: gender,
+                isDeacon: isDeacon,
+                govGrade: govGrade,
+                phonesJson: JSON.stringify(phonesArray),
+                amountPaid: parseFloat(amountPaid) || 0
+            };
+
+            const btn = document.getElementById('addBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ جاري الإضافة...';
+
+            const res = await fetchApi('/students', 'POST', payload);
+            
+            btn.disabled = false;
+            btn.textContent = '➕ إضافة الطالب';
+
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message);
+                document.getElementById('studentName').value = '';
+                document.getElementById('studentPhone').value = '';
+                document.getElementById('studentGender').value = '';
+                document.getElementById('studentIsDeacon').checked = false;
+                document.getElementById('studentGovGrade').value = '';
+                document.getElementById('studentHasWhatsapp').checked = false;
+                document.getElementById('studentAmountPaid').value = '';
+                document.getElementById('duplicateWarning').style.display = 'none';
+                toggleDeaconField();
+                suggestNextId(); 
+            } else {
+                showStatus('statusBar', 'error', res?.message || '❌ حدث خطأ أثناء الإضافة');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>🪪 طباعة الكارنيه (ID Card)</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body { direction: rtl; padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; }
+        .header { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; text-align: center;}
+        
+        .card-container { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center; margin-bottom: 20px;}
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; align-items: center; }
+        .search-box input { padding: 10px; border: 2px solid #ddd; border-radius: 8px; width: 300px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-search { background: #3b82f6; }
+        .btn-print { background: #10b981; margin-top: 15px; font-size: 16px; display: none; }
+        .back-btn { background:#e8eaed; border:none; padding:8px 20px; border-radius:10px; cursor:pointer; font-size:14px; margin-bottom:15px; color:black; }
+
+        /* ID Card Layout (Visa Size: 85.6mm x 54mm) - Matching Apps Script Design */
+        .id-card {
+            width: 85.6mm;
+            height: 54mm;
+            background-color: #fdf8ec; /* CREAM */
+            border-radius: 8px;
+            margin: 0 auto;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            text-align: center;
+            display: block;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            /* Inner Gold Border */
+            border: 2px solid transparent; 
+        }
+
+        .id-card-inner-border {
+            position: absolute;
+            top: 3%;
+            left: 2%;
+            width: 96%;
+            height: 94%;
+            border: 2px solid #c9a227; /* GOLD */
+            box-sizing: border-box;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .id-logos-container {
+            display: flex;
+            justify-content: space-between;
+            padding: 5mm 5mm 0 5mm;
+            position: absolute;
+            width: 100%;
+            box-sizing: border-box;
+            top: 0;
+            left: 0;
+        }
+
+        .id-logo {
+            width: 15mm;
+            height: 15mm;
+            object-fit: contain;
+        }
+
+        .id-name {
+            position: absolute;
+            top: 35mm;
+            width: 100%;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #7a1f1f; /* MAROON */
+        }
+
+        .id-school-text {
+            position: absolute;
+            top: 22mm;
+            width: 100%;
+            padding: 0 8mm;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 11px;
+            font-weight: bold;
+            color: #1a2744; /* NAVY */
+            line-height: 1.3;
+        }
+
+        .id-class-line {
+            position: absolute;
+            bottom: 15mm;
+            width: 100%;
+            text-align: center;
+            font-size: 10px;
+            color: #1a2744; /* NAVY */
+        }
+
+        .id-footer-id {
+            position: absolute;
+            bottom: 4mm;
+            left: 4mm;
+            font-size: 14px;
+            font-weight: bold;
+            color: #c9a227; /* GOLD */
+        }
+
+        .id-footer-year {
+            position: absolute;
+            bottom: 4mm;
+            right: 4mm;
+            font-size: 10px;
+            color: #888888;
+        }
+
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            .header, .back-btn, .search-box, #status, .btn-print, select, label { display: none !important; }
+            #cardsContainer { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 10px; }
+            .id-card { 
+                margin: 5px; 
+                box-shadow: none; 
+                print-color-adjust: exact; 
+                -webkit-print-color-adjust: exact; 
+                page-break-inside: avoid;
+                position: relative;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    
+
+    <div class="card-container">
+        <div class="search-box" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+            <div>
+                <label for="classSelect" style="display:block; margin-bottom:5px; font-weight:bold; color:#333;">أو اختر فصلاً لطباعة كارنيهاته:</label>
+                <select id="classSelect" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:250px;">
+                    <option value="">جاري التحميل...</option>
+                </select>
+            </div>
+            <div style="display:flex; align-items:flex-end;">
+                <button class="btn btn-search" onclick="loadClass()">📂 عرض كارنيهات الفصل</button>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin:20px 0;">
+            <span style="margin: 0 10px; color:#aaa;">ـــــــــــــــ أو ـــــــــــــــ</span>
+        </div>
+
+        <div class="search-box">
+            <input type="number" id="searchId" placeholder="أدخل رقم الطالب (ID)">
+            <button class="btn btn-search" onclick="loadStudent()">🔍 بحث وعرض الكارنيه</button>
+        </div>
+        
+        <div id="status" style="color:red; display:none; margin-bottom: 15px; font-weight:bold; text-align:center;"></div>
+
+        <div style="text-align:center; margin-bottom: 20px;">
+            <button class="btn btn-print" id="printBtn" onclick="window.print()" style="display:none;">🖨️ طباعة الكارنيهات</button>
+            <button class="btn btn-search" id="pdfBtn" onclick="exportPDF()" style="display:none; margin-right: 10px; background: #eab308; color: white;">📄 تحميل PDF</button>
+        </div>
+
+        <!-- ID Cards Container -->
+        <div id="cardsContainer" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+        </div>
+
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/logos.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        let classMap = {};
+
+        window.onload = async () => {
+            requireRole('Admin', 'User');
+            try {
+                const data = await fetchApi('/users/me/classes');
+                const select = document.getElementById('classSelect');
+                select.innerHTML = '<option value="">اختر الفصل...</option>';
+                if (data && data.classes) {
+                    let lastStage = null;
+                    data.classes.forEach(c => {
+                        classMap[c.id] = c;
+                        if (c.stage !== lastStage) {
+                            let group = document.createElement('optgroup');
+                            group.label = c.stage;
+                            select.appendChild(group);
+                            lastStage = c.stage;
+                        }
+                        let opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.name + (c.year ? ' (' + c.year + ')' : '');
+                        select.lastChild.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        function generateCardHtml(student) {
+            const classInfo = classMap[student.classRoomId] || { stage: 'غير معروف', year: '', name: '' };
+            const classLine = `${classInfo.stage || ''}  |  ${classInfo.year || ''}  |  ${classInfo.name || ''}`;
+            const logoSch = typeof LOGO_SCHOOL_BASE64 !== 'undefined' ? LOGO_SCHOOL_BASE64 : '';
+            const logoDio = typeof LOGO_DIOCESE_BASE64 !== 'undefined' ? LOGO_DIOCESE_BASE64 : '';
+
+            return `
+                <div class="id-card">
+                    <div class="id-card-inner-border"></div>
+                    
+                    <div class="id-logos-container">
+                        <img class="id-logo" alt="Diocese Logo" src="data:image/png;base64,${logoDio}" onerror="this.style.display='none'">
+                        <img class="id-logo" style="border-radius:50%; background-color:white; padding:3px; box-sizing:border-box;" alt="School Logo" src="/images/Logo.png" onerror="this.style.display='none'">
+                    </div>
+
+                    <div class="id-school-text">
+                        مدرسة القديس ديديموس للعلوم الكنسية بكنيسة الشهيد العظيم مارمينا والبابا كيرلس السادس
+                    </div>
+
+                    <div class="id-name">${student.name}</div>
+                    
+                    <div class="id-class-line">${classLine}</div>
+
+                    <div class="id-footer-id">ID: ${student.id}</div>
+                    
+                    <div class="id-footer-year">2026-2027</div>
+                </div>
+            `;
+        }
+
+        async function loadStudent() {
+            const id = document.getElementById('searchId').value.trim();
+            const status = document.getElementById('status');
+            const container = document.getElementById('cardsContainer');
+            const btn = document.getElementById('printBtn');
+
+            if (!id) {
+                status.textContent = 'الرجاء إدخال رقم الطالب';
+                status.style.display = 'block';
+                return;
+            }
+
+            status.style.display = 'none';
+            container.innerHTML = '';
+            btn.style.display = 'none';
+
+            try {
+                const student = await fetchApi(`/students/${id}`);
+                if (student && student.id) {
+                    container.innerHTML = generateCardHtml(student);
+                    btn.style.display = 'inline-block';
+                    document.getElementById('pdfBtn').style.display = 'inline-block';
+                } else {
+                    status.textContent = 'الطالب غير موجود';
+                    status.style.display = 'block';
+                }
+            } catch (err) {
+                status.textContent = 'خطأ أثناء جلب بيانات الطالب';
+                status.style.display = 'block';
+            }
+        }
+
+        async function loadClass() {
+            const classId = document.getElementById('classSelect').value;
+            const status = document.getElementById('status');
+            const container = document.getElementById('cardsContainer');
+            const btn = document.getElementById('printBtn');
+
+            if (!classId) {
+                status.textContent = 'الرجاء اختيار الفصل أولاً';
+                status.style.display = 'block';
+                return;
+            }
+
+            status.style.display = 'none';
+            container.innerHTML = '⏳ جاري تحميل بيانات الفصل...';
+            btn.style.display = 'none';
+
+            try {
+                const res = await fetchApi(`/students/class/${classId}`);
+                if (res && res.students && res.students.length > 0) {
+                    let html = '';
+                    res.students.forEach(s => {
+                        // Assuming the backend doesn't return ClassRoomId in /students/class/{classId},
+                        // we manually assign it so generateCardHtml knows which class line to draw
+                        s.classRoomId = classId;
+                        html += generateCardHtml(s);
+                    });
+                    container.innerHTML = html;
+                    btn.style.display = 'inline-block';
+                    document.getElementById('pdfBtn').style.display = 'inline-block';
+                } else {
+                    container.innerHTML = '';
+                    status.textContent = 'لا يوجد طلاب في هذا الفصل';
+                    status.style.display = 'block';
+                }
+            } catch (err) {
+                container.innerHTML = '';
+                status.textContent = 'خطأ أثناء جلب بيانات الفصل';
+                status.style.display = 'block';
+            }
+        }
+
+        function exportPDF() {
+            const container = document.getElementById('cardsContainer');
+            
+            // ضبط عرض الحاوية ليتناسب تماماً مع ورق A3 لتجنب أي خلل في المسافات أثناء الطباعة
+            const originalWidth = container.style.width;
+            const originalJc = container.style.justifyContent;
+            container.style.width = '277mm'; // عرض ورقة A3 (297) ناقص الهوامش (20)
+            container.style.justifyContent = 'flex-start';
+            container.style.margin = '0 auto';
+
+            const opt = {
+                margin:       10,
+                filename:     'ID_Cards.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, backgroundColor: 'white', useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a3', orientation: 'portrait' },
+                pagebreak:    { mode: ['css', 'legacy'], avoid: '.id-card' }
+            };
+
+            const cards = container.querySelectorAll('.id-card');
+            cards.forEach(card => card.style.pageBreakInside = 'avoid');
+
+            const btn = document.getElementById('pdfBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ جاري التجهيز...';
+            btn.disabled = true;
+
+            html2pdf().set(opt).from(container).save().then(() => {
+                // إرجاع التنسيق الأصلي بعد تحميل الـ PDF
+                container.style.width = originalWidth;
+                container.style.justifyContent = originalJc;
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>

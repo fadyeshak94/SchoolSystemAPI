@@ -1,0 +1,109 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>⚙️ الإعدادات</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="card" style="padding:30px;">
+        <label>📅 السنة الدراسية الحالية:</label>
+        <input type="text" id="academicYear" placeholder="مثال: 2026-2027" style="margin-bottom:15px;">
+
+        <label>📖 التيرم الحالي:</label>
+        <select id="currentTerm" style="margin-bottom:15px;">
+            <option value="1">التيرم الأول</option>
+            <option value="2">التيرم الثاني</option>
+        </select>
+
+        <label>💬 رقم واتساب الأدمن (للاستعادة):</label>
+        <input type="text" id="adminWhatsapp" placeholder="مثال: 201211234567" style="margin-bottom:15px;">
+
+        <button class="btn btn-primary" onclick="saveSettings()" style="width:100%; justify-content:center; margin-top:15px;">💾 حفظ الإعدادات</button>
+    </div>
+
+    <div class="card" style="padding:30px; margin-top: 20px;">
+        <h2 style="color:var(--primary); margin-bottom: 20px;">💰 مصروفات المراحل</h2>
+        <div id="feesContainer">
+            <div class="spinner"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveFees()" style="width:100%; justify-content:center; margin-top:15px; background:var(--warning);">💾 حفظ المصروفات</button>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        // Check Admin Role
+        const token = localStorage.getItem('appToken');
+        if (!token) window.location.href = '/Login.html';
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role;
+            if (role !== 'Admin') {
+                document.body.innerHTML = '<div style="text-align:center; padding:50px; color:white;"><h2>ليس لديك صلاحية!</h2></div>';
+                setTimeout(() => window.location.href = '/ClassStudents.html', 2000);
+            }
+        } catch(e) { window.location.href = '/Login.html'; }
+
+        window.onload = async () => {
+            const res = await fetchApi('/settings');
+            if (res) {
+                document.getElementById('academicYear').value = res.academicYear || '';
+                document.getElementById('currentTerm').value = res.currentTerm || '1';
+                document.getElementById('adminWhatsapp').value = res.adminWhatsapp || '';
+            }
+            loadFees();
+        };
+
+        async function saveSettings() {
+            const payload = {
+                academicYear: document.getElementById('academicYear').value,
+                currentTerm: document.getElementById('currentTerm').value,
+                adminWhatsapp: document.getElementById('adminWhatsapp').value
+            };
+            const res = await fetchApi('/settings', 'POST', payload);
+            if (res && res.success) showStatus('statusBar', 'success', res.message);
+            else showStatus('statusBar', 'error', res?.message || 'خطأ');
+        }
+
+        async function loadFees() {
+            const fees = await fetchApi('/settings/fees');
+            // List of default stages to show if the DB is empty
+            const defaultStages = ["ابتدائي أ", "ابتدائي ب", "ابتدائي ج", "اعدادي", "ثانوي"];
+            let html = '';
+            
+            let stageKeys = fees ? Object.keys(fees) : [];
+            if(stageKeys.length === 0) stageKeys = defaultStages;
+
+            stageKeys.forEach(stage => {
+                let amount = fees && fees[stage] ? fees[stage] : 0;
+                html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <label style="width:150px; font-weight:bold;">${stage}:</label>
+                        <input type="number" class="fee-input" data-stage="${stage}" value="${amount}" style="flex:1;">
+                        <span style="margin-right:10px; color:#555;">جنيه</span>
+                    </div>
+                `;
+            });
+            document.getElementById('feesContainer').innerHTML = html;
+        }
+
+        async function saveFees() {
+            let payload = {};
+            document.querySelectorAll('.fee-input').forEach(input => {
+                payload[input.dataset.stage] = parseFloat(input.value) || 0;
+            });
+            
+            const res = await fetchApi('/settings/fees', 'POST', payload);
+            if (res && res.success) showStatus('statusBar', 'success', res.message);
+            else showStatus('statusBar', 'error', res?.message || 'خطأ');
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>📜 سجل العمليات (Audit Logs)</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body { direction: rtl; font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+        .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .table-container { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: right; }
+        th { background-color: #f8fafc; font-weight: bold; color: #333; }
+        tr:nth-child(even) { background-color: #f9fafb; }
+        tr:hover { background-color: #f1f5f9; }
+        
+        .badge { display: inline-block; padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; color: white; }
+        .badge-added { background-color: #10b981; } /* Green */
+        .badge-modified { background-color: #f59e0b; } /* Orange */
+        .badge-deleted { background-color: #ef4444; } /* Red */
+        
+        .json-viewer {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 13px;
+            white-space: pre-wrap;
+            direction: ltr;
+            text-align: left;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0; color: #1e293b;">📜 سجل العمليات والتعديلات (آخر 500 حركة)</h3>
+            <button class="btn btn-primary" onclick="loadLogs()">🔄 تحديث</button>
+        </div>
+
+        <div id="content" class="table-container">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => {
+            requireRole('Admin');
+            loadLogs();
+        };
+
+        async function loadLogs() {
+            document.getElementById('content').innerHTML = '<div class="spinner"></div>';
+            const res = await fetchApi('/auditlogs');
+            if (!res || !res.logs) {
+                document.getElementById('content').innerHTML = '<div style="color:red; text-align:center;">❌ فشل في جلب السجلات</div>';
+                return;
+            }
+
+            if (res.logs.length === 0) {
+                document.getElementById('content').innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">لا توجد أي تعديلات مسجلة حتى الآن</div>';
+                return;
+            }
+
+            let html = `<table>
+                <thead>
+                    <tr>
+                        <th>رقم السجل</th>
+                        <th>المستخدم</th>
+                        <th>نوع العملية</th>
+                        <th>الجدول/الكيان</th>
+                        <th>التوقيت</th>
+                        <th>التفاصيل (القيم التي تغيرت)</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            res.logs.forEach(log => {
+                let badgeClass = 'badge-modified';
+                let actionText = 'تعديل';
+                if (log.action === 'Added') { badgeClass = 'badge-added'; actionText = 'إضافة'; }
+                else if (log.action === 'Deleted') { badgeClass = 'badge-deleted'; actionText = 'حذف'; }
+
+                let formattedDate = new Date(log.timestamp).toLocaleString('ar-EG');
+                
+                let detailsHtml = '-';
+                if (log.changes && log.changes !== '{}') {
+                    try {
+                        const parsedObj = JSON.parse(log.changes);
+                        detailsHtml = `<div class="json-viewer">${JSON.stringify(parsedObj, null, 2)}</div>`;
+                    } catch (e) {
+                        detailsHtml = log.changes;
+                    }
+                }
+
+                html += `<tr>
+                    <td>#${log.id}</td>
+                    <td style="font-weight:bold; color: #3b82f6;">👤 ${log.username}</td>
+                    <td><span class="badge ${badgeClass}">${actionText}</span></td>
+                    <td style="font-weight:bold;">${log.entityName}</td>
+                    <td dir="ltr" style="text-align:right;">${formattedDate}</td>
+                    <td>${detailsHtml}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('content').innerHTML = html;
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

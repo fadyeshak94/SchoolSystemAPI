@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📊 Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .card-stat { background: var(--glass-bg); border-radius: 15px; padding: 20px; box-shadow: var(--glass-shadow); text-align: center; border-bottom: 4px solid var(--primary); }
+        .card-stat .icon { font-size: 30px; margin-bottom: 10px; }
+        .card-stat .label { font-size: 13px; color: var(--text-muted); margin-bottom: 5px; }
+        .card-stat .value { font-size: 24px; font-weight: 800; color: var(--text-light); }
+        .section-title { font-size: 16px; font-weight: bold; color: var(--text-light); margin: 25px 0 15px; }
+    </style>
+</head>
+<body>
+    <div style="margin-bottom: 20px;">
+        <h3 id="scopeLabel" style="color:var(--text-light); margin:0;">📍 النطاق: جاري التحميل...</h3>
+    </div>
+    <div id="content">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = async () => {
+            const res = await fetchApi('/dashboard'); // Endpoint يرجع كل الإحصائيات المجمعة
+            if (!res) {
+                document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ حدث خطأ في تحميل البيانات</div>';
+                return;
+            }
+
+            document.getElementById('scopeLabel').textContent = '📍 النطاق: ' + (res.scopeLabel || 'كل النظام');
+
+            let html = '<div class="cards">';
+            html += `<div class="card-stat"><div class="icon">👨‍🎓</div><div class="label">إجمالي الطلاب</div><div class="value">${res.studentsCount || 0}</div></div>`;
+            html += `<div class="card-stat" style="border-color:var(--secondary);"><div class="icon">👦</div><div class="label">ذكور</div><div class="value">${res.maleCount || 0}</div></div>`;
+            html += `<div class="card-stat" style="border-color:#d63384;"><div class="icon">👧</div><div class="label">إناث</div><div class="value">${res.femaleCount || 0}</div></div>`;
+            html += `<div class="card-stat" style="border-color:#c9a227;"><div class="icon">✝️</div><div class="label">مرشومين</div><div class="value">${res.deaconCount || 0}</div></div>`;
+            html += `<div class="card-stat" style="border-color:var(--success);"><div class="icon">🏫</div><div class="label">عدد الفصول</div><div class="value">${res.classesCount || 0}</div></div>`;
+            html += '</div>';
+
+            html += '<div class="section-title">🏫 أعداد الطلاب لكل فصل</div>';
+            html += '<div class="table-container"><table><thead><tr><th>الفصل</th><th>المرحلة</th><th>الإجمالي</th><th>ذكور</th><th>إناث</th><th>مرشومين</th></tr></thead><tbody>';
+            (res.classStats || []).forEach(c => {
+                html += `<tr><td style="text-align:right; font-weight:bold;">${c.name}</td><td>${c.stage}</td><td>${c.total}</td><td>${c.male}</td><td>${c.female}</td><td>${c.deacon}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+
+            document.getElementById('content').innerHTML = html;
+        };
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>
+

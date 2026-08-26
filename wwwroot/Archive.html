@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>📦 أرشيف الطلاب والفصول</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+      body { direction: rtl; padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; }
+      .card { background: white; border-radius: 15px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+      .header-title { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; }
+      .controls { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
+      .controls > div { flex: 1; min-width: 200px; }
+      label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+      input, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
+      .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; font-size: 14px; }
+      .btn-primary { background: #3b82f6; }
+      .btn-danger { background: #ef4444; }
+      .btn-success { background: #10b981; }
+      
+      .status-bar { padding: 15px; border-radius: 10px; margin-bottom: 15px; font-weight: bold; text-align: center; display: none; }
+      .status-bar.success { background: #d1fae5; color: #065f46; display: block; }
+      .status-bar.error { background: #fee2e2; color: #991b1b; display: block; }
+      
+      .table-container { width: 100%; overflow-x: auto; background: white; border-radius: 10px; border: 1px solid #eee; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 12px; text-align: right; border-bottom: 1px solid #eee; }
+      th { background: #f8fafc; color: #334155; font-weight: bold; }
+      tr:hover { background: #f1f5f9; }
+      
+      .archive-panel { background: #fff8f1; border: 1px solid #fed7aa; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+      .archive-panel h4 { color: #c2410c; margin-top: 0; }
+    </style>
+  </head>
+  <body>
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="card archive-panel">
+      <h4>⚠️ إجراء أرشفة جديدة (نهاية العام)</h4>
+      <p style="color: #666; font-size: 13px; margin-bottom: 15px;">سيتم أخذ لقطة (نسخة) من جميع الطلاب وفصولهم الحالية وحفظها في الأرشيف للعام الدراسي المحدد.</p>
+      <div style="display: flex; gap: 15px; max-width: 500px;">
+        <div style="flex: 1;">
+          <input type="text" id="newArchiveYear" placeholder="مثال: 2025-2026">
+        </div>
+        <button class="btn btn-danger" onclick="archiveCurrentYear()">💾 أرشفة الآن</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="header-title">
+        <h3>🔍 استعراض الأرشيف السابق</h3>
+      </div>
+      
+      <div class="controls">
+        <div>
+          <label>اختر العام الدراسي المؤرشف</label>
+          <select id="archivedYearSelect" onchange="loadArchivedClasses()">
+            <option value="">-- جاري التحميل... --</option>
+          </select>
+        </div>
+        <div>
+          <label>اختر الفصل</label>
+          <select id="archivedClassSelect" onchange="loadArchivedStudents()" disabled>
+            <option value="">-- اختر العام أولاً --</option>
+          </select>
+        </div>
+        <div style="flex: 0; min-width: auto;">
+          <button class="btn btn-success" id="exportBtn" onclick="exportArchive()" style="display:none;">📥 تصدير Excel</button>
+        </div>
+      </div>
+      
+      <div class="table-container" id="studentsContainer" style="display: none;">
+        <table>
+          <thead>
+            <tr>
+              <th>رقم الطالب</th>
+              <th>الاسم</th>
+              <th>المرحلة</th>
+              <th>السنة الحكومية</th>
+              <th>التليفون</th>
+              <th>المجموع</th>
+              <th>الغياب</th>
+              <th>النتيجة</th>
+            </tr>
+          </thead>
+          <tbody id="studentsBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Modal Background -->
+    <div id="infoModal" style="display:none; position:fixed; z-index:1000; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); justify-content:center; align-items:center; backdrop-filter: blur(4px);">
+      <div style="background-color:#fff; padding:25px; border-radius:15px; width:90%; max-width:600px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); position:relative; max-height: 80vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #f0f2f5; padding-bottom:15px; margin-bottom:15px;">
+          <h3 id="modalTitle" style="margin:0; color:#1e293b;"></h3>
+          <span onclick="closeModal()" style="font-size:24px; font-weight:bold; cursor:pointer; color:#94a3b8; transition:color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#94a3b8'">&times;</span>
+        </div>
+        <div id="modalBody" style="overflow-y:auto; flex-grow:1; padding-right:5px;"></div>
+      </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+      window.onload = async () => {
+          requireRole('Admin');
+          await loadArchivedYears();
+      };
+
+      async function archiveCurrentYear() {
+          const year = document.getElementById('newArchiveYear').value.trim();
+          if (!year) {
+              showStatus('statusBar', 'error', '❌ يرجى كتابة العام الدراسي (مثال: 2025-2026)');
+              return;
+          }
+
+          if (!confirm(`هل أنت متأكد من أرشفة جميع الطلاب للعام ${year}؟\nيمكنك إعادة هذه العملية لتحديث الأرشيف لنفس العام.`)) {
+              return;
+          }
+
+          const btn = document.querySelector('.archive-panel .btn');
+          btn.innerHTML = '⏳ جاري الأرشفة...';
+          btn.disabled = true;
+
+          const res = await fetchApi(`/archive/year?year=${encodeURIComponent(year)}`, 'POST');
+          
+          btn.innerHTML = '💾 أرشفة الآن';
+          btn.disabled = false;
+
+          if (res && res.success) {
+              showStatus('statusBar', 'success', `✅ ${res.message}`);
+              document.getElementById('newArchiveYear').value = '';
+              await loadArchivedYears();
+          } else {
+              showStatus('statusBar', 'error', '❌ ' + (res?.message || 'حدث خطأ'));
+          }
+      }
+
+      async function loadArchivedYears() {
+          const select = document.getElementById('archivedYearSelect');
+          const res = await fetchApi('/archive/years');
+          
+          select.innerHTML = '<option value="">-- اختر العام --</option>';
+          if (res && res.years && res.years.length > 0) {
+              res.years.forEach(y => {
+                  const opt = document.createElement('option');
+                  opt.value = y; opt.textContent = y;
+                  select.appendChild(opt);
+              });
+          } else {
+              select.innerHTML = '<option value="">-- لا يوجد أرشيف مسجل --</option>';
+          }
+          
+          document.getElementById('archivedClassSelect').innerHTML = '<option value="">-- اختر العام أولاً --</option>';
+          document.getElementById('archivedClassSelect').disabled = true;
+          document.getElementById('studentsContainer').style.display = 'none';
+          document.getElementById('exportBtn').style.display = 'none';
+      }
+
+      async function loadArchivedClasses() {
+          const year = document.getElementById('archivedYearSelect').value;
+          const select = document.getElementById('archivedClassSelect');
+          
+          if (!year) {
+              select.innerHTML = '<option value="">-- اختر العام أولاً --</option>';
+              select.disabled = true;
+              document.getElementById('studentsContainer').style.display = 'none';
+              document.getElementById('exportBtn').style.display = 'none';
+              return;
+          }
+
+          select.innerHTML = '<option value="">-- جاري التحميل... --</option>';
+          select.disabled = true;
+          
+          const res = await fetchApi(`/archive/classes?year=${encodeURIComponent(year)}`);
+          
+          select.innerHTML = '<option value="">-- اختر الفصل لعرض الطلاب --</option>';
+          if (res && res.classes) {
+              let lastStage = null;
+              let optGroup = null;
+              
+              res.classes.forEach(c => {
+                  if (c.stageName !== lastStage && c.stageName) {
+                      optGroup = document.createElement('optgroup');
+                      optGroup.label = c.stageName;
+                      select.appendChild(optGroup);
+                      lastStage = c.stageName;
+                  }
+                  
+                  const opt = document.createElement('option');
+                  opt.value = c.className;
+                  opt.textContent = c.className;
+                  
+                  if (optGroup && c.stageName) optGroup.appendChild(opt);
+                  else select.appendChild(opt);
+              });
+              select.disabled = false;
+          }
+          
+          document.getElementById('studentsContainer').style.display = 'none';
+          document.getElementById('exportBtn').style.display = 'none';
+      }
+
+      async function loadArchivedStudents() {
+          const year = document.getElementById('archivedYearSelect').value;
+          const className = document.getElementById('archivedClassSelect').value;
+          const tbody = document.getElementById('studentsBody');
+          
+          if (!year || !className) {
+              document.getElementById('studentsContainer').style.display = 'none';
+              document.getElementById('exportBtn').style.display = 'none';
+              return;
+          }
+
+          document.getElementById('studentsContainer').style.display = 'block';
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">جاري التحميل...</td></tr>';
+          document.getElementById('exportBtn').style.display = 'none';
+
+          const res = await fetchApi(`/archive/students?year=${encodeURIComponent(year)}&className=${encodeURIComponent(className)}`);
+          
+          if (res && res.students) {
+              if (res.students.length === 0) {
+                  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا يوجد طلاب في هذا الفصل</td></tr>';
+                  return;
+              }
+              
+              let html = '';
+              res.students.forEach(s => {
+                  let phones = [];
+                  try { phones = JSON.parse(s.phones) || []; } catch(e) {}
+                  let phoneStr = phones.length > 0 ? (typeof phones[0] === 'object' ? phones[0].number : phones[0]) : '-';
+
+                  html += `<tr>
+                      <td style="font-weight:bold;">${s.id}</td>
+                      <td>${s.name}</td>
+                      <td>${s.stage || '-'}</td>
+                      <td>${s.govGrade || '-'}</td>
+                      <td dir="ltr" style="text-align:right;">${phoneStr}</td>
+                      <td style="font-weight:bold; color:#0369a1;">${s.totalGrades !== undefined && s.totalGrades !== null ? s.totalGrades : '-'}</td>
+                      <td><button class="btn btn-primary" style="padding: 5px 10px; font-size: 12px;" onclick="showAbsence('${s.id}', '${year}')">الغياب</button></td>
+                      <td><button class="btn btn-success" style="padding: 5px 10px; font-size: 12px;" onclick="showResult('${s.id}', '${year}')">النتيجة</button></td>
+                  </tr>`;
+              });
+              tbody.innerHTML = html;
+              document.getElementById('exportBtn').style.display = 'inline-block';
+          } else {
+              tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">حدث خطأ في التحميل</td></tr>';
+          }
+      }
+
+      function exportArchive() {
+          const year = document.getElementById('archivedYearSelect').value;
+          const className = document.getElementById('archivedClassSelect').value;
+          if(!year || !className) return;
+          
+          let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; // BOM for arabic support
+          csvContent += "ID,Name,Stage,Gov Grade,Phone,Total\n";
+
+          const rows = document.querySelectorAll("#studentsBody tr");
+          rows.forEach(row => {
+              const cols = row.querySelectorAll("td");
+              if (cols.length === 5) {
+                  const data = Array.from(cols).map(c => `"${c.innerText}"`).join(",");
+                  csvContent += data + "\n";
+              }
+          });
+
+          const encodedUri = encodeURI(csvContent);
+          const link = document.createElement("a");
+          link.setAttribute("href", encodedUri);
+          link.setAttribute("download", `Archive_${year}_${className}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      }
+
+      function showAbsence(studentId, year) {
+          document.getElementById('modalTitle').innerText = 'تفاصيل الغياب';
+          document.getElementById('modalBody').innerHTML = '<div style="text-align:center; padding:20px;">جاري التحميل...</div>';
+          document.getElementById('infoModal').style.display = 'flex';
+          
+          fetchApi(`/archive/student-absence?studentId=${studentId}&year=${encodeURIComponent(year)}`)
+            .then(res => {
+                if (res && res.absence && res.absence.length > 0) {
+                    let html = '<table class="table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="border-bottom:1px solid #ddd; padding:8px;">التاريخ</th><th style="border-bottom:1px solid #ddd; padding:8px;">السبب</th></tr></thead><tbody>';
+                    res.absence.forEach(a => {
+                        html += `<tr>
+                            <td style="border-bottom:1px solid #ddd; padding:8px; text-align:right;">${a.date || a.absenceDate || '-'}</td>
+                            <td style="border-bottom:1px solid #ddd; padding:8px; text-align:right;">${a.reason || '-'}</td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('modalBody').innerHTML = html;
+                } else {
+                    document.getElementById('modalBody').innerHTML = '<div style="text-align:center; padding:20px; color:#666;">لا توجد أيام غياب مسجلة لهذا الطالب في هذا العام.</div>';
+                }
+            }).catch(e => {
+                document.getElementById('modalBody').innerHTML = '<div style="text-align:center; padding:20px; color:red;">حدث خطأ أثناء جلب البيانات.</div>';
+            });
+      }
+
+      function showResult(studentId, year) {
+          document.getElementById('modalTitle').innerText = 'تفاصيل النتيجة';
+          document.getElementById('modalBody').innerHTML = '<div style="text-align:center; padding:20px;">جاري التحميل...</div>';
+          document.getElementById('infoModal').style.display = 'flex';
+          
+          fetchApi(`/archive/student-result?studentId=${studentId}&year=${encodeURIComponent(year)}`)
+            .then(res => {
+                if (res && res.result && res.result.subjects) {
+                    let html = '<table class="table" style="width:100%; border-collapse:collapse;"><thead><tr><th style="border-bottom:1px solid #ddd; padding:8px;">المادة</th><th style="border-bottom:1px solid #ddd; padding:8px;">الدرجة</th></tr></thead><tbody>';
+                    res.result.subjects.forEach(sub => {
+                        html += `<tr>
+                            <td style="border-bottom:1px solid #ddd; padding:8px; text-align:right;">${sub.name || sub.subjectName || '-'}</td>
+                            <td style="border-bottom:1px solid #ddd; padding:8px; text-align:right; font-weight:bold;">${sub.grade || sub.score || '-'}</td>
+                        </tr>`;
+                    });
+                    html += `<tr><td style="border-bottom:1px solid #ddd; padding:8px; text-align:right; font-weight:bold;">المجموع</td><td style="border-bottom:1px solid #ddd; padding:8px; text-align:right; font-weight:bold; color:#0369a1;">${res.result.total || '-'}</td></tr>`;
+                    html += '</tbody></table>';
+                    document.getElementById('modalBody').innerHTML = html;
+                } else {
+                    document.getElementById('modalBody').innerHTML = '<div style="text-align:center; padding:20px; color:#666;">لا توجد تفاصيل نتيجة مسجلة لهذا الطالب في هذا العام.</div>';
+                }
+            }).catch(e => {
+                document.getElementById('modalBody').innerHTML = '<div style="text-align:center; padding:20px; color:red;">حدث خطأ أثناء جلب البيانات.</div>';
+            });
+      }
+
+      function closeModal() {
+          document.getElementById('infoModal').style.display = 'none';
+      }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>

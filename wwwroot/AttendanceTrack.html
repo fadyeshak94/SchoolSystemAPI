@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🔍 متابعة الغياب</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; border-radius: 10px; background: rgba(255,255,255,0.05); color: var(--text-muted); font-weight: bold; cursor: pointer; box-shadow: var(--card-shadow); transition: 0.3s; }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .status-toggle { display: inline-flex; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1; }
+        .status-toggle button { border: none; padding: 6px 14px; background: rgba(255,255,255,0.05); cursor: pointer; font-weight: bold; color: var(--text-muted); font-size: 12px; }
+        .status-toggle button.active.present { background: var(--success); color: white; }
+        .status-toggle button.active.absent { background: var(--danger); color: white; }
+        .search-item { padding: 10px; border-radius: 8px; cursor: pointer; background: rgba(255,255,255,0.05); margin-bottom: 5px; display: flex; justify-content: space-between; }
+        .search-item:hover { background: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+    
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="tabs">
+        <button class="tab-btn active" id="tabByName" onclick="switchTab('byName')">👤 بحث باسم الطالب</button>
+        <button class="tab-btn" id="tabByClass" onclick="switchTab('byClass')">🏫 مراجعة فصل (يوم محدد)</button>
+    </div>
+
+    <!-- تبويب البحث بالاسم -->
+    <div id="panelByName">
+        <div class="controls">
+            <input type="text" id="searchInput" placeholder="اكتب جزء من الاسم للبحث..." oninput="searchStudent()" style="width:100%;">
+            <div id="searchResults" style="width:100%; max-height:200px; overflow:auto; margin-top:10px;"></div>
+        </div>
+        <div id="studentHistoryArea"></div>
+    </div>
+
+    <!-- تبويب الفصل -->
+    <div id="panelByClass" style="display:none;">
+        <div class="controls">
+            <select id="classSelect"></select>
+            <input type="date" id="dateInput">
+            <button class="btn btn-primary" onclick="loadClassAttendance()">📋 تحميل السجل</button>
+            <button class="btn btn-success" id="saveClassBtn" onclick="saveClassAttendance()" style="display:none; margin-right:auto;">💾 حفظ التعديلات</button>
+        </div>
+        <div id="classContent" class="table-container"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => loadClassesDropdown('classSelect', false);
+
+        function switchTab(tab) {
+            document.getElementById('tabByName').classList.toggle('active', tab === 'byName');
+            document.getElementById('tabByClass').classList.toggle('active', tab === 'byClass');
+            document.getElementById('panelByName').style.display = tab === 'byName' ? 'block' : 'none';
+            document.getElementById('panelByClass').style.display = tab === 'byClass' ? 'block' : 'none';
+        }
+
+        // ============ اللوجيك الخاص بالبحث بالاسم ============
+        let searchTimer;
+        function searchStudent() {
+            clearTimeout(searchTimer);
+            const q = document.getElementById('searchInput').value;
+            if (q.length < 2) { document.getElementById('searchResults').innerHTML = ''; return; }
+            
+            searchTimer = setTimeout(async () => {
+                const res = await fetchApi(`/students/search?name=${encodeURIComponent(q)}`);
+                if (!res || !res.students) return;
+                
+                let html = '';
+                res.students.forEach(s => {
+                    html += `<div class="search-item" onclick="loadStudentHistory(${s.id}, '${s.name}')">
+                        <span style="font-weight:bold;">${s.name}</span> <span style="font-size:12px; color:#64748b;">${s.className}</span>
+                    </div>`;
+                });
+                document.getElementById('searchResults').innerHTML = html;
+            }, 400);
+        }
+
+        async function loadStudentHistory(id, name) {
+            document.getElementById('searchResults').innerHTML = '';
+            document.getElementById('studentHistoryArea').innerHTML = '<div class="spinner"></div>';
+            
+            const res = await fetchApi(`/attendance/student/${id}/history`);
+            if (!res || !res.records) return;
+
+            let html = `<div class="card"><h3 style="margin-bottom:15px;">سجل حضور: <span style="color:var(--primary);">${name}</span></h3>`;
+            if (res.records.length === 0) {
+                html += '<div style="text-align:center; color:#64748b;">لا توجد سجلات</div></div>';
+                document.getElementById('studentHistoryArea').innerHTML = html;
+                return;
+            }
+
+            html += `<table><thead><tr><th>التاريخ</th><th>التيرم</th><th>السنة</th><th>تعديل الحالة</th></tr></thead><tbody>`;
+            res.records.forEach(r => {
+                html += `<tr>
+                    <td><strong>${r.date}</strong></td><td>${r.term}</td><td>${r.year}</td>
+                    <td>
+                        <div class="status-toggle">
+                            <button class="present ${r.status === 'Present' ? 'active' : ''}" onclick="editSingleStatus(this, ${id}, '${r.date}', 'Present')">حاضر</button>
+                            <button class="absent ${r.status === 'Absent' ? 'active' : ''}" onclick="editSingleStatus(this, ${id}, '${r.date}', 'Absent')">غائب</button>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+            document.getElementById('studentHistoryArea').innerHTML = html;
+        }
+
+        async function editSingleStatus(btn, studentId, dateStr, status) {
+            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            const payload = { studentId, date: dateStr, status };
+            await fetchApi('/attendance/record/update', 'PUT', payload);
+            showStatus('statusBar', 'success', 'تم التحديث بنجاح');
+        }
+
+        // ============ اللوجيك الخاص بمراجعة الفصل (مشابه لـ AttendanceEntry) ============
+        async function loadClassAttendance() {
+            const classId = document.getElementById('classSelect').value;
+            const dateStr = document.getElementById('dateInput').value;
+            if (!classId || !dateStr) return showStatus('statusBar', 'error', 'اختر الفصل والتاريخ');
+
+            document.getElementById('classContent').innerHTML = '<div class="spinner"></div>';
+            const res = await fetchApi(`/attendance/entry?classId=${classId}&date=${dateStr}`);
+            if (!res || !res.students) return;
+
+            if (!res.alreadyRecorded) {
+                document.getElementById('classContent').innerHTML = '<div style="text-align:center; padding:20px; color:#d93025; font-weight:bold; background:#fce8e6; border-radius:10px; margin-top:15px;">عفوا لا يوجد غياب فى ذلك التاريخ</div>';
+                document.getElementById('saveClassBtn').style.display = 'none';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>الاسم</th><th>الحالة</th></tr></thead><tbody>';
+            res.students.forEach(s => {
+                html += `<tr data-id="${s.id}">
+                    <td style="text-align:right; font-weight:bold;">${s.name}</td>
+                    <td>
+                        <div class="status-toggle">
+                            <button class="present ${s.status === 'Present' ? 'active' : ''}" onclick="setStatus(this)">حاضر</button>
+                            <button class="absent ${s.status === 'Absent' ? 'active' : ''}" onclick="setStatus(this)">غائب</button>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('classContent').innerHTML = html;
+            document.getElementById('saveClassBtn').style.display = res.students.length > 0 ? 'inline-flex' : 'none';
+        }
+
+        function setStatus(btn) {
+            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        async function saveClassAttendance() {
+            const records = [];
+            document.querySelectorAll('#classContent tbody tr').forEach(row => {
+                const isAbsent = row.querySelector('.absent.active') !== null;
+                records.push({ studentId: parseInt(row.dataset.id), status: isAbsent ? 'Absent' : 'Present' });
+            });
+
+            const payload = {
+                classId: parseInt(document.getElementById('classSelect').value),
+                date: document.getElementById('dateInput').value,
+                term: "1", academicYear: "2026-2027", records: records
+            };
+
+            const res = await fetchApi('/attendance/entry/save', 'POST', payload);
+            if (res && res.success) showStatus('statusBar', 'success', res.message);
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>
+

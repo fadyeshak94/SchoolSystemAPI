@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📝 مراجعة درجات الفصل</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .grade-input { width: 55px; text-align: center; padding: 4px; font-weight: bold; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.1); color: var(--text-light); }
+        .grade-input.low { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+        .grade-input.high { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .grade-input:focus { background: rgba(15, 23, 42, 0.9); }
+    </style>
+</head>
+<body>
+    
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="controls">
+        <select id="classSelect" onchange="loadGrades()"></select>
+        <button class="btn btn-success" id="saveAllBtn" onclick="saveAllGrades()" style="display:none; margin-right:auto;">💾 حفظ الكل</button>
+    </div>
+
+    <div id="content" class="table-container"></div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let changes = {};
+
+        window.onload = () => loadClassesDropdown('classSelect');
+
+        async function loadGrades() {
+            const classId = document.getElementById('classSelect').value;
+            if (!classId) return;
+
+            document.getElementById('content').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('saveAllBtn').style.display = 'none';
+            changes = {};
+
+            const res = await fetchApi(`/grades/class/${classId}/full`); 
+            if (!res || !res.students) return;
+
+            let html = '<table><thead><tr><th>#</th><th>الاسم</th>';
+            res.subjects.forEach(sub => html += `<th>${sub}</th>`);
+            html += '<th>المجموع</th></tr></thead><tbody>';
+
+            res.students.forEach((s, i) => {
+                html += `<tr><td>${i + 1}</td><td style="text-align:right;"><strong>${s.name}</strong></td>`;
+                res.subjects.forEach(sub => {
+                    const score = s.subjects[sub] || 0;
+                    const cls = score < 25 ? 'low' : (score >= 40 ? 'high' : '');
+                    html += `<td><input type="number" class="grade-input ${cls}" data-id="${s.id}" data-sub="${sub}" value="${score}" onchange="markChanged(this)"></td>`;
+                });
+                html += `<td style="font-weight:bold; color:var(--primary);">${s.total}</td></tr>`;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('content').innerHTML = html;
+            if (res.students.length > 0) document.getElementById('saveAllBtn').style.display = 'inline-block';
+        }
+
+        function markChanged(input) {
+            const id = input.dataset.id;
+            const sub = input.dataset.sub;
+            const val = parseFloat(input.value) || 0;
+            if (!changes[id]) changes[id] = {};
+            changes[id][sub] = val;
+        }
+
+        async function saveAllGrades() {
+            if (Object.keys(changes).length === 0) return showStatus('statusBar', 'info', 'لا توجد تعديلات');
+            
+            const btn = document.getElementById('saveAllBtn');
+            btn.disabled = true;
+
+            const res = await fetchApi('/grades/saveAll', 'POST', { classId: document.getElementById('classSelect').value, updates: changes });
+            btn.disabled = false;
+
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message);
+                loadGrades();
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'خطأ في الحفظ');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>
+

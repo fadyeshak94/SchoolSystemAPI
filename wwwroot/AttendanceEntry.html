@@ -1,0 +1,119 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🗓️ تسجيل الغياب</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .status-toggle { display: inline-flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); }
+        .status-toggle button { border: none; padding: 6px 16px; background: rgba(255,255,255,0.05); cursor: pointer; font-weight: bold; color: var(--text-muted); }
+        .status-toggle button.active.present { background: var(--success); color: white; }
+        .status-toggle button.active.absent { background: var(--danger); color: white; }
+    </style>
+</head>
+<body>
+    
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="controls">
+        <select id="classSelect"></select>
+        <input type="date" id="dateInput">
+        <button class="btn btn-primary" onclick="loadAttendance()">📋 تحميل الطلاب</button>
+        <button class="btn btn-success" id="saveBtn" onclick="saveAttendance()" style="display:none; margin-right:auto;">💾 حفظ الغياب</button>
+    </div>
+
+    <div id="content" class="table-container"></div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentTerm = "1";
+        let currentYear = "2026-2027";
+
+        window.onload = async () => {
+            loadClassesDropdown('classSelect');
+            
+            // جلب الإعدادات (التيرم والسنة)
+            const settings = await fetchApi('/settings');
+            if (settings) {
+                currentTerm = settings.currentTerm || "1";
+                currentYear = settings.academicYear || "2026-2027";
+            }
+
+            // منع اختيار أيام غير الجمعة
+            document.getElementById('dateInput').addEventListener('change', function() {
+                if (this.value) {
+                    const day = new Date(this.value).getDay();
+                    if (day !== 5) {
+                        showStatus('statusBar', 'error', 'عفواً، يمكن تسجيل الغياب لأيام الجمعة فقط');
+                        this.value = '';
+                    }
+                }
+            });
+        };
+
+        async function loadAttendance() {
+            const classId = document.getElementById('classSelect').value;
+            const dateStr = document.getElementById('dateInput').value;
+            if (!classId || !dateStr) return showStatus('statusBar', 'error', 'اختر الفصل والتاريخ');
+
+            document.getElementById('content').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('saveBtn').style.display = 'none';
+
+            const res = await fetchApi(`/attendance/entry?classId=${classId}&date=${dateStr}`);
+            if (!res || !res.students) return;
+
+            if(res.alreadyRecorded) showStatus('statusBar', 'info', 'الغياب مسجل مسبقاً، أي تعديل سيحدث السجل.');
+
+            let html = '<table><thead><tr><th>الاسم</th><th>الحالة</th></tr></thead><tbody>';
+            res.students.forEach(s => {
+                html += `<tr data-id="${s.id}">
+                    <td style="text-align:right;"><strong>${s.name}</strong></td>
+                    <td>
+                        <div class="status-toggle">
+                            <button class="present ${s.status === 'Present' ? 'active' : ''}" onclick="setStatus(this, 'Present')">حاضر</button>
+                            <button class="absent ${s.status === 'Absent' ? 'active' : ''}" onclick="setStatus(this, 'Absent')">غائب</button>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('content').innerHTML = html;
+            if (res.students.length > 0) document.getElementById('saveBtn').style.display = 'inline-flex';
+        }
+
+        function setStatus(btn, status) {
+            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        async function saveAttendance() {
+            const records = [];
+            document.querySelectorAll('#content tbody tr').forEach(row => {
+                const isAbsent = row.querySelector('.absent.active') !== null;
+                records.push({ studentId: parseInt(row.dataset.id), status: isAbsent ? 'Absent' : 'Present' });
+            });
+
+            const payload = {
+                classId: parseInt(document.getElementById('classSelect').value),
+                date: document.getElementById('dateInput').value,
+                term: currentTerm,
+                academicYear: currentYear,
+                records: records
+            };
+
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+
+            const res = await fetchApi('/attendance/entry/save', 'POST', payload);
+            btn.disabled = false;
+
+            if (res && res.success) showStatus('statusBar', 'success', res.message);
+            else showStatus('statusBar', 'error', res?.message || 'خطأ في الحفظ');
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>
+

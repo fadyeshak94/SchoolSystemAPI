@@ -1,0 +1,188 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>✏️ رصد الدرجات</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .note-box { background:#fff8e1; border-right:4px solid #f9ab00; color:#7a5c00; padding:10px 15px; border-radius:10px; margin-bottom:15px; font-size:13px; }
+        .controls { display:flex; gap:15px; align-items:center; margin-bottom:20px; flex-wrap:wrap; }
+        .exam-input { width:70px; padding:6px; border:2px solid #ddd; border-radius:8px; text-align:center; font-size:14px; font-weight:bold; }
+        .exam-input:focus { border-color:var(--primary); outline:none; }
+        .exam-input.changed { background:#fff3cd; border-color:#f9ab00; }
+        .exam-input.invalid { background:#fce8e6; border-color:var(--danger); color:var(--danger); }
+        .action-bar { display:flex; justify-content:flex-end; gap:10px; margin-top:15px; }
+    </style>
+</head>
+<body>
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="note-box">
+      ℹ️ هنا بتقدر تسجل وتعدّل درجة الامتحان بس (بحد أقصى 45)، والحفظ بيتم للطلاب اللي تم تعديل درجاتهم فقط.
+    </div>
+
+    <div class="controls">
+        <label>🏫 الفصل:</label>
+        <select id="classSelect"></select>
+
+        <label>📖 المادة:</label>
+        <select id="subjectSelect">
+            <option value="">-- اختر مادة --</option>
+            <option value="أجبية">أجبية</option>
+            <option value="الحان">الحان</option>
+            <option value="طقس">طقس</option>
+            <option value="قبطي">قبطي</option>
+            <option value="مواد_متغيرة">مواد متغيرة</option>
+        </select>
+        
+        <button class="btn btn-primary" onclick="loadGrades()">📋 عرض الطلاب</button>
+    </div>
+
+    <div id="content" class="table-container"></div>
+
+    <div class="action-bar" id="actionBar" style="display:none;">
+        <button class="btn btn-success" id="saveBtn" onclick="saveGrades()">💾 حفظ التعديلات</button>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentTerm = "1";
+        let currentYear = "2026-2027";
+        let changedValues = {};
+
+        window.onload = async () => {
+            loadClassesDropdown('classSelect');
+            
+            // جلب الإعدادات (التيرم والسنة)
+            const settings = await fetchApi('/settings');
+            if (settings) {
+                currentTerm = settings.currentTerm || "1";
+                currentYear = settings.academicYear || "2026-2027";
+            }
+        };
+
+        async function loadGrades() {
+            const classId = document.getElementById('classSelect').value;
+            const subject = document.getElementById('subjectSelect').value;
+            
+            if (!classId || !subject) {
+                showStatus('statusBar', 'error', 'الرجاء اختيار الفصل والمادة');
+                return;
+            }
+
+            document.getElementById('content').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('actionBar').style.display = 'none';
+            changedValues = {};
+
+            const res = await fetchApi(`/grades/grid?classId=${classId}&term=${currentTerm}&subject=${subject}`);
+            
+            if (!res || !res.students) {
+                document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ لم يتم العثور على طلاب أو حدث خطأ في الاتصال</div>';
+                return;
+            }
+
+            if (res.students.length === 0) {
+                document.getElementById('content').innerHTML = '<div style="text-align:center; padding:20px;">لا يوجد طلاب في هذا الفصل</div>';
+                return;
+            }
+
+            let html = '<table><thead><tr><th>#</th><th>رقم الطالب</th><th style="text-align:right;">اسم الطالب</th><th>درجة الامتحان (من 45)</th></tr></thead><tbody>';
+            
+            res.students.forEach((s, idx) => {
+                const currentGrade = s.exam || 0;
+                html += `<tr>
+                    <td>${idx + 1}</td>
+                    <td><strong>${s.id}</strong></td>
+                    <td style="text-align:right; font-weight:bold;">${s.name}</td>
+                    <td>
+                        <input type="number" class="exam-input" min="0" max="45" step="0.5" 
+                               value="${currentGrade}" data-original="${currentGrade}" data-student="${s.id}" 
+                               oninput="onExamChange(this)">
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            
+            document.getElementById('content').innerHTML = html;
+            document.getElementById('actionBar').style.display = 'flex';
+        }
+
+        function onExamChange(input) {
+            let val = parseFloat(input.value);
+            const studentId = input.dataset.student;
+            const original = parseFloat(input.dataset.original);
+
+            input.classList.remove('invalid', 'changed');
+
+            if (isNaN(val) || val < 0 || val > 45) {
+                input.classList.add('invalid');
+                return;
+            }
+
+            if (val !== original) {
+                input.classList.add('changed');
+                changedValues[studentId] = val;
+            } else {
+                delete changedValues[studentId];
+            }
+        }
+
+        async function saveGrades() {
+            const invalidInputs = document.querySelectorAll('.exam-input.invalid');
+            if (invalidInputs.length > 0) {
+                showStatus('statusBar', 'error', 'يوجد درجات غير صحيحة (أكبر من 45 أو أقل من 0)، يرجى تصحيحها أولاً');
+                return;
+            }
+
+            const keys = Object.keys(changedValues);
+            if (keys.length === 0) {
+                showStatus('statusBar', 'info', 'لا توجد تعديلات لحفظها');
+                return;
+            }
+
+            const classId = document.getElementById('classSelect').value;
+            const subject = document.getElementById('subjectSelect').value;
+
+            const records = keys.map(id => ({
+                studentId: parseInt(id),
+                examScore: changedValues[id]
+            }));
+
+            const payload = {
+                classId: parseInt(classId),
+                term: currentTerm,
+                subject: subject,
+                updates: records
+            };
+
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ جاري الحفظ...';
+
+            const res = await fetchApi('/grades/grid/save', 'POST', payload);
+            
+            btn.disabled = false;
+            btn.innerHTML = '💾 حفظ التعديلات';
+
+            if (res && res.success) {
+                showStatus('statusBar', 'success', 'تم حفظ التعديلات بنجاح');
+                // تحديث القيم الأصلية بعد الحفظ حتى لا يتم احتسابها كتغييرات جديدة
+                Object.keys(changedValues).forEach(id => {
+                    const input = document.querySelector(`.exam-input[data-student="${id}"]`);
+                    if(input) {
+                        input.dataset.original = changedValues[id];
+                        input.classList.remove('changed');
+                    }
+                });
+                changedValues = {};
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'حدث خطأ أثناء الحفظ');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>
+

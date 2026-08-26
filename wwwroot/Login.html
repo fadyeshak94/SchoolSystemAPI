@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ar">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - نظام إدارة الطلاب</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: transparent;
+            margin: 0;
+        }
+
+        .login-card {
+            background: var(--glass-bg);
+            padding: 40px;
+            border-radius: 16px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            backdrop-filter: blur(16px);
+        }
+
+        .login-card h2 {
+            margin-bottom: 30px;
+            color: var(--text-light);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            margin-bottom: 15px;
+            font-weight: bold;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-card">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <img src="/images/logo.png" alt="شعار المدرسة" style="max-width: 150px; border-radius: 50%;">
+        </div>
+        <h2 style="margin-top: 0;">تسجيل الدخول</h2>
+        <div id="errorMsg" class="error-msg"></div>
+        <div class="form-group">
+            <label>اسم المستخدم</label>
+            <input type="text" id="username" placeholder="">
+        </div>
+        <div class="form-group">
+            <label>كلمة المرور</label>
+            <input type="password" id="password" placeholder="••••••••">
+        </div>
+        <button class="btn btn-primary login-btn" onclick="login()">دخول</button>
+    </div>
+
+    <!-- Password Reset Modal -->
+    <div class="modal-overlay" id="resetModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>تغيير كلمة المرور إجباري</h3>
+            </div>
+            <div class="form-group">
+                <label>كلمة المرور الجديدة</label>
+                <input type="password" id="newPassword" placeholder="كلمة مرور قوية">
+            </div>
+            <div class="form-group">
+                <label>تأكيد كلمة المرور</label>
+                <input type="password" id="confirmPassword" placeholder="تأكيد كلمة المرور">
+            </div>
+            <div id="resetError" class="error-msg" style="margin-top:10px;"></div>
+            <button class="btn btn-danger" style="width: 100%; margin-top: 15px;" onclick="changePassword()">تحديث كلمة
+                المرور والدخول</button>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        if (localStorage.getItem('appToken')) {
+            window.location.href = '/Registration.html';
+        }
+
+        let pendingUsername = '';
+        let pendingOldPassword = '';
+        let pendingToken = '';
+
+        async function login() {
+            const btn = document.querySelector('.login-btn');
+            const errorMsg = document.getElementById('errorMsg');
+            btn.disabled = true;
+            btn.innerHTML = 'جاري التحقق...';
+            errorMsg.style.display = 'none';
+
+            const payload = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.requiresPasswordReset) {
+                        pendingUsername = payload.username;
+                        pendingOldPassword = payload.password;
+                        pendingToken = data.token;
+                        document.getElementById('resetModal').classList.add('active');
+                    } else {
+                        localStorage.setItem('appToken', data.token);
+                        window.location.href = '/Registration.html';
+                    }
+                } else {
+                    errorMsg.textContent = data.message || "بيانات الدخول غير صحيحة";
+                    errorMsg.style.display = 'block';
+                }
+            } catch (err) {
+                errorMsg.textContent = "حدث خطأ في الاتصال بالخادم";
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'دخول';
+            }
+        }
+
+        async function changePassword() {
+            const newPass = document.getElementById('newPassword').value;
+            const confPass = document.getElementById('confirmPassword').value;
+            const err = document.getElementById('resetError');
+
+            if (!newPass || newPass !== confPass) {
+                err.textContent = "كلمتا المرور غير متطابقتين أو فارغة";
+                err.style.display = 'block';
+                return;
+            }
+
+            const payload = {
+                username: pendingUsername,
+                oldPassword: pendingOldPassword,
+                newPassword: newPass
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/change-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    localStorage.setItem('appToken', pendingToken);
+                    window.location.href = '/Registration.html';
+                } else {
+                    err.textContent = data.message || "فشل تغيير كلمة المرور";
+                    err.style.display = 'block';
+                }
+            } catch (error) {
+                err.textContent = "حدث خطأ في الاتصال";
+                err.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+
+</html>

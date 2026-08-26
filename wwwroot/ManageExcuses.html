@@ -1,0 +1,90 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>⚙️ إدارة الأعذار</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .excuse-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 15px; border: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .excuse-info { flex: 1; min-width: 300px; }
+        .excuse-actions { display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="card">
+        <h3>الأعذار المعلقة</h3>
+        <button class="btn btn-primary" onclick="loadPendingExcuses()" style="margin-bottom: 15px;">🔄 تحديث</button>
+        <div id="pendingList">جاري التحميل...</div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => {
+            requireRole('Admin');
+            loadPendingExcuses();
+        };
+
+        async function loadPendingExcuses() {
+            document.getElementById('pendingList').innerHTML = 'جاري التحميل...';
+            const res = await fetchApi('/excuses/pending');
+            if(res && res.success) {
+                if(res.excuses.length === 0) {
+                    document.getElementById('pendingList').innerHTML = '<div style="color:#666;">لا توجد أعذار معلقة.</div>';
+                } else {
+                    let html = '';
+                    res.excuses.forEach(e => {
+                        html += `<div class="excuse-card" id="excuse-${e.id}">
+                            <div class="excuse-info">
+                                <strong>الطالب:</strong> ${e.studentName} <br>
+                                <strong>التاريخ:</strong> ${e.date} <br>
+                                <strong>التيرم/العام:</strong> ${e.term} - ${e.year} <br>
+                                <strong>السبب:</strong> <span style="color:#666;">${e.reason}</span>
+                            </div>
+                            <div class="excuse-actions">
+                                <button class="btn btn-success" onclick="approveExcuse(${e.id})">✅ موافقة</button>
+                                <button class="btn btn-danger" onclick="rejectExcuse(${e.id})">❌ رفض</button>
+                            </div>
+                        </div>`;
+                    });
+                    document.getElementById('pendingList').innerHTML = html;
+                }
+            } else {
+                document.getElementById('pendingList').innerHTML = '<div style="color:red;">حدث خطأ في جلب الأعذار.</div>';
+            }
+        }
+
+        async function approveExcuse(id) {
+            if(!confirm('هل أنت متأكد من الموافقة على هذا العذر؟ سيتم اعتباره حضور للطالب وسيحسب له نصف درجة في الحضور.')) return;
+            const res = await fetchApi(`/excuses/${id}/approve`, 'POST');
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message);
+                document.getElementById(`excuse-${id}`).remove();
+                if(document.querySelectorAll('.excuse-card').length === 0) {
+                    document.getElementById('pendingList').innerHTML = '<div style="color:#666;">لا توجد أعذار معلقة.</div>';
+                }
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'حدث خطأ.');
+            }
+        }
+
+        async function rejectExcuse(id) {
+            if(!confirm('هل أنت متأكد من رفض هذا العذر؟')) return;
+            const res = await fetchApi(`/excuses/${id}/reject`, 'POST');
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message);
+                document.getElementById(`excuse-${id}`).remove();
+                if(document.querySelectorAll('.excuse-card').length === 0) {
+                    document.getElementById('pendingList').innerHTML = '<div style="color:#666;">لا توجد أعذار معلقة.</div>';
+                }
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'حدث خطأ.');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>
+

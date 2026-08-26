@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>💳 التسجيل والاشتراكات</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .search-container { position: relative; margin-bottom: 20px; }
+        .search-input { width: 100%; padding: 15px; border: 2px solid var(--primary); border-radius: 12px; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .search-results { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 250px; overflow-y: auto; z-index: 100; box-shadow: 0 10px 15px rgba(0,0,0,0.1); display: none; }
+        .search-result-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; }
+        .search-result-item:hover { background: #f8fafc; }
+        .search-result-item .name { font-weight: bold; color: var(--primary); font-size: 15px; }
+        .search-result-item .details { font-size: 13px; color: var(--text-muted); display: flex; gap: 15px; margin-top: 4px; }
+        
+        .section-title { font-size: 18px; color: var(--primary); margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid var(--secondary); display: flex; justify-content: space-between; align-items: center; }
+        .new-btn { background: var(--success); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 15px; }
+        .new-btn:hover { background: #059669; }
+        
+        .form-section { display: none; background: white; padding: 25px; border-radius: 12px; box-shadow: var(--box-shadow); margin-top: 20px; border-top: 4px solid var(--primary); }
+        .form-section.active { display: block; animation: fadeIn 0.4s ease; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+        .badge-old { background: #e0e7ff; color: #3730a3; }
+        .badge-new { background: #d1fae5; color: #065f46; }
+    </style>
+</head>
+<body>
+
+    <div class="card" style="padding: 20px;">
+        <h3 style="margin-top:0; color:var(--primary); text-align:center;">البحث والتسجيل</h3>
+        <p style="text-align:center; color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            ابحث عن اسم الطالب للتجديد أو أضف طالباً جديداً إذا لم تجده في النظام.
+        </p>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="🔍 ابحث عن اسم الطالب (مينا كيرلس...)" oninput="handleSearch()" autocomplete="off">
+            <div id="searchResults" class="search-results"></div>
+            <button class="new-btn" onclick="openNewStudentForm()">➕ لم أجد الطالب، إضافة كطالب جديد كلياً</button>
+        </div>
+    </div>
+
+    <!-- Form Section -->
+    <div id="studentFormSection" class="form-section">
+        <div class="section-title">
+            <span id="formTitle">بيانات الطالب</span>
+            <span id="formBadge" class="badge"></span>
+        </div>
+
+        <input type="hidden" id="formMode"> <!-- 'new' or 'old' -->
+        <input type="hidden" id="studentId"> <!-- Only used for old -->
+
+        <div class="controls" style="margin-bottom:0;">
+            <div id="oldStudentInfo" style="display:none; width:100%; margin-bottom:15px; padding:15px; background:#f1f5f9; border-radius:8px; color:#475569; font-size:14px; border:1px solid #cbd5e1;">
+                <strong>البيانات القديمة:</strong><br>
+                🏫 الفصل القديم: <span id="lblOldClass">-</span><br>
+                🎓 السنة الحكومية القديمة: <span id="lblOldGovGrade">-</span>
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;" id="idContainer">
+                <label>🆔 رقم الطالب (ID):</label>
+                <input type="number" id="studentIdDisplay" placeholder="جاري الاقتراح...">
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;">
+                <label>👤 اسم الطالب بالكامل:</label>
+                <input type="text" id="studentName">
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;">
+                <label>🏫 المرحلة الكنسية الجديدة:</label>
+                <select id="stageSelect" onchange="filterClasses()">
+                    <option value="">-- اختر المرحلة --</option>
+                </select>
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;">
+                <label>🏫 الفصل الجديد:</label>
+                <select id="classSelect">
+                    <option value="">-- اختر فصل --</option>
+                </select>
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;" id="genderContainer">
+                <label>⚧ النوع:</label>
+                <select id="studentGender" onchange="toggleDeaconField()">
+                    <option value="ذكر">ذكر</option>
+                    <option value="أنثى">أنثى</option>
+                </select>
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;" id="deaconContainer">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+                    <input type="checkbox" id="studentIsDeacon" style="width:auto;margin:0;"> مرشوم شماس؟
+                </label>
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;">
+                <label>🎓 السنة التعليمية الحكومية (الجديدة):</label>
+                <select id="studentGovGrade">
+                    <option value="">-- اختياري --</option>
+                </select>
+            </div>
+
+            <div style="width:100%; margin-bottom:15px;">
+                <label>📱 رقم التليفون (للتواصل):</label>
+                <input type="text" id="studentPhone" placeholder="01xxxxxxxxx">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-top:8px;">
+                    <input type="checkbox" id="studentHasWhatsapp" style="width:auto;margin:0;"> 💬 عليه واتساب
+                </label>
+            </div>
+
+            <div style="width:100%; margin-bottom:15px; background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0;">
+                <label style="color:var(--success);">💰 قيمة الاشتراك المدفوعة (جنيه):</label>
+                <input type="number" id="studentAmountPaid" placeholder="0" min="0" style="border-color:var(--success);">
+            </div>
+        </div>
+
+        <button class="btn btn-primary" id="saveBtn" onclick="saveStudent()" style="width:100%; justify-content:center; padding:15px; font-size:16px;">💾 حفظ البيانات وتأكيد الاشتراك</button>
+        <div id="statusBar" class="status-bar" style="margin-top: 15px;"></div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        const GOV_GRADES = [
+            'أولى ابتدائي', 'تانية ابتدائي', 'تالتة ابتدائي', 'رابعة ابتدائي', 'خامسة ابتدائي', 'سادسة ابتدائي',
+            'أولى إعدادي', 'تانية إعدادي', 'تالتة إعدادي',
+            'أولى ثانوي', 'تانية ثانوي', 'تالتة ثانوي', 'خريج'
+        ];
+
+        let allMyClasses = [];
+        let searchTimer = null;
+        let selectedOldStudentData = null;
+
+        window.onload = async () => {
+            const govSelect = document.getElementById('studentGovGrade');
+            GOV_GRADES.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g; opt.textContent = g;
+                govSelect.appendChild(opt);
+            });
+
+            // Load classes and stages
+            try {
+                const res = await fetchApi('/users/me/classes');
+                if(res && res.classes) {
+                    allMyClasses = res.classes;
+                    
+                    const stages = [...new Set(allMyClasses.map(c => c.stage).filter(s => s))];
+                    const stageSelect = document.getElementById('stageSelect');
+                    stages.forEach(st => {
+                        const opt = document.createElement('option');
+                        opt.value = st; opt.textContent = st;
+                        stageSelect.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load classes", e);
+            }
+        };
+
+        // --- Search Logic ---
+        function handleSearch() {
+            clearTimeout(searchTimer);
+            const query = document.getElementById('searchInput').value.trim();
+            const resultsBox = document.getElementById('searchResults');
+            
+            if (query.length < 3) {
+                resultsBox.style.display = 'none';
+                return;
+            }
+
+            searchTimer = setTimeout(async () => {
+                const res = await fetchApi(`/students/search?name=${encodeURIComponent(query)}`);
+                if (res && res.students && res.students.length > 0) {
+                    let html = '';
+                    res.students.forEach(s => {
+                        let phoneStr = "بدون رقم";
+                        try { 
+                            let parsedPhones = JSON.parse(s.phone);
+                            if (parsedPhones.length > 0) {
+                                phoneStr = typeof parsedPhones[0] === 'object' ? parsedPhones[0].number : parsedPhones[0];
+                            }
+                        } catch(e) {}
+
+                        // Save student json in data attribute for easy access
+                        html += `
+                        <div class="search-result-item" onclick='selectOldStudent(${JSON.stringify(s)})'>
+                            <div class="name">${s.name}</div>
+                            <div class="details">
+                                <span>📱 ${phoneStr}</span>
+                                <span>🏫 الفصل الحالي: ${s.className || 'غير مسجل'}</span>
+                                <span>🎓 حكومي: ${s.govGrade || '-'}</span>
+                            </div>
+                        </div>`;
+                    });
+                    resultsBox.innerHTML = html;
+                    resultsBox.style.display = 'block';
+                } else {
+                    resultsBox.innerHTML = '<div style="padding:15px; text-align:center; color:#666;">لم يتم العثور على طالب بهذا الاسم. يرجى إضافته كطالب جديد.</div>';
+                    resultsBox.style.display = 'block';
+                }
+            }, 400);
+        }
+
+        // Close search results when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-container')) {
+                document.getElementById('searchResults').style.display = 'none';
+            }
+        });
+
+        // --- Form Logic ---
+        function filterClasses() {
+            const selectedStage = document.getElementById('stageSelect').value;
+            const classSelect = document.getElementById('classSelect');
+            classSelect.innerHTML = '<option value="">-- اختر فصل --</option>';
+            
+            if (!selectedStage) return;
+
+            let filteredClasses = allMyClasses.filter(c => c.stage === selectedStage);
+            
+            const mode = document.getElementById('formMode')?.value || '';
+            if (mode === 'new') {
+                filteredClasses = filteredClasses.filter(c => {
+                    const y = (c.year || '').trim();
+                    return y.includes('أولى') || y.includes('الاولى') || y.includes('الأولى') || y.includes('اولي') || y === '1' || y === '';
+                });
+            }
+
+            filteredClasses.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + (c.year ? ' (' + c.year + ')' : '');
+                classSelect.appendChild(opt);
+            });
+        }
+
+        function toggleDeaconField() {
+            const gender = document.getElementById('studentGender').value;
+            document.getElementById('deaconContainer').style.display = gender === 'ذكر' ? 'block' : 'none';
+            if (gender !== 'ذكر') document.getElementById('studentIsDeacon').checked = false;
+        }
+
+        async function suggestNextId() {
+            const res = await fetchApi('/students/suggest-id'); 
+            if (res && res.nextId) {
+                document.getElementById('studentIdDisplay').value = res.nextId;
+            }
+        }
+
+        // --- Modes (New / Old) ---
+        async function openNewStudentForm() {
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('studentFormSection').classList.add('active');
+            
+            document.getElementById('formMode').value = 'new';
+            document.getElementById('formTitle').innerText = 'تسجيل طالب جديد';
+            document.getElementById('formBadge').innerText = 'جديد';
+            document.getElementById('formBadge').className = 'badge badge-new';
+            document.getElementById('idContainer').style.display = 'block';
+
+            // Clear form
+            document.getElementById('oldStudentInfo').style.display = 'none';
+            document.getElementById('studentIdDisplay').value = '';
+            document.getElementById('studentName').value = document.getElementById('searchInput').value; // prefill with search
+            
+            // Show all stages for new students
+            const stageSelect = document.getElementById('stageSelect');
+            stageSelect.innerHTML = '<option value="">-- اختر المرحلة --</option>';
+            const stages = [...new Set(allMyClasses.map(c => c.stage).filter(s => s))];
+            stages.forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st; opt.textContent = st;
+                stageSelect.appendChild(opt);
+            });
+
+            document.getElementById('classSelect').innerHTML = '<option value="">-- اختر فصل --</option>';
+            document.getElementById('studentGender').value = 'ذكر';
+            document.getElementById('studentIsDeacon').checked = false;
+            document.getElementById('studentGovGrade').value = '';
+            document.getElementById('studentPhone').value = '';
+            document.getElementById('studentHasWhatsapp').checked = false;
+            document.getElementById('studentAmountPaid').value = '';
+            document.getElementById('statusBar').style.display = 'none';
+            
+            toggleDeaconField();
+            await suggestNextId();
+        }
+
+        function selectOldStudent(student) {
+            document.getElementById('searchResults').style.display = 'none';
+            document.getElementById('studentFormSection').classList.add('active');
+            document.getElementById('searchInput').value = student.name;
+            
+            document.getElementById('formMode').value = 'old';
+            document.getElementById('formTitle').innerText = 'تجديد بيانات الطالب';
+            document.getElementById('formBadge').innerText = 'طالب مسجل (قديم)';
+            document.getElementById('formBadge').className = 'badge badge-old';
+            document.getElementById('idContainer').style.display = 'none'; // hide ID, we already have it
+
+            // Parse phone
+            let phoneStr = "";
+            let hasWa = false;
+            try {
+                let parsedPhones = JSON.parse(student.phone);
+                if (parsedPhones.length > 0) {
+                    let p = parsedPhones[0];
+                    phoneStr = typeof p === 'object' ? p.number : p;
+                    hasWa = typeof p === 'object' ? (p.whatsapp || false) : false;
+                }
+            } catch(e) {}
+
+            // Populate Form
+            document.getElementById('studentId').value = student.id;
+            document.getElementById('studentName').value = student.name;
+            document.getElementById('studentGender').value = student.gender || 'ذكر';
+            document.getElementById('studentIsDeacon').checked = student.isDeacon || false;
+            document.getElementById('studentGovGrade').value = student.govGrade || '';
+            document.getElementById('studentPhone').value = phoneStr;
+            document.getElementById('studentHasWhatsapp').checked = hasWa;
+            document.getElementById('studentAmountPaid').value = ''; // Reset amount for the new transaction
+            document.getElementById('statusBar').style.display = 'none';
+            
+            toggleDeaconField();
+            
+            // Show old data
+            document.getElementById('oldStudentInfo').style.display = 'block';
+            document.getElementById('lblOldClass').innerText = student.className || 'غير مسجل';
+            document.getElementById('lblOldGovGrade').innerText = student.govGrade || '-';
+
+            // Filter stages based on old data
+            const stageSelect = document.getElementById('stageSelect');
+            stageSelect.innerHTML = '<option value="">-- اختر المرحلة --</option>';
+            
+            let allowedStages = [];
+            let oldStage = student.stage || '';
+            let oldGovGrade = student.govGrade || '';
+
+            if (oldStage.includes('ابتدائي أ') || oldStage.includes('ابتدائى أ') || oldStage.includes('ابتدائي ا')) {
+                if (oldGovGrade.includes('أولى') || oldGovGrade.includes('تانية') || oldGovGrade.includes('اولي') || oldGovGrade.includes('ثانية')) {
+                    allowedStages = ['ابتدائي أ', 'ابتدائى أ', 'ابتدائي ا', 'ابتدائي ب', 'ابتدائى ب'];
+                } else if (oldGovGrade.includes('تالتة') || oldGovGrade.includes('رابعة') || oldGovGrade.includes('خامسة') || oldGovGrade.includes('سادسة') || oldGovGrade.includes('ثالثة')) {
+                    allowedStages = ['ابتدائي ب', 'ابتدائى ب'];
+                } else {
+                    allowedStages = ['ابتدائي أ', 'ابتدائى أ', 'ابتدائي ا', 'ابتدائي ب', 'ابتدائى ب'];
+                }
+            } else if (oldStage.includes('ابتدائي ب') || oldStage.includes('ابتدائى ب')) {
+                allowedStages = ['ابتدائي ب', 'ابتدائى ب', 'إعدادي', 'اعدادي'];
+            } else if (oldStage.includes('إعدادي') || oldStage.includes('اعدادي')) {
+                allowedStages = ['إعدادي', 'اعدادي', 'كبار'];
+            } else {
+                // Default if unknown: show all
+                allowedStages = [...new Set(allMyClasses.map(c => c.stage).filter(s => s))];
+            }
+
+            // Also include any stage that exactly matches the allowed strings
+            const allAvailableStages = [...new Set(allMyClasses.map(c => c.stage).filter(s => s))];
+            const finalStages = allAvailableStages.filter(s => allowedStages.some(allowed => s.includes(allowed) || allowed.includes(s)));
+
+            finalStages.forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st; opt.textContent = st;
+                stageSelect.appendChild(opt);
+            });
+
+            if (finalStages.length === 1) {
+                stageSelect.value = finalStages[0];
+                filterClasses(); // auto select if only one
+            } else {
+                document.getElementById('classSelect').innerHTML = '<option value="">-- يرجى اختيار الفصل للسنة الجديدة --</option>';
+            }
+            
+            showStatus('statusBar', 'info', `يرجى مراجعة وتحديث المرحلة والسنة الحكومية للعام الجديد.`);
+        }
+
+        // --- Save Logic ---
+        async function saveStudent() {
+            const mode = document.getElementById('formMode').value;
+            const name = document.getElementById('studentName').value.trim();
+            const classId = document.getElementById('classSelect').value;
+            const gender = document.getElementById('studentGender').value;
+            const isDeacon = document.getElementById('studentIsDeacon').checked;
+            const govGrade = document.getElementById('studentGovGrade').value;
+            const phone = document.getElementById('studentPhone').value.trim();
+            const hasWhatsapp = document.getElementById('studentHasWhatsapp').checked;
+            const amountPaid = document.getElementById('studentAmountPaid').value;
+
+            if (!name || !classId) {
+                return showStatus('statusBar', 'error', '❌ يرجى التأكد من كتابة الاسم واختيار الفصل الجديد');
+            }
+
+            const phonesArray = phone ? [{ number: phone, whatsapp: hasWhatsapp }] : [];
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ جاري إرسال الطلب...';
+
+            let studentId = null;
+            if (mode === 'new') {
+                const id = document.getElementById('studentIdDisplay').value.trim();
+                if (!id) {
+                    btn.disabled = false; btn.textContent = '💾 حفظ البيانات وتأكيد الاشتراك';
+                    return showStatus('statusBar', 'error', '❌ رقم الطالب (ID) مطلوب');
+                }
+                studentId = parseInt(id);
+            } else if (mode === 'old') {
+                studentId = parseInt(document.getElementById('studentId').value);
+            }
+
+            const payload = {
+                id: studentId,
+                name: name,
+                classId: parseInt(classId),
+                gender: gender,
+                isDeacon: isDeacon,
+                govGrade: govGrade,
+                phonesJson: JSON.stringify(phonesArray),
+                amountPaid: parseFloat(amountPaid) || 0,
+                isRenewal: (mode === 'old')
+            };
+
+            try {
+                const res = await fetchApi('/registrations/request', 'POST', payload);
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', `✅ ${res.message}`);
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showStatus('statusBar', 'error', res?.message || '❌ حدث خطأ أثناء إرسال الطلب');
+                    btn.disabled = false;
+                    btn.textContent = '💾 حفظ البيانات وتأكيد الاشتراك';
+                }
+            } catch (e) {
+                showStatus('statusBar', 'error', '❌ حدث خطأ في الاتصال بالخادم');
+                btn.disabled = false;
+                btn.textContent = '💾 حفظ البيانات وتأكيد الاشتراك';
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

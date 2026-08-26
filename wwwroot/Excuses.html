@@ -1,0 +1,167 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📝 تقديم الأعذار</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .excuse-card { background: white; border-radius: 10px; padding: 15px; margin-bottom: 10px; border: 1px solid #eee; }
+        .status-Pending { color: #f59e0b; font-weight: bold; }
+        .status-Approved { color: #10b981; font-weight: bold; }
+        .status-Rejected { color: #ef4444; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="card">
+        <h3>اختيار الطالب</h3>
+        <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <select id="classSelect" onchange="loadStudents()"><option value="">-- اختر الفصل --</option></select>
+            <select id="studentSelect" onchange="loadExcuses()"><option value="">-- اختر الطالب --</option></select>
+            <select id="termSelect" onchange="loadExcuses()">
+                <option value="ت1">التيرم الأول</option>
+                <option value="ت2">التيرم الثاني</option>
+            </select>
+            <select id="yearSelect" onchange="loadExcuses()">
+                <!-- يمكنك إضافة أكواد برمجية لملء السنوات أوتوماتيكياً -->
+                <option value="2025-2026">2025-2026</option>
+                <option value="2024-2025">2024-2025</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card" id="excusesSection" style="display:none;">
+        <h3>الأعذار السابقة</h3>
+        <div id="excusesList"></div>
+        <hr style="margin: 20px 0; border-top: 1px solid #eee;">
+        
+        <h3>➕ تقديم عذر جديد</h3>
+        <p style="font-size: 13px; color: #666;">ملاحظة: يمكنك تقديم عذرين فقط بحد أقصى في التيرم، ويجب أن يكون العذر لتاريخ يوم جمعة.</p>
+        <div style="display: flex; gap: 10px; max-width: 500px; flex-direction: column;">
+            <input type="date" id="excuseDate" class="form-control" style="padding:10px; border:1px solid #ccc; border-radius:8px;">
+            <textarea id="excuseReason" placeholder="سبب العذر..." class="form-control" rows="3" style="padding:10px; border:1px solid #ccc; border-radius:8px;"></textarea>
+            <button class="btn btn-primary" onclick="submitExcuse()">إرسال العذر</button>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = async () => {
+            requireRole('Admin', 'User');
+            
+            // جلب الإعدادات (التيرم والسنة)
+            const settings = await fetchApi('/settings');
+            if (settings) {
+                if (settings.currentTerm) {
+                    const termSel = document.getElementById('termSelect');
+                    if (termSel.querySelector(`option[value="${settings.currentTerm}"]`)) {
+                        termSel.value = settings.currentTerm;
+                    }
+                }
+                if (settings.academicYear) {
+                    const yearSel = document.getElementById('yearSelect');
+                    let yearOpt = yearSel.querySelector(`option[value="${settings.academicYear}"]`);
+                    if (!yearOpt) {
+                        yearOpt = document.createElement('option');
+                        yearOpt.value = settings.academicYear;
+                        yearOpt.textContent = settings.academicYear;
+                        yearSel.appendChild(yearOpt);
+                    }
+                    yearSel.value = settings.academicYear;
+                }
+            }
+            
+            loadClassesDropdown('classSelect');
+        };
+
+        async function loadStudents() {
+            const classId = document.getElementById('classSelect').value;
+            if (!classId) return;
+            const select = document.getElementById('studentSelect');
+            select.innerHTML = '<option value="">جاري التحميل...</option>';
+            const res = await fetchApi(`/students/class/${classId}`);
+            select.innerHTML = '<option value="">-- اختر الطالب --</option>';
+            if (res && res.students) {
+                res.students.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id; opt.textContent = s.name;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        async function loadExcuses() {
+            const studentId = document.getElementById('studentSelect').value;
+            const term = document.getElementById('termSelect').value;
+            const year = document.getElementById('yearSelect').value;
+            
+            if(!studentId) {
+                document.getElementById('excusesSection').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('excusesSection').style.display = 'block';
+            document.getElementById('excusesList').innerHTML = 'جاري التحميل...';
+
+            const res = await fetchApi(`/excuses/student/${studentId}?term=${term}&year=${year}`);
+            if(res && res.success) {
+                if(res.excuses.length === 0) {
+                    document.getElementById('excusesList').innerHTML = '<div style="color:#666;">لا توجد أعذار سابقة في هذا التيرم.</div>';
+                } else {
+                    let html = '';
+                    res.excuses.forEach(e => {
+                        html += `<div class="excuse-card">
+                            <strong>التاريخ:</strong> ${e.date} <br>
+                            <strong>السبب:</strong> ${e.reason} <br>
+                            <strong>الحالة:</strong> <span class="status-${e.status}">${e.status === 'Pending' ? 'معلق (تحت المراجعة)' : e.status === 'Approved' ? 'تمت الموافقة' : 'مرفوض'}</span>
+                        </div>`;
+                    });
+                    document.getElementById('excusesList').innerHTML = html;
+                }
+            }
+        }
+
+        async function submitExcuse() {
+            const studentId = document.getElementById('studentSelect').value;
+            const term = document.getElementById('termSelect').value;
+            const year = document.getElementById('yearSelect').value;
+            const date = document.getElementById('excuseDate').value;
+            const reason = document.getElementById('excuseReason').value.trim();
+
+            if(!date || !reason) {
+                showStatus('statusBar', 'error', 'يرجى إدخال التاريخ والسبب.');
+                return;
+            }
+
+            const selectedDateObj = new Date(date);
+            if(selectedDateObj.getDay() !== 5) {
+                showStatus('statusBar', 'error', 'يجب أن يكون تاريخ العذر يوم جمعة فقط.');
+                return;
+            }
+
+            const btn = document.querySelector('button.btn-primary');
+            btn.disabled = true;
+            btn.innerText = 'جاري الإرسال...';
+
+            const body = { studentId: parseInt(studentId), date, reason, term, academicYear: year };
+            const res = await fetchApi('/excuses', 'POST', body);
+            
+            btn.disabled = false;
+            btn.innerText = 'إرسال العذر';
+
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message);
+                document.getElementById('excuseDate').value = '';
+                document.getElementById('excuseReason').value = '';
+                loadExcuses();
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'حدث خطأ.');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>
+

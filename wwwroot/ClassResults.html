@@ -1,0 +1,163 @@
+﻿<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📚 نتائج الفصل</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .rank-badge { display: inline-block; background: var(--primary); color: white; border-radius: 50%; width: 26px; height: 26px; line-height: 26px; font-weight: bold; font-size: 12px; text-align: center; }
+        .rank-1 { background: #ffd700; color: #333; }
+        .rank-2 { background: #c0c0c0; color: #333; }
+        .rank-3 { background: #cd7f32; color: white; }
+    </style>
+</head>
+<body>
+    
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="classSelect"></select>
+        <select id="termSelect">
+            <option value="all">الكل (التيرمين)</option>
+            <option value="ت1">التيرم الأول</option>
+            <option value="ت2">التيرم الثاني</option>
+        </select>
+        <select id="subjectSelect">
+            <option value="all">كل المواد</option>
+            <option value="أجبية">أجبية</option><option value="الحان">الحان</option>
+            <option value="طقس">طقس</option><option value="قبطي">قبطي</option>
+            <option value="مواد_متغيرة">مواد متغيرة</option>
+        </select>
+        
+        <button class="btn btn-search" onclick="loadResults()" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px;">🔍 عرض النتائج</button>
+
+        <button id="exportPdfBtn" class="btn btn-success" onclick="exportPDF()" style="display:none;">📤 تصدير PDF</button>
+        <button id="exportExcelBtn" class="btn btn-success" onclick="exportExcel()" style="display:none; background: #107c41;">📊 تصدير Excel</button>
+    </div>
+
+    <div id="content" class="table-container" style="background: white; padding: 15px; border-radius: 10px;">
+        <div style="text-align:center; padding:20px; color:var(--text-muted);">اختر فصلاً واضغط عرض النتائج</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => loadClassesDropdown('classSelect');
+
+        async function loadResults() {
+            const classId = document.getElementById('classSelect').value;
+            const term = document.getElementById('termSelect').value;
+            const subject = document.getElementById('subjectSelect').value;
+            if (!classId) return;
+
+            document.getElementById('content').innerHTML = '<div class="spinner"></div>';
+            
+            const res = await fetchApi(`/results/class/${classId}?term=${term}&subject=${subject}`);
+            if (!res || !res.students) {
+                document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ حدث خطأ (تأكد من اختيار فصل صحيح)</div>';
+                return;
+            }
+
+            let html = `<table id="resultsExportTable"><thead><tr><th>#</th><th>رقم الطالب</th><th style="text-align:right;">الاسم</th>`;
+            res.columns.forEach(c => html += `<th>${c.label}</th>`);
+            html += `<th>المجموع</th><th>النسبة</th></tr></thead><tbody>`;
+
+            res.students.forEach((s, idx) => {
+                const rank = idx + 1;
+                const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
+                const color = s.percentage >= 85 ? 'var(--success)' : s.percentage >= 70 ? 'var(--warning)' : 'var(--danger)';
+
+                html += `<tr>
+                    <td><span class="rank-badge ${rankClass}">${rank}</span></td>
+                    <td><strong>${s.id}</strong></td>
+                    <td style="text-align:right;">${s.name}</td>`;
+                
+                res.columns.forEach(c => {
+                    let val = s.cols[c.key];
+                    if (typeof val === 'object' && val !== null) {
+                        html += `<td style="text-align:center;">
+                            <strong>${val.total}</strong><br>
+                            <span style="font-size:11px; color:var(--text-muted);">
+                                أمتحان:${val.exam} | حضور:${val.att}
+                            </span>
+                        </td>`;
+                    } else {
+                        html += `<td style="text-align:center;">${val || 0}</td>`;
+                    }
+                });
+                
+                html += `<td style="font-weight:bold;">${s.total}</td>
+                         <td style="color:${color}; font-weight:bold;">${s.percentage}%</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            document.getElementById('content').innerHTML = html;
+            document.getElementById('exportPdfBtn').style.display = 'inline-block';
+            document.getElementById('exportExcelBtn').style.display = 'inline-block';
+        }
+
+        async function exportPDF() {
+            var classId = document.getElementById('classSelect').value;
+            if (!classId) return;
+
+            const element = document.getElementById('content');
+            element.style.backgroundColor = 'white';
+
+            const opt = {
+                margin:       10,
+                filename:     'Class_Results_' + classId + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, backgroundColor: '#ffffff', useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            const btn = document.getElementById('exportPdfBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ جاري استخراج الـ PDF...';
+            btn.disabled = true;
+
+            try {
+                await html2pdf().set(opt).from(element).save();
+            } catch (err) {
+                console.error('Error generating PDF:', err);
+                alert('حدث خطأ أثناء إنشاء الـ PDF.');
+            }
+
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+
+        function exportExcel() {
+            var classId = document.getElementById('classSelect').value;
+            if (!classId) return;
+
+            let table = document.getElementById("resultsExportTable");
+            if(!table) return;
+
+            let csvContent = "";
+            let rows = table.querySelectorAll('tr');
+            for(let i=0; i<rows.length; i++){
+                let row = [], cols = rows[i].querySelectorAll('td, th');
+                for(let j=0; j<cols.length; j++){
+                    let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, '').replace(/"/g, '""');
+                    row.push('"' + data + '"');
+                }
+                csvContent += row.join(',') + "\r\n";
+            }
+
+            let bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            let blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'Class_Results_' + classId + '.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+  </body>
+</html>
+
