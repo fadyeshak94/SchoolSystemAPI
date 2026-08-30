@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📱 متابعة الافتقاد وأعياد الميلاد</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <h3>🔎 المخدومين الغائبين (٣ أسابيع متتالية أو أكثر)</h3>
+        <div class="controls">
+            <input type="text" id="areaFilter" placeholder="فلتر بالمنطقة (اختياري)">
+            <button class="btn btn-primary" onclick="loadFollowUp()">بحث</button>
+        </div>
+        
+        <div class="table-container" style="margin-top: 15px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>رقم التليفون</th>
+                        <th>المنطقة</th>
+                        <th>الفصل</th>
+                    </tr>
+                </thead>
+                <tbody id="followupBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>🎉 أعياد ميلاد المخدومين</h3>
+        <div class="controls">
+            <select id="bdayFilter">
+                <option value="week">هذا الأسبوع</option>
+                <option value="month">هذا الشهر</option>
+            </select>
+            <button class="btn btn-success" onclick="loadBirthdays()">عرض</button>
+        </div>
+        
+        <div class="table-container" style="margin-top: 15px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>السن الآن</th>
+                        <th>تاريخ الميلاد</th>
+                    </tr>
+                </thead>
+                <tbody id="bdayBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => {
+            loadFollowUp();
+            loadBirthdays();
+        }
+
+        async function loadFollowUp() {
+            const area = document.getElementById('areaFilter').value;
+            const res = await fetchApi(`/TarbeyaDashboard/followup?area=${encodeURIComponent(area)}`);
+            if (res && res.success) {
+                let html = '';
+                res.students.forEach(s => {
+                    html += `<tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td dir="ltr" style="text-align:right;">${s.phone || '-'}</td>
+                        <td>${s.area || '-'}</td>
+                        <td>${s.className || '-'}</td>
+                    </tr>`;
+                });
+                document.getElementById('followupBody').innerHTML = html || '<tr><td colspan="4" class="text-center">لا يوجد مخدومين متغيبين</td></tr>';
+            }
+        }
+
+        async function loadBirthdays() {
+            const filter = document.getElementById('bdayFilter').value;
+            const res = await fetchApi(`/TarbeyaDashboard/birthdays?filter=${filter}`);
+            if (res && res.success) {
+                let html = '';
+                res.students.forEach(s => {
+                    html += `<tr>
+                        <td><strong>${s.name}</strong><br><small>${s.className || ''}</small></td>
+                        <td>${s.age} سنة</td>
+                        <td>${new Date(s.birthDate).toLocaleDateString('ar-EG')}</td>
+                    </tr>`;
+                });
+                document.getElementById('bdayBody').innerHTML = html || '<tr><td colspan="3" class="text-center">لا توجد أعياد ميلاد</td></tr>';
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

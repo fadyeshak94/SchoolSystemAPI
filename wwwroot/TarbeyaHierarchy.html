@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>⛪ إدارة التربية الكنسية</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .hierarchy-box { padding: 15px; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 15px; background: #fff; }
+        .family-name { font-size: 18px; font-weight: bold; color: var(--primary); margin-bottom: 10px; }
+        .stage-box { padding: 10px; border-right: 3px solid var(--warning); margin-right: 15px; background: #f8fafc; margin-bottom: 10px; border-radius: 6px; }
+        .stage-name { font-weight: bold; color: #475569; margin-bottom: 5px; }
+        .class-badge { display: inline-block; background: #e2e8f0; padding: 5px 10px; border-radius: 15px; font-size: 13px; margin: 3px; color: #334155; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <h3>⛪ إدارة هيكل التربية الكنسية (أسر - مراحل - فصول)</h3>
+        
+        <div id="addFamilySection" style="display: none;" class="controls">
+            <input type="text" id="newFamilyName" placeholder="اسم الأسرة الجديدة">
+            <button class="btn btn-primary" onclick="addFamily()">➕ إضافة أسرة</button>
+        </div>
+        
+        <div id="addStageSection" style="display: none; margin-top:15px;" class="controls">
+            <select id="familySelectForStage"><option value="">-- اختر الأسرة --</option></select>
+            <input type="text" id="newStageName" placeholder="اسم المرحلة الجديدة">
+            <button class="btn btn-success" onclick="addStage()">➕ إضافة مرحلة</button>
+        </div>
+
+        <div id="addClassSection" style="display: none; margin-top:15px;" class="controls">
+            <select id="stageSelectForClass"><option value="">-- اختر المرحلة --</option></select>
+            <input type="text" id="newClassName" placeholder="اسم الفصل الجديد">
+            <button class="btn btn-warning" onclick="addClass()">➕ إضافة فصل</button>
+        </div>
+    </div>
+
+    <div class="card" id="hierarchyContainer">
+        <p>جاري التحميل...</p>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let userRole = '';
+        window.onload = async () => {
+            const token = localStorage.getItem('appToken');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role;
+            }
+            
+            if (userRole === "TarbeyaGeneralAdmin" || userRole === "Admin") {
+                document.getElementById('addFamilySection').style.display = 'flex';
+                document.getElementById('addStageSection').style.display = 'flex';
+                document.getElementById('addClassSection').style.display = 'flex';
+            } else if (userRole === "TarbeyaFamilyAdmin") {
+                document.getElementById('addStageSection').style.display = 'flex';
+                document.getElementById('addClassSection').style.display = 'flex';
+            }
+            
+            await loadHierarchy();
+        };
+
+        async function loadHierarchy() {
+            const res = await fetchApi('/TarbeyaHierarchy/families');
+            const container = document.getElementById('hierarchyContainer');
+            if (res && res.success) {
+                let html = '';
+                let famOptions = '<option value="">-- اختر الأسرة --</option>';
+                let stageOptions = '<option value="">-- اختر المرحلة --</option>';
+
+                res.families.forEach(f => {
+                    famOptions += `<option value="${f.id}">${f.name}</option>`;
+                    html += `<div class="hierarchy-box">
+                        <div class="family-name">🏠 أسرة: ${f.name}</div>`;
+                    
+                    f.stages.forEach(s => {
+                        stageOptions += `<option value="${s.id}">${s.name} (أسرة ${f.name})</option>`;
+                        html += `<div class="stage-box">
+                            <div class="stage-name">📍 مرحلة: ${s.name}</div>
+                            <div>`;
+                        s.classes.forEach(c => {
+                            html += `<span class="class-badge">👥 فصل: ${c.name}</span>`;
+                        });
+                        html += `</div></div>`;
+                    });
+                    html += `</div>`;
+                });
+                container.innerHTML = html || '<p>لا توجد بيانات حالياً</p>';
+                document.getElementById('familySelectForStage').innerHTML = famOptions;
+                document.getElementById('stageSelectForClass').innerHTML = stageOptions;
+            }
+        }
+
+        async function addFamily() {
+            const name = document.getElementById('newFamilyName').value;
+            if(!name) return;
+            const res = await fetchApi('/TarbeyaHierarchy/family', 'POST', { name });
+            if(res && res.success) { alert('تمت الإضافة'); loadHierarchy(); }
+        }
+
+        async function addStage() {
+            const name = document.getElementById('newStageName').value;
+            const familyId = document.getElementById('familySelectForStage').value;
+            if(!name || !familyId) return;
+            const res = await fetchApi('/TarbeyaHierarchy/stage', 'POST', { name, familyId: parseInt(familyId) });
+            if(res && res.success) { alert('تمت الإضافة'); loadHierarchy(); }
+        }
+
+        async function addClass() {
+            const name = document.getElementById('newClassName').value;
+            const stageId = document.getElementById('stageSelectForClass').value;
+            if(!name || !stageId) return;
+            const res = await fetchApi('/TarbeyaHierarchy/class', 'POST', { name, stageId: parseInt(stageId) });
+            if(res && res.success) { alert('تمت الإضافة'); loadHierarchy(); }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

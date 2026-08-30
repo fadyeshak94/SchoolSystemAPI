@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📋 تسجيل الغياب والحضور</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .badge { padding: 4px 8px; border-radius: 4px; color: white; font-size: 12px; font-weight: bold; }
+        .bg-success { background-color: var(--success); }
+        .bg-danger { background-color: var(--danger); }
+        .bg-warning { background-color: var(--warning); }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <h3>📋 تسجيل غياب وحضور المخدومين</h3>
+        <div class="controls">
+            <input type="date" id="attDate" onchange="loadAttendance()">
+            <input type="number" id="classIdFilter" placeholder="رقم الفصل (اختياري)" onchange="loadAttendance()">
+            <button class="btn btn-primary" onclick="loadAttendance()">تحديث</button>
+        </div>
+        
+        <div class="table-container" style="margin-top: 15px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>المخدوم</th>
+                        <th>التاريخ</th>
+                        <th>الحالة</th>
+                        <th>إجراءات الحضور</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceBody">
+                    <tr><td colspan="4" class="text-center">يرجى اختيار التاريخ والفصل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        document.getElementById('attDate').valueAsDate = new Date();
+
+        async function loadAttendance() {
+            const date = document.getElementById('attDate').value;
+            const classId = document.getElementById('classIdFilter').value;
+            if(!date) return;
+
+            // Load students first
+            let studentsUrl = '/TarbeyaStudents';
+            if(classId) studentsUrl += `?classId=${classId}`;
+            
+            const studentsRes = await fetchApi(studentsUrl);
+            const attendanceRes = await fetchApi(`/TarbeyaAttendance/date/${date}${classId ? `?classId=${classId}` : ''}`);
+
+            const tbody = document.getElementById('attendanceBody');
+            
+            if (studentsRes && studentsRes.success) {
+                let html = '';
+                
+                // Map existing attendance
+                const attMap = {};
+                if(attendanceRes && attendanceRes.success) {
+                    attendanceRes.records.forEach(r => { attMap[r.studentId] = r.status; });
+                }
+
+                studentsRes.students.forEach(s => {
+                    const status = attMap[s.id];
+                    let statusHtml = '<span class="badge" style="background:#94a3b8;">لم يُسجل</span>';
+                    if(status === 0) statusHtml = '<span class="badge bg-success">حاضر</span>';
+                    else if(status === 1) statusHtml = '<span class="badge bg-danger">غائب</span>';
+                    else if(status === 2) statusHtml = '<span class="badge bg-warning">بعذر</span>';
+
+                    html += `<tr>
+                        <td><strong>${s.name}</strong><br><small>فصل: ${s.className || s.classId}</small></td>
+                        <td dir="ltr">${date}</td>
+                        <td>${statusHtml}</td>
+                        <td>
+                            <button class="btn btn-success" style="padding: 5px 10px; font-size:11px;" onclick="recordAtt(${s.id}, 0)">حاضر</button>
+                            <button class="btn btn-danger" style="padding: 5px 10px; font-size:11px;" onclick="recordAtt(${s.id}, 1)">غائب</button>
+                            <button class="btn btn-warning" style="padding: 5px 10px; font-size:11px;" onclick="recordAtt(${s.id}, 2)">بعذر</button>
+                        </td>
+                    </tr>`;
+                });
+                
+                tbody.innerHTML = html || '<tr><td colspan="4" class="text-center">لا يوجد مخدومين</td></tr>';
+            }
+        }
+
+        async function recordAtt(studentId, status) {
+            const date = document.getElementById('attDate').value;
+            const data = {
+                studentId: studentId,
+                date: date,
+                status: status
+            };
+            const res = await fetchApi('/TarbeyaAttendance', 'POST', data);
+            if(res && res.success) {
+                loadAttendance(); // reload row
+            } else {
+                alert('خطأ: ' + (res?.message || ''));
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

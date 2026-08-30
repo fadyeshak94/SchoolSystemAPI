@@ -13,4 +13,10 @@ public class AppUser
 
     public int? ClassRoomId { get; set; }
     public ClassRoom? ClassRoom { get; set; }
+
+    public int? TarbeyaFamilyId { get; set; }
+    public TarbeyaFamily? TarbeyaFamily { get; set; }
+
+    public int? TarbeyaClassId { get; set; }
+    public TarbeyaClass? TarbeyaClass { get; set; }
 }

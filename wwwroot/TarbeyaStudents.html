@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🧑‍🎓 إدارة المخدومين</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <h3>🧑‍🎓 بيانات المخدومين</h3>
+        <p>هنا يمكنك إضافة مخدوم جديد أو تعديل البيانات بناءً على صلاحياتك.</p>
+        
+        <div class="controls">
+            <input type="text" id="sName" placeholder="الاسم">
+            <input type="date" id="sBirthDate">
+            <input type="text" id="sPhone" placeholder="رقم التليفون">
+            <input type="text" id="sArea" placeholder="المنطقة / الشارع">
+            <input type="number" id="sClassId" placeholder="رقم الفصل (Class ID)">
+            <button class="btn btn-primary" onclick="addStudent()">➕ إضافة مخدوم</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>الاسم</th>
+                    <th>المنطقة</th>
+                    <th>الفصل</th>
+                    <th>الملاحظات العامة</th>
+                    <th>ملاحظات خاصة (سرية)</th>
+                </tr>
+            </thead>
+            <tbody id="studentsBody">
+                <tr><td colspan="5" class="text-center">جاري التحميل...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = async () => {
+            await loadStudents();
+        };
+
+        async function loadStudents() {
+            const res = await fetchApi('/TarbeyaStudents');
+            const tbody = document.getElementById('studentsBody');
+            if (res && res.success) {
+                let html = '';
+                res.students.forEach(s => {
+                    html += `<tr>
+                        <td><strong>${s.name}</strong><br><small>${s.phone || ''}</small></td>
+                        <td>${s.area || '-'}</td>
+                        <td>${s.className || s.classId}</td>
+                        <td>${s.generalNotes || '-'}</td>
+                        <td style="color:var(--danger); font-size:12px;">${s.privateNotes || 'محجوب / لا يوجد'}</td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html || '<tr><td colspan="5" class="text-center">لا توجد بيانات</td></tr>';
+            }
+        }
+
+        async function addStudent() {
+            const data = {
+                name: document.getElementById('sName').value,
+                birthDate: document.getElementById('sBirthDate').value || null,
+                phone: document.getElementById('sPhone').value,
+                area: document.getElementById('sArea').value,
+                classId: parseInt(document.getElementById('sClassId').value)
+            };
+            const res = await fetchApi('/TarbeyaStudents', 'POST', data);
+            if(res && res.success) {
+                alert('تم الإضافة');
+                loadStudents();
+            } else {
+                alert('خطأ: ' + (res?.message || 'غير مصرح'));
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

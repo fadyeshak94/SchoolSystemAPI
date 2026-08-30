@@ -30,6 +30,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<PendingRegistration> PendingRegistrations { get; set; }
     public DbSet<Family> Families { get; set; }
 
+    public DbSet<TarbeyaFamily> TarbeyaFamilies { get; set; }
+    public DbSet<TarbeyaStage> TarbeyaStages { get; set; }
+    public DbSet<TarbeyaClass> TarbeyaClasses { get; set; }
+    public DbSet<TarbeyaStudent> TarbeyaStudents { get; set; }
+    public DbSet<TarbeyaAttendance> TarbeyaAttendances { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -166,6 +172,58 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.AcademicYear, e.ClassName });
         });
+
+        // ==========================================
+        // 8. Tarbeya (Sunday School) Context
+        // ==========================================
+        modelBuilder.Entity<TarbeyaFamily>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+        });
+
+        modelBuilder.Entity<TarbeyaStage>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.HasOne(e => e.Family).WithMany(f => f.Stages)
+                  .HasForeignKey(e => e.FamilyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TarbeyaClass>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.HasOne(e => e.Stage).WithMany(s => s.Classes)
+                  .HasForeignKey(e => e.StageId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TarbeyaStudent>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.Area).HasMaxLength(150);
+            entity.HasOne(e => e.Class).WithMany(c => c.Students)
+                  .HasForeignKey(e => e.ClassId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TarbeyaAttendance>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Date).HasColumnType("date");
+            entity.HasOne(e => e.Student).WithMany(s => s.Attendances)
+                  .HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.StudentId, e.Date }).IsUnique(); 
+        });
+
+        modelBuilder.Entity<AppUser>()
+            .HasOne(e => e.TarbeyaFamily)
+            .WithMany()
+            .HasForeignKey(e => e.TarbeyaFamilyId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<AppUser>()
+            .HasOne(e => e.TarbeyaClass)
+            .WithMany()
+            .HasForeignKey(e => e.TarbeyaClassId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
