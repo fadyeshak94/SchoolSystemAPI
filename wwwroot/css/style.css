@@ -83,6 +83,7 @@ body {
     display: flex;
     flex-direction: column;
     transition: margin-right 0.3s;
+    min-width: 0;
 }
 
 .main-wrapper.expanded {

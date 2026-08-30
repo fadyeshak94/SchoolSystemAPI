@@ -28,6 +28,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<SubscriptionPayment> SubscriptionPayments { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<PendingRegistration> PendingRegistrations { get; set; }
+    public DbSet<Family> Families { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,7 +79,24 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.ClassRoom)
                   .WithMany(c => c.Students)
                   .HasForeignKey(e => e.ClassRoomId)
-                  .OnDelete(DeleteBehavior.Restrict); // Ù†Ù…Ù†Ø¹ Ù…Ø³Ø­ Ø§Ù„ÙØµÙ„ Ù„Ùˆ Ø¬ÙˆØ§Ù‡ Ø·Ù„Ø§Ø¨
+                  .OnDelete(DeleteBehavior.Restrict); // Ù†Ù…Ù†Ø¹ Ù…Ø³Ø­ Ø§Ù„Ù ØµÙ„ Ù„Ùˆ Ø¬ÙˆØ§Ù‡ Ø·Ù„Ø§Ø¨
+
+            // Relation with Family
+            entity.HasOne(e => e.Family)
+                  .WithMany(f => f.Siblings)
+                  .HasForeignKey(e => e.FamilyId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ==========================================
+        // 3.5 Family Configuration
+        // ==========================================
+        modelBuilder.Entity<Family>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.FatherPhone).HasMaxLength(50);
+            entity.Property(e => e.MotherPhone).HasMaxLength(50);
         });
 
         // ==========================================

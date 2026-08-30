@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>👨‍👩‍👧‍👦 إدارة الإخوة والعائلات</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+        .tab-btn { padding: 10px 20px; border: none; background: transparent; font-weight: bold; font-size: 16px; color: #64748b; cursor: pointer; border-bottom: 3px solid transparent; transition: 0.3s; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-btn:hover { color: var(--primary); }
+
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        
+        .family-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; display: flex; flex-direction: column; }
+        .card-header { background: #f8fafc; padding: 15px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
+        .card-header h4 { margin: 0; color: var(--primary); font-size: 16px; }
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
+        .badge-phone { background: #dbeafe; color: #1e40af; }
+        .badge-name { background: #fef3c7; color: #92400e; }
+        .badge-confirmed { background: #dcfce7; color: #166534; }
+
+        .card-body { padding: 15px; flex-grow: 1; }
+        .student-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #e2e8f0; }
+        .student-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .student-info { flex-grow: 1; }
+        .student-name { font-weight: bold; color: #334155; margin-bottom: 4px; }
+        .student-grade { font-size: 12px; color: #64748b; }
+
+        .card-footer { padding: 15px; background: #f8fafc; border-top: 1px solid #e2e8f0; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .btn-confirm { background: var(--success); color: white; padding: 8px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; flex-grow: 1; }
+        .btn-confirm:hover { background: #15803d; }
+        .btn-edit { background: #f59e0b; color: white; padding: 8px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; flex-grow: 1; }
+        .btn-edit:hover { background: #d97706; }
+
+        .empty-state { text-align: center; padding: 50px; color: #64748b; font-size: 18px; width: 100%; grid-column: 1 / -1; }
+        
+        .family-details { font-size: 13px; color: #475569; background: #f1f5f9; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .family-details p { margin: 4px 0; }
+
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .modal h3 { margin-top: 0; color: var(--primary); margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #334155; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-save { background: var(--primary); color: white; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; flex-grow: 1; }
+        .btn-cancel { background: #cbd5e1; color: #334155; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="card" style="padding: 25px;">
+        <h3 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px;">👨‍👩‍👧‍👦</span> إدارة الإخوة وربط العائلات
+        </h3>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            يقوم النظام تلقائياً بتحليل أسماء وأرقام هواتف الطلاب واقتراح الطلاب الذين قد يكونون إخوة. يرجى مراجعة الاقتراحات وتأكيدها.
+        </p>
+
+        <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
+
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-suggestions" onclick="switchTab('suggestions')">💡 اقتراحات النظام</button>
+            <button class="tab-btn" id="tab-confirmed" onclick="switchTab('confirmed')">✅ الإخوة المؤكدين</button>
+        </div>
+
+        <!-- Suggestions Tab -->
+        <div id="section-suggestions" class="cards-grid">
+            <div class="empty-state">⏳ جاري تحليل الاقتراحات...</div>
+        </div>
+
+        <!-- Confirmed Tab -->
+        <div id="section-confirmed" class="cards-grid" style="display:none;">
+            <div class="empty-state">⏳ جاري تحميل العائلات المؤكدة...</div>
+        </div>
+    </div>
+
+    <!-- Edit Family Modal -->
+    <div id="editFamilyModal" class="modal-overlay">
+        <div class="modal">
+            <h3>✏️ تعديل بيانات الأسرة</h3>
+            <input type="hidden" id="editFamilyId">
+            <div class="form-group">
+                <label>العنوان التفصيلي</label>
+                <input type="text" id="editAddress" placeholder="مثال: شارع 10 المتفرع من...">
+            </div>
+            <div class="form-group">
+                <label>رقم تليفون الأب</label>
+                <input type="text" id="editFatherPhone" placeholder="01...">
+            </div>
+            <div class="form-group">
+                <label>رقم تليفون الأم</label>
+                <input type="text" id="editMotherPhone" placeholder="01...">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-save" onclick="saveFamilyDetails()">💾 حفظ البيانات</button>
+                <button class="btn-cancel" onclick="closeEditModal()">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = async () => {
+            requireRole('Admin');
+            await loadSuggestions();
+            await loadConfirmed();
+        };
+
+        function switchTab(tabId) {
+            document.getElementById('tab-suggestions').classList.remove('active');
+            document.getElementById('tab-confirmed').classList.remove('active');
+            
+            document.getElementById('section-suggestions').style.display = 'none';
+            document.getElementById('section-confirmed').style.display = 'none';
+
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.getElementById(`section-${tabId}`).style.display = 'grid'; // because it's a grid container
+        }
+
+        async function loadSuggestions() {
+            const container = document.getElementById('section-suggestions');
+            try {
+                const res = await fetchApi('/siblings/suggestions');
+                if (res && res.success) {
+                    renderSuggestions(res.suggestions, container);
+                } else {
+                    container.innerHTML = `<div class="empty-state" style="color:var(--danger)">❌ فشل تحميل الاقتراحات</div>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color:var(--danger)">❌ خطأ في الاتصال بالخادم</div>`;
+            }
+        }
+
+        async function loadConfirmed() {
+            const container = document.getElementById('section-confirmed');
+            try {
+                const res = await fetchApi('/siblings/confirmed');
+                if (res && res.success) {
+                    renderConfirmed(res.families, container);
+                } else {
+                    container.innerHTML = `<div class="empty-state" style="color:var(--danger)">❌ فشل تحميل البيانات</div>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color:var(--danger)">❌ خطأ في الاتصال بالخادم</div>`;
+            }
+        }
+
+        function renderSuggestions(suggestions, container) {
+            if (!suggestions || suggestions.length === 0) {
+                container.innerHTML = `<div class="empty-state">✅ لا توجد اقتراحات حالياً.<br><span style="font-size:14px;">يبدو أن جميع الإخوة تم ربطهم بالفعل.</span></div>`;
+                return;
+            }
+
+            let html = '';
+            suggestions.forEach((group, index) => {
+                const badgeClass = group.isExistingFamily ? 'badge-confirmed' : (group.type === 'PhoneMatch' ? 'badge-phone' : 'badge-name');
+                const badgeIcon = group.isExistingFamily ? '🔗' : (group.type === 'PhoneMatch' ? '📞' : '🔤');
+                const reasonText = group.isExistingFamily ? `اقترحنا ضمه لعائلة موجودة (${group.reason})` : group.reason;
+                const existingFamilyData = group.isExistingFamily ? `data-existing="${group.existingFamilyId}"` : '';
+
+                let studentsHtml = '';
+                group.students.forEach(student => {
+                    // If student already has a FamilyId, they are part of the existing family, disable unchecking them
+                    const isExistingMember = student.familyId ? true : false;
+                    const checkboxHtml = isExistingMember ? 
+                        `<input type="checkbox" class="chk-student-${index}" value="${student.id}" checked disabled>` : 
+                        `<input type="checkbox" class="chk-student-${index}" value="${student.id}" checked>`;
+                        
+                    studentsHtml += `
+                        <div class="student-item" style="${isExistingMember ? 'opacity:0.7;' : ''}">
+                            ${checkboxHtml}
+                            <div class="student-info">
+                                <div class="student-name">${student.name} ${isExistingMember ? '<span style="color:#166534; font-size:11px;">(مسجل بالأسرة)</span>' : ''}</div>
+                                <div class="student-grade">الصف: ${student.govGrade || '-'}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                    <div class="family-card" id="suggestion-card-${index}" ${existingFamilyData}>
+                        <div class="card-header">
+                            <h4>${group.isExistingFamily ? 'طالب جديد لعائلة مسبقة' : 'مجموعة مقترحة'}</h4>
+                            <span class="badge ${badgeClass}">${badgeIcon} ${reasonText}</span>
+                        </div>
+                        <div class="card-body">
+                            <p style="font-size:12px; color:#64748b; margin-top:0;">أزل التحديد عن أي طالب (جديد) إذا كان التشابه غير صحيح.</p>
+                            ${studentsHtml}
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-confirm" onclick="confirmSiblings(${index})">✔️ تأكيد ${group.isExistingFamily ? 'الضم' : 'كإخوة'}</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function renderConfirmed(families, container) {
+            if (!families || families.length === 0) {
+                container.innerHTML = `<div class="empty-state">لا يوجد إخوة مؤكدين في النظام حالياً.</div>`;
+                return;
+            }
+
+            let html = '';
+            families.forEach((group, index) => {
+                let studentsHtml = '';
+                group.students.forEach(student => {
+                    studentsHtml += `
+                        <div class="student-item">
+                            <span style="font-size: 16px; margin-left: 5px;">👤</span>
+                            <div class="student-info">
+                                <div class="student-name">${student.name}</div>
+                                <div class="student-grade">الصف: ${student.govGrade || '-'}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                    <div class="family-card">
+                        <div class="card-header">
+                            <h4>عائلة مؤكدة</h4>
+                            <span class="badge badge-confirmed">✔️ ${group.students.length} طلاب</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="family-details">
+                                <p>📍 <b>العنوان:</b> ${group.address || 'غير مسجل'}</p>
+                                <p>📱 <b>هاتف الأب:</b> ${group.fatherPhone || 'غير مسجل'}</p>
+                                <p>📱 <b>هاتف الأم:</b> ${group.motherPhone || 'غير مسجل'}</p>
+                            </div>
+                            <h5 style="margin-top:15px; margin-bottom:10px; color:#334155;">الأبناء:</h5>
+                            ${studentsHtml}
+                        </div>
+                        <div class="card-footer">
+                            <button class="btn-edit" onclick="openEditModal(this.dataset.id, this.dataset.address, this.dataset.father, this.dataset.mother)" data-id="${group.familyId}" data-address="${(group.address || '').replace(/\"/g, '&quot;')}" data-father="${(group.fatherPhone || '').replace(/\"/g, '&quot;')}" data-mother="${(group.motherPhone || '').replace(/\"/g, '&quot;')}">✏️ تعديل بيانات الأسرة</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        async function confirmSiblings(index) {
+            const checkboxes = document.querySelectorAll(`.chk-student-${index}:checked`);
+            if (checkboxes.length < 2) {
+                alert('يجب تحديد طالبين على الأقل لربطهم كإخوة!');
+                return;
+            }
+
+            const studentIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            const card = document.getElementById(`suggestion-card-${index}`);
+            const existingFamilyId = card.getAttribute('data-existing') || null;
+
+            try {
+                const res = await fetchApi('/siblings/confirm', 'POST', { studentIds: studentIds, existingFamilyId: existingFamilyId });
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', `✅ ${res.message}`);
+                    card.style.display = 'none';
+                    // Refresh confirmed tab silently
+                    await loadConfirmed();
+                } else {
+                    showStatus('statusBar', 'error', `❌ خطأ: ${res?.message || 'فشل عملية الربط'}`);
+                }
+            } catch (e) {
+                showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
+            }
+        }
+
+        function openEditModal(familyId, address, fatherPhone, motherPhone) {
+            document.getElementById('editFamilyId').value = familyId;
+            document.getElementById('editAddress').value = address;
+            document.getElementById('editFatherPhone').value = fatherPhone;
+            document.getElementById('editMotherPhone').value = motherPhone;
+            document.getElementById('editFamilyModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editFamilyModal').style.display = 'none';
+        }
+
+        async function saveFamilyDetails() {
+            const familyId = document.getElementById('editFamilyId').value;
+            const payload = {
+                address: document.getElementById('editAddress').value,
+                fatherPhone: document.getElementById('editFatherPhone').value,
+                motherPhone: document.getElementById('editMotherPhone').value
+            };
+
+            try {
+                const res = await fetchApi(`/siblings/family/${familyId}`, 'PUT', payload);
+                if (res && res.success) {
+                    closeEditModal();
+                    showStatus('statusBar', 'success', '✅ تم تحديث بيانات الأسرة');
+                    await loadConfirmed();
+                } else {
+                    alert('خطأ في حفظ البيانات: ' + (res?.message || ''));
+                }
+            } catch (e) {
+                alert('خطأ في الاتصال');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

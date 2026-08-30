@@ -61,6 +61,9 @@ var app = builder.Build();
 // إنشاء الأدمن الافتراضي عند أول تشغيل
 using (var scope = app.Services.CreateScope())
 {
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    context.Database.Migrate();
+
     await DataSeeder.SeedAdminAsync(scope.ServiceProvider);
 }
 

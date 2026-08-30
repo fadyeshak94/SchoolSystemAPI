@@ -42,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (userRole === "Admin") {
         links.push({ path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" });
         links.push({ path: "/ManageRegistrations.html", icon: "📝", text: "إدارة التسجيلات" });
+        links.push({ path: "/Siblings.html", icon: "👨‍👩‍👧‍👦", text: "إدارة الإخوة" });
         links.push({ path: "/Permissions.html", icon: "🛡️", text: "الصلاحيات" });
         links.push({ path: "/Archive.html", icon: "📦", text: "الأرشيف" });
         links.push({ path: "/AuditLogs.html", icon: "📜", text: "سجل العمليات" });

@@ -13,6 +13,9 @@ public class Student
     public int ClassRoomId { get; set; } 
     public ClassRoom ClassRoom { get; set; } = null!;
     
+    public string? FamilyId { get; set; } // لمعرفة الأخوة
+    public Family? Family { get; set; }
+    
     public ICollection<AttendanceRecord> AttendanceRecords { get; set; } = new List<AttendanceRecord>();
     public ICollection<StudentGrade> Grades { get; set; } = new List<StudentGrade>();
 }

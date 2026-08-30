@@ -15,6 +15,7 @@ public interface IUnitOfWork : IDisposable
     IRepository<Excuse> Excuses { get; }
     IRepository<SubscriptionPayment> SubscriptionPayments { get; }
     IRepository<PendingRegistration> PendingRegistrations { get; }
+    IRepository<Family> Families { get; }
     
     Task<int> CompleteAsync();
 }
@@ -34,6 +35,7 @@ public class UnitOfWork : IUnitOfWork
     public IRepository<Excuse> Excuses { get; private set; }
     public IRepository<SubscriptionPayment> SubscriptionPayments { get; private set; }
     public IRepository<PendingRegistration> PendingRegistrations { get; private set; }
+    public IRepository<Family> Families { get; private set; }
 
     public UnitOfWork(ApplicationDbContext context)
     {
@@ -49,6 +51,7 @@ public class UnitOfWork : IUnitOfWork
         Excuses = new Repository<Excuse>(_context);
         SubscriptionPayments = new Repository<SubscriptionPayment>(_context);
         PendingRegistrations = new Repository<PendingRegistration>(_context);
+        Families = new Repository<Family>(_context);
     }
 
     public async Task<int> CompleteAsync()

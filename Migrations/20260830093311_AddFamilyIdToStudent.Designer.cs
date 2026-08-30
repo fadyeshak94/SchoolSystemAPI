@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SchoolSystemAPI.Data;
 
@@ -11,9 +12,11 @@ using SchoolSystemAPI.Data;
 namespace SchoolSystemAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260830093311_AddFamilyIdToStudent")]
+    partial class AddFamilyIdToStudent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -242,31 +245,6 @@ namespace SchoolSystemAPI.Migrations
                     b.ToTable("Excuses");
                 });
 
-            modelBuilder.Entity("SchoolSystemAPI.Models.Family", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<string>("Address")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("FatherPhone")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("MotherPhone")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Families");
-                });
-
             modelBuilder.Entity("SchoolSystemAPI.Models.PendingRegistration", b =>
                 {
                     b.Property<int>("Id")
@@ -359,7 +337,7 @@ namespace SchoolSystemAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("FamilyId")
-                        .HasColumnType("nvarchar(450)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Gender")
                         .IsRequired()
@@ -386,8 +364,6 @@ namespace SchoolSystemAPI.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ClassRoomId");
-
-                    b.HasIndex("FamilyId");
 
                     b.ToTable("Students");
                 });
@@ -576,14 +552,7 @@ namespace SchoolSystemAPI.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("SchoolSystemAPI.Models.Family", "Family")
-                        .WithMany("Siblings")
-                        .HasForeignKey("FamilyId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("ClassRoom");
-
-                    b.Navigation("Family");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.StudentGrade", b =>
@@ -602,11 +571,6 @@ namespace SchoolSystemAPI.Migrations
                     b.Navigation("Students");
 
                     b.Navigation("SupervisedByUsers");
-                });
-
-            modelBuilder.Entity("SchoolSystemAPI.Models.Family", b =>
-                {
-                    b.Navigation("Siblings");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.Student", b =>
