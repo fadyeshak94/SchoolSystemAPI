@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🚌 الرحلات والماليات</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .trip-card {
+            background: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .trip-info h4 { margin: 0; color: var(--primary); }
+        .trip-info p { margin: 5px 0 0 0; font-size: 0.9em; color: #555; }
+        
+        .role-section { display: none; } /* Hidden by default, toggled via JS */
+        
+        .dashboard-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            color: #fff;
+        }
+        .stat-income { background: #28a745; }
+        .stat-expense { background: #dc3545; }
+        .stat-balance { background: #007bff; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin:0;">📋 إدارة الرحلات</h3>
+        <button id="btnOpenCreateTrip" class="btn btn-success role-section" onclick="document.getElementById('createTripModal').classList.add('active')">➕ إنشاء رحلة جديدة</button>
+    </div>
+
+    <!-- مودال إنشاء رحلة -->
+    <div id="createTripModal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 400px; position:relative;">
+            <button onclick="document.getElementById('createTripModal').classList.remove('active')" style="position:absolute; left:15px; top:15px; background:red; color:white; border:none; padding:5px 10px; border-radius:50%; cursor:pointer;">X</button>
+            <h3 style="margin-bottom:20px; color:var(--primary);">➕ رحلة جديدة</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="text" id="newTripName" placeholder="اسم الرحلة (مثال: دير الأنبا بيشوي)">
+                <input type="date" id="newTripDate">
+                <input type="number" id="newTripPrice" placeholder="سعر التذكرة (ج.م)">
+                <button class="btn btn-primary" onclick="createTrip()" style="width:100%">حفظ الرحلة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- قائمة الرحلات -->
+    <div class="card">
+        <h3>📋 الرحلات المتاحة</h3>
+        <div id="tripsList">جاري التحميل...</div>
+    </div>
+
+    <!-- مودال التفاصيل المالية (أمين / أمين عام) -->
+    <div id="tripDashboardModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto; padding:20px;">
+        <div class="card" style="max-width: 800px; margin: auto; position: relative;">
+            <button onclick="document.getElementById('tripDashboardModal').style.display='none'" style="position:absolute; left:15px; top:15px; background:red; color:white; border:none; padding:5px 10px; border-radius:50%;">X</button>
+            <h2 id="modalTripName">تفاصيل الرحلة</h2>
+            
+            <div class="dashboard-stats" id="adminStatsBox">
+                <div class="stat-box stat-income">الإيرادات: <span id="statIncome">0</span> ج.م</div>
+                <div class="stat-box stat-expense">المصروفات: <span id="statExpense">0</span> ج.م</div>
+                <div class="stat-box stat-balance">الرصيد الصافي: <span id="statBalance">0</span> ج.م</div>
+            </div>
+
+            <!-- قسم المصروفات -->
+            <div id="expenseSection" class="role-section">
+                <h4>💸 إضافة مصروفات</h4>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" id="expenseDesc" placeholder="البيان (مثال: حجز أتوبيس)" style="flex:1">
+                    <input type="number" id="expenseAmount" placeholder="المبلغ" style="width:100px;">
+                    <button class="btn btn-danger" onclick="addExpense()">تسجيل مصروف</button>
+                </div>
+                <table style="margin-bottom: 20px;">
+                    <thead><tr><th>البيان</th><th>المبلغ</th><th>التاريخ</th></tr></thead>
+                    <tbody id="expensesTableBody"></tbody>
+                </table>
+            </div>
+
+            <h4>📝 سجل الاشتراكات</h4>
+            <table>
+                <thead><tr><th>المخدوم</th><th>المبلغ المدفوع</th><th>الخادم المستلم</th><th>التاريخ</th></tr></thead>
+                <tbody id="subscriptionsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- مودال الخادم: تسجيل اشتراكات -->
+    <div id="servantModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; padding:20px;">
+        <div class="card" style="max-width: 500px; margin: auto; position: relative;">
+            <button onclick="document.getElementById('servantModal').style.display='none'" style="position:absolute; left:15px; top:15px; background:red; color:white; border:none; padding:5px 10px; border-radius:50%;">X</button>
+            <h3 id="servantModalTripName">تسجيل اشتراك</h3>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; margin-top: 20px;">
+                <input type="number" id="subStudentId" placeholder="كود المخدوم (ID)" style="flex:1">
+                <input type="number" id="subAmount" placeholder="المبلغ المدفوع" style="width:120px;">
+                <button class="btn btn-primary" onclick="addSubscription()">تسجيل الدفع</button>
+            </div>
+            
+            <h4>الاشتراكات التي قمت بتسجيلها:</h4>
+            <table>
+                <thead><tr><th>المخدوم</th><th>المبلغ</th></tr></thead>
+                <tbody id="servantSubsTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentTripId = 0;
+        let currentUserRole = '';
+
+        window.onload = async () => {
+            await checkRole();
+            loadTrips();
+        };
+
+        async function checkRole() {
+            const res = await fetchApi('/Auth/me');
+            if (res && res.success) {
+                currentUserRole = res.user.role;
+                // Admins and Family Admins can create trips
+                if (currentUserRole === 'TarbeyaFamilyAdmin' || currentUserRole === 'Admin' || currentUserRole === 'TarbeyaGeneralAdmin') {
+                    document.getElementById('btnOpenCreateTrip').style.display = 'inline-flex';
+                }
+            }
+        }
+
+        async function loadTrips() {
+            const res = await fetchApi('/TarbeyaTrips');
+            const div = document.getElementById('tripsList');
+            if (res && res.success) {
+                if(res.trips.length === 0) {
+                    div.innerHTML = '<p class="text-center">لا توجد رحلات حالياً.</p>';
+                    return;
+                }
+                let html = '';
+                res.trips.forEach(t => {
+                    html += `
+                        <div class="trip-card">
+                            <div class="trip-info">
+                                <h4>${t.name} <small style="color:#888">(${t.familyName})</small></h4>
+                                <p>التاريخ: ${new Date(t.tripDate).toLocaleDateString('ar-EG')} | التذكرة: ${t.ticketPrice} ج.م</p>
+                            </div>
+                            <button class="btn btn-primary" onclick="openTrip(${t.id}, '${t.name}', ${t.ticketPrice})">إدارة</button>
+                        </div>
+                    `;
+                });
+                div.innerHTML = html;
+            } else {
+                div.innerHTML = '<p class="text-center" style="color:red">خطأ في تحميل الرحلات.</p>';
+            }
+        }
+
+        async function createTrip() {
+            const name = document.getElementById('newTripName').value;
+            const date = document.getElementById('newTripDate').value;
+            const price = document.getElementById('newTripPrice').value;
+
+            if(!name || !date || !price) return alert('أكمل جميع البيانات');
+
+            const res = await fetchApi('/TarbeyaTrips', 'POST', { 
+                name: name, tripDate: date, ticketPrice: parseFloat(price) 
+            });
+
+            if (res && res.success) {
+                alert('تم إنشاء الرحلة بنجاح');
+                document.getElementById('createTripModal').classList.remove('active');
+                document.getElementById('newTripName').value = '';
+                document.getElementById('newTripPrice').value = '';
+                loadTrips();
+            } else {
+                alert(res?.message || 'خطأ في الإنشاء');
+            }
+        }
+
+        async function openTrip(id, name, price) {
+            currentTripId = id;
+            if (currentUserRole === 'TarbeyaServant') {
+                document.getElementById('servantModalTripName').innerText = `تسجيل لرحلة: ${name}`;
+                document.getElementById('subAmount').value = price;
+                await loadServantDashboard();
+                document.getElementById('servantModal').style.display = 'block';
+            } else {
+                document.getElementById('modalTripName').innerText = `إدارة رحلة: ${name}`;
+                if(currentUserRole === 'TarbeyaFamilyAdmin' || currentUserRole === 'Admin' || currentUserRole === 'TarbeyaGeneralAdmin') {
+                    document.getElementById('expenseSection').style.display = 'block';
+                }
+                await loadAdminDashboard();
+                document.getElementById('tripDashboardModal').style.display = 'block';
+            }
+        }
+
+        async function loadAdminDashboard() {
+            const res = await fetchApi(`/TarbeyaTrips/${currentTripId}/dashboard`);
+            if (res && res.success) {
+                const d = res.dashboard;
+                document.getElementById('statIncome').innerText = d.totalCollected || 0;
+                document.getElementById('statExpense').innerText = d.totalExpenses || 0;
+                document.getElementById('statBalance').innerText = d.netBalance || 0;
+
+                // Expenses Table
+                let expHtml = '';
+                d.expenses.forEach(e => {
+                    expHtml += `<tr><td>${e.itemDescription}</td><td style="color:red">${e.amount}</td><td>${new Date(e.expenseDate).toLocaleDateString('ar-EG')}</td></tr>`;
+                });
+                document.getElementById('expensesTableBody').innerHTML = expHtml || '<tr><td colspan="3" class="text-center">لا يوجد مصروفات</td></tr>';
+
+                // Subscriptions Table
+                let subHtml = '';
+                d.subscriptions.forEach(s => {
+                    subHtml += `<tr><td>${s.studentName || '-'}</td><td style="color:green">${s.amountPaid}</td><td>${s.servantName || '-'}</td><td>${new Date(s.registrationDate).toLocaleDateString('ar-EG')}</td></tr>`;
+                });
+                document.getElementById('subscriptionsTableBody').innerHTML = subHtml || '<tr><td colspan="4" class="text-center">لا توجد اشتراكات</td></tr>';
+            }
+        }
+
+        async function loadServantDashboard() {
+            const res = await fetchApi(`/TarbeyaTrips/${currentTripId}/dashboard`);
+            if (res && res.success) {
+                let subHtml = '';
+                res.dashboard.subscriptions.forEach(s => {
+                    subHtml += `<tr><td>${s.studentName || '-'}</td><td style="color:green">${s.amountPaid} ج.م</td></tr>`;
+                });
+                document.getElementById('servantSubsTableBody').innerHTML = subHtml || '<tr><td colspan="2" class="text-center">لم تسجل أحداً بعد</td></tr>';
+            }
+        }
+
+        async function addExpense() {
+            const desc = document.getElementById('expenseDesc').value;
+            const amount = document.getElementById('expenseAmount').value;
+            if(!desc || !amount) return alert('أكمل بيانات المصروف');
+
+            const res = await fetchApi(`/TarbeyaTrips/${currentTripId}/expenses`, 'POST', {
+                itemDescription: desc, amount: parseFloat(amount)
+            });
+
+            if (res && res.success) {
+                document.getElementById('expenseDesc').value = '';
+                document.getElementById('expenseAmount').value = '';
+                loadAdminDashboard();
+            } else {
+                alert(res?.message || 'خطأ في الحفظ');
+            }
+        }
+
+        async function addSubscription() {
+            const studentId = document.getElementById('subStudentId').value;
+            const amount = document.getElementById('subAmount').value;
+            if(!studentId || !amount) return alert('أكمل البيانات');
+
+            const res = await fetchApi(`/TarbeyaTrips/${currentTripId}/subscriptions`, 'POST', {
+                studentId: parseInt(studentId), amountPaid: parseFloat(amount)
+            });
+
+            if (res && res.success) {
+                document.getElementById('subStudentId').value = '';
+                alert('تم تسجيل الاشتراك بنجاح');
+                loadServantDashboard();
+            } else {
+                alert(res?.message || 'الطالب غير موجود في فصلك أو خطأ في التسجيل');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

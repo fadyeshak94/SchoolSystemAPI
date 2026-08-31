@@ -9,7 +9,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Ignore layout injection on the Login page
-    if (window.location.pathname.toLowerCase().includes("login")) return;
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes("login") || path.includes("portal")) return;
 
     // Get user role
     let userRole = "User";
@@ -21,31 +22,70 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) {}
     }
 
-    const links = [
-        { path: "/Dashboard.html", icon: "📊", text: "لوحة التحكم" },
-        { path: "/Registration.html", icon: "💳", text: "التسجيل والاشتراكات" },
-        { path: "/StudentManage.html", icon: "✏️", text: "الطلاب" },
-        { path: "/ClassStudents.html", icon: "📋", text: "قوائم الفصول" },
-        { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" },
-        { path: "/AttendanceTrack.html", icon: "📅", text: "متابعة الحضور" },
-        { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" },
-        { path: "/SubjectGrades.html", icon: "✏️", text: "رصد الدرجات" },
-        { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
-        { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
-        { path: "/Certificates.html", icon: "🎓", text: "الشهادات" },
-        { path: "/IDCard.html", icon: "🪪", text: "الكارنيهات" },
-        { path: "/Renewals.html", icon: "📞", text: "تجديد الاشتراكات" },
-        { path: "/Statistics.html", icon: "📈", text: "الإحصائيات" },
-        { path: "/Settings.html", icon: "⚙️", text: "الإعدادات" }
-    ];
+    let links = [];
+    
+    // Check which module we are in
+    const isTarbeyaModule = path.includes("tarbeya");
 
-    if (userRole === "Admin") {
-        links.push({ path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" });
-        links.push({ path: "/ManageRegistrations.html", icon: "📝", text: "إدارة التسجيلات" });
-        links.push({ path: "/Siblings.html", icon: "👨‍👩‍👧‍👦", text: "إدارة الإخوة" });
-        links.push({ path: "/Permissions.html", icon: "🛡️", text: "الصلاحيات" });
-        links.push({ path: "/Archive.html", icon: "📦", text: "الأرشيف" });
-        links.push({ path: "/AuditLogs.html", icon: "📜", text: "سجل العمليات" });
+    // Global Route Guard: Prevent Tarbeya users from accessing School pages
+    if (userRole.startsWith("Tarbeya") && !isTarbeyaModule) {
+        window.location.href = "/TarbeyaHierarchy.html";
+        return;
+    }
+
+    // Global Route Guard: Prevent School users from accessing Tarbeya pages
+    if (!userRole.startsWith("Tarbeya") && userRole !== "Admin" && isTarbeyaModule) {
+        window.location.href = "/Dashboard.html";
+        return;
+    }
+
+    if (isTarbeyaModule) {
+        links = [
+            { path: "/TarbeyaHierarchy.html", icon: "⛪", text: "الهيكل التنظيمي" },
+            { path: "/TarbeyaAreas.html", icon: "📍", text: "إدارة المناطق" },
+            { path: "/TarbeyaUsers.html", icon: "🛡️", text: "إدارة الخدام والصلاحيات" },
+            { path: "/TarbeyaStudents.html", icon: "🧑‍🎓", text: "إدارة المخدومين" },
+            { path: "/TarbeyaAttendance.html", icon: "📋", text: "الغياب والحضور" },
+            { path: "/TarbeyaVisitation.html", icon: "🙏", text: "الافتقاد الرعوي" },
+            { path: "/TarbeyaTrips.html", icon: "🚌", text: "الرحلات والماليات" },
+            { path: "/TarbeyaFinances.html", icon: "💰", text: "خزينة الأسرة" },
+            { path: "/TarbeyaServants.html", icon: "🤝", text: "الخدام والمهام" },
+            { path: "/TarbeyaMahragan.html", icon: "🎪", text: "المهرجان والأنشطة" },
+            { path: "/TarbeyaPoints.html", icon: "⭐", text: "بنك النقط" },
+            { path: "/TarbeyaFollowup.html", icon: "📱", text: "لوحة المتابعة" },
+            { path: "/TarbeyaSpiritual.html", icon: "🕊️", text: "المتابعة الروحية" }
+        ];
+        if (userRole === "Admin") {
+            links.unshift({ path: "/Portal.html", icon: "🏠", text: "البوابة الرئيسية (تبديل)" });
+        }
+    } else {
+        links = [
+            { path: "/Dashboard.html", icon: "📊", text: "لوحة التحكم" },
+            { path: "/Registration.html", icon: "💳", text: "التسجيل والاشتراكات" },
+            { path: "/StudentManage.html", icon: "✏️", text: "الطلاب" },
+            { path: "/ClassStudents.html", icon: "📋", text: "قوائم الفصول" },
+            { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" },
+            { path: "/AttendanceTrack.html", icon: "📅", text: "متابعة الحضور" },
+            { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" },
+            { path: "/SubjectGrades.html", icon: "✏️", text: "رصد الدرجات" },
+            { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
+            { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
+            { path: "/Certificates.html", icon: "🎓", text: "الشهادات" },
+            { path: "/IDCard.html", icon: "🪪", text: "الكارنيهات" },
+            { path: "/Renewals.html", icon: "📞", text: "تجديد الاشتراكات" },
+            { path: "/Statistics.html", icon: "📈", text: "الإحصائيات" },
+            { path: "/Settings.html", icon: "⚙️", text: "الإعدادات" }
+        ];
+
+        if (userRole === "Admin") {
+            links.unshift({ path: "/Portal.html", icon: "🏠", text: "البوابة الرئيسية (تبديل)" });
+            links.push({ path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" });
+            links.push({ path: "/ManageRegistrations.html", icon: "📝", text: "إدارة التسجيلات" });
+            links.push({ path: "/Siblings.html", icon: "👨‍👩‍👧‍👦", text: "إدارة الإخوة" });
+            links.push({ path: "/Permissions.html", icon: "🛡️", text: "الصلاحيات" });
+            links.push({ path: "/Archive.html", icon: "📦", text: "الأرشيف" });
+            links.push({ path: "/AuditLogs.html", icon: "📜", text: "سجل العمليات" });
+        }
     }
 
     const currentPath = window.location.pathname;
@@ -78,7 +118,21 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button id="sidebarToggle" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--primary);">☰</button>
                 <div class="page-title">${pageTitle}</div>
             </div>
-            <div class="user-info">
+            <div class="user-info" style="display: flex; align-items: center; gap: 15px;">
+                <!-- Notification Bell -->
+                <div class="dropdown position-relative">
+                    <button class="btn btn-light rounded-circle p-2 position-relative" type="button" id="notifDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="width: 40px; height: 40px;">
+                        <i class="fas fa-bell text-muted"></i>
+                        <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="display:none; font-size: 0.6rem;">
+                            0
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" aria-labelledby="notifDropdown" id="notifList" style="width: 300px; max-height: 400px; overflow-y: auto;">
+                        <li><h6 class="dropdown-header fw-bold">الإشعارات</h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li id="noNotifsItem"><span class="dropdown-item text-muted text-center small">لا توجد إشعارات جديدة</span></li>
+                    </ul>
+                </div>
                 <span id="userNameDisplay">مرحباً بك</span>
                 <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
             </div>
@@ -137,14 +191,59 @@ document.addEventListener("DOMContentLoaded", () => {
             const name = claims["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || claims.unique_name || claims.name || "مستخدم";
             const role = claims["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || claims.role || claims.Role || "User";
             const roleName = role === "Admin" ? "أدمن" : "مستخدم";
+            const userId = claims["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || claims.nameid || claims.sub || "0";
             
             const displaySpan = document.getElementById("userNameDisplay");
             
             // Initial basic info
             displaySpan.innerHTML = `مرحباً، <strong>${name}</strong> <span style="font-size: 12px; background: #e2e8f0; color: #1e293b; padding: 2px 8px; border-radius: 6px; margin-right: 5px;">${roleName}</span>`;
             
-            // Fetch classes to show what they are responsible for
+            // Notifications Logic
             if (typeof fetchApi === 'function') {
+                // Fetch unread notifications
+                fetchApi('/Notifications/unread').then(res => {
+                    if (res && res.success && res.notifications) {
+                        updateNotificationUI(res.notifications);
+                    }
+                }).catch(e => console.error(e));
+
+                // Setup SignalR connection if library is loaded
+                if (typeof signalR !== 'undefined') {
+                    const connection = new signalR.HubConnectionBuilder()
+                        .withUrl("/notificationHub", { accessTokenFactory: () => localStorage.getItem("appToken") })
+                        .withAutomaticReconnect()
+                        .build();
+
+                    connection.on("ReceiveNotification", function (notif) {
+                        // Toast or alert can be added here
+                        console.log("New Notification Received: ", notif);
+                        
+                        let badge = document.getElementById('notifBadge');
+                        let count = parseInt(badge.innerText) || 0;
+                        count++;
+                        badge.innerText = count;
+                        badge.style.display = 'block';
+
+                        let list = document.getElementById('notifList');
+                        document.getElementById('noNotifsItem')?.remove();
+                        
+                        let li = document.createElement('li');
+                        li.innerHTML = `
+                            <a class="dropdown-item border-bottom py-2" href="#" onclick="markNotifAsRead(${notif.id}, this)">
+                                <div class="fw-bold text-primary" style="font-size:0.85rem;">${notif.title}</div>
+                                <div class="text-muted text-wrap" style="font-size:0.75rem;">${notif.message}</div>
+                                <div class="text-secondary mt-1" style="font-size:0.65rem;">الآن</div>
+                            </a>
+                        `;
+                        list.insertBefore(li, list.children[2]); // Insert after header
+                    });
+
+                    connection.start().catch(err => console.error(err.toString()));
+                }
+            }
+            
+            // Fetch classes to show what they are responsible for
+            if (typeof fetchApi === 'function' && !role.startsWith("Tarbeya")) {
                 fetchApi('/users/me/classes').then(res => {
                     if (res && res.classes && res.classes.length > 0) {
                         let respText = "";
@@ -163,6 +262,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         displaySpan.innerHTML += `<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">المسؤولية: ${respText}</div>`;
                     }
                 }).catch(e => console.error(e));
+            } else if (role.startsWith("Tarbeya")) {
+                // Show Tarbeya Responsibility
+                let tarbeyaResp = "التربية الكنسية";
+                if (role === "TarbeyaFamilyAdmin") tarbeyaResp = "أمين أسرة";
+                if (role === "TarbeyaServant") tarbeyaResp = "خادم أسرة";
+                if (role === "TarbeyaGeneralAdmin") tarbeyaResp = "أمين خدمة عام";
+                displaySpan.innerHTML += `<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">المسؤولية: ${tarbeyaResp}</div>`;
             }
 
         } catch(e) {
@@ -170,4 +276,46 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 });
+
+function updateNotificationUI(notifs) {
+    let badge = document.getElementById('notifBadge');
+    let list = document.getElementById('notifList');
+    
+    if (notifs.length > 0) {
+        badge.innerText = notifs.length;
+        badge.style.display = 'block';
+        document.getElementById('noNotifsItem')?.remove();
+        
+        notifs.forEach(n => {
+            let li = document.createElement('li');
+            li.innerHTML = `
+                <a class="dropdown-item border-bottom py-2" href="#" onclick="markNotifAsRead(${n.id}, this)">
+                    <div class="fw-bold text-primary" style="font-size:0.85rem;">${n.title}</div>
+                    <div class="text-muted text-wrap" style="font-size:0.75rem;">${n.message}</div>
+                    <div class="text-secondary mt-1" style="font-size:0.65rem;">${new Date(n.createdAt).toLocaleDateString('ar-EG')}</div>
+                </a>
+            `;
+            list.appendChild(li);
+        });
+    }
+}
+
+async function markNotifAsRead(id, element) {
+    event.preventDefault();
+    try {
+        await fetchApi(`/Notifications/${id}/read`, { method: 'PUT' });
+        element.parentElement.remove();
+        
+        let badge = document.getElementById('notifBadge');
+        let count = parseInt(badge.innerText) || 0;
+        count--;
+        if(count <= 0) {
+            badge.style.display = 'none';
+            badge.innerText = '0';
+            document.getElementById('notifList').innerHTML += `<li id="noNotifsItem"><span class="dropdown-item text-muted text-center small">لا توجد إشعارات جديدة</span></li>`;
+        } else {
+            badge.innerText = count;
+        }
+    } catch(e) { console.error(e); }
+}
 

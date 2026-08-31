@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>البوابة الرئيسية</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f0f2f5;
+            margin: 0;
+            direction: rtl;
+        }
+
+        .portal-container {
+            text-align: center;
+        }
+
+        .portal-title {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 30px;
+        }
+
+        .cards-wrapper {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .module-card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 250px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .module-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .module-card.melody {
+            border-bottom: 5px solid var(--primary);
+        }
+
+        .module-card.tarbeya {
+            border-bottom: 5px solid var(--success);
+        }
+
+        .module-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .module-title {
+            font-size: 22px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="portal-container">
+        <h1 class="portal-title">اختر النظام الذي تود الدخول إليه</h1>
+        <div class="cards-wrapper">
+            <a href="/Dashboard.html" class="module-card melody">
+                <div class="module-icon">🎵</div>
+                <div class="module-title">مدرسة الألحان</div>
+            </a>
+            
+            <a href="/TarbeyaHierarchy.html" class="module-card tarbeya">
+                <div class="module-icon">⛪</div>
+                <div class="module-title">التربية الكنسية</div>
+            </a>
+        </div>
+        <div style="margin-top: 30px;">
+            <button class="btn btn-danger" onclick="logout()">تسجيل خروج</button>
+        </div>
+    </div>
+
+    <script>
+        window.onload = () => {
+            const token = localStorage.getItem("appToken");
+            if (!token) {
+                window.location.href = "/Login.html";
+                return;
+            }
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const role = (payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "").toLowerCase();
+                if (role !== 'admin') {
+                    alert("غير مصرح لك بالدخول لهذه الصفحة!");
+                    window.location.href = "/Login.html";
+                }
+            } catch (e) {
+                window.location.href = "/Login.html";
+            }
+        };
+
+        function logout() {
+            localStorage.removeItem("appToken");
+            window.location.href = "/Login.html";
+        }
+    </script>
+</body>
+</html>

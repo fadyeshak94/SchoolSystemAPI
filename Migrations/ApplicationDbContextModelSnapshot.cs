@@ -277,6 +277,158 @@ namespace SchoolSystemAPI.Migrations
                     b.ToTable("Families");
                 });
 
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganCompetition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EventId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("PassingScore")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TargetStageId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("TargetStageId");
+
+                    b.ToTable("MahraganCompetitions");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganEnrollment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BarcodeString")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("CompetitionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompetitionId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("MahraganEnrollments");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ThemeName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MahraganEvents");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganScore", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EnrollmentId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsQualified")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("Score")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("StageName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EnrollmentId");
+
+                    b.ToTable("MahraganScores");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("RelatedEntityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("SchoolSystemAPI.Models.PendingRegistration", b =>
                 {
                     b.Property<int>("Id")
@@ -330,6 +482,83 @@ namespace SchoolSystemAPI.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PendingRegistrations");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.ServantAttendance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FamilyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MeetingType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ServantId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamilyId");
+
+                    b.HasIndex("ServantId");
+
+                    b.ToTable("ServantAttendances");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.ServiceTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssignedByAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AssignedToServantId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("FamilyId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedByAdminId");
+
+                    b.HasIndex("AssignedToServantId");
+
+                    b.HasIndex("FamilyId");
+
+                    b.ToTable("ServiceTasks");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.StageFee", b =>
@@ -546,6 +775,24 @@ namespace SchoolSystemAPI.Migrations
                     b.ToTable("SubscriptionPayments");
                 });
 
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaArea", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TarbeyaAreas");
+                });
+
             modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaAttendance", b =>
                 {
                     b.Property<int>("Id")
@@ -612,6 +859,107 @@ namespace SchoolSystemAPI.Migrations
                     b.ToTable("TarbeyaFamilies");
                 });
 
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaFamilyTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AddedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("FamilyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddedByUserId");
+
+                    b.HasIndex("FamilyId");
+
+                    b.ToTable("TarbeyaFamilyTransactions");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaLiturgyAttendance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StudentId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("TarbeyaLiturgyAttendances");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaPointTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ServantId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServantId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("TarbeyaPointTransactions");
+                });
+
             modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaStage", b =>
                 {
                     b.Property<int>("Id")
@@ -647,23 +995,45 @@ namespace SchoolSystemAPI.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("Area")
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                    b.Property<int?>("AreaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Barcode")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("BirthDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("ClassId")
+                    b.Property<int?>("ClassId")
                         .HasColumnType("int");
 
+                    b.Property<string>("ConfessionFather")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("FatherConfessorName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Gender")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("GeneralNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastConfessionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MedicalNotes")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ParentPhone")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
@@ -672,11 +1042,145 @@ namespace SchoolSystemAPI.Migrations
                     b.Property<string>("PrivateNotes")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("TotalPoints")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("AreaId");
 
                     b.HasIndex("ClassId");
 
                     b.ToTable("TarbeyaStudents");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaTrip", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("FamilyId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("TicketPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("TripDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamilyId");
+
+                    b.ToTable("TarbeyaTrips");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaTripExpense", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AddedByFamilyAdminId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("ExpenseDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ItemDescription")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<int>("TripId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AddedByFamilyAdminId");
+
+                    b.HasIndex("TripId");
+
+                    b.ToTable("TarbeyaTripExpenses");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaTripSubscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AmountPaid")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("RegistrationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ServantId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TripId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServantId");
+
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("TripId");
+
+                    b.ToTable("TarbeyaTripSubscriptions");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaVisitationRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Result")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("ServantId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServantId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("TarbeyaVisitationRecords");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.AppUser", b =>
@@ -723,6 +1227,112 @@ namespace SchoolSystemAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganCompetition", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.MahraganEvent", "Event")
+                        .WithMany("Competitions")
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaStage", "TargetStage")
+                        .WithMany()
+                        .HasForeignKey("TargetStageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Event");
+
+                    b.Navigation("TargetStage");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganEnrollment", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.MahraganCompetition", "Competition")
+                        .WithMany("Enrollments")
+                        .HasForeignKey("CompetitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaStudent", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Competition");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganScore", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.MahraganEnrollment", "Enrollment")
+                        .WithMany("Scores")
+                        .HasForeignKey("EnrollmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Enrollment");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.Notification", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.ServantAttendance", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaFamily", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "Servant")
+                        .WithMany()
+                        .HasForeignKey("ServantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Family");
+
+                    b.Navigation("Servant");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.ServiceTask", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "AssignedByAdmin")
+                        .WithMany()
+                        .HasForeignKey("AssignedByAdminId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "AssignedToServant")
+                        .WithMany()
+                        .HasForeignKey("AssignedToServantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaFamily", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AssignedByAdmin");
+
+                    b.Navigation("AssignedToServant");
+
+                    b.Navigation("Family");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.Student", b =>
@@ -776,6 +1386,54 @@ namespace SchoolSystemAPI.Migrations
                     b.Navigation("Stage");
                 });
 
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaFamilyTransaction", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "AddedByUser")
+                        .WithMany()
+                        .HasForeignKey("AddedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaFamily", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AddedByUser");
+
+                    b.Navigation("Family");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaLiturgyAttendance", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaStudent", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaPointTransaction", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "Servant")
+                        .WithMany()
+                        .HasForeignKey("ServantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaStudent", "Student")
+                        .WithMany("PointTransactions")
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Servant");
+
+                    b.Navigation("Student");
+                });
+
             modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaStage", b =>
                 {
                     b.HasOne("SchoolSystemAPI.Models.TarbeyaFamily", "Family")
@@ -789,13 +1447,94 @@ namespace SchoolSystemAPI.Migrations
 
             modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaStudent", b =>
                 {
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaArea", "AreaNavigation")
+                        .WithMany("Students")
+                        .HasForeignKey("AreaId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("SchoolSystemAPI.Models.TarbeyaClass", "Class")
                         .WithMany("Students")
                         .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AreaNavigation");
+
+                    b.Navigation("Class");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaTrip", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaFamily", "Family")
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Class");
+                    b.Navigation("Family");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaTripExpense", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "AddedByFamilyAdmin")
+                        .WithMany()
+                        .HasForeignKey("AddedByFamilyAdminId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaTrip", "Trip")
+                        .WithMany("Expenses")
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AddedByFamilyAdmin");
+
+                    b.Navigation("Trip");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaTripSubscription", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "Servant")
+                        .WithMany()
+                        .HasForeignKey("ServantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaStudent", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaTrip", "Trip")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Servant");
+
+                    b.Navigation("Student");
+
+                    b.Navigation("Trip");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaVisitationRecord", b =>
+                {
+                    b.HasOne("SchoolSystemAPI.Models.AppUser", "Servant")
+                        .WithMany()
+                        .HasForeignKey("ServantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("SchoolSystemAPI.Models.TarbeyaStudent", "Student")
+                        .WithMany("Visitations")
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Servant");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.ClassRoom", b =>
@@ -810,11 +1549,31 @@ namespace SchoolSystemAPI.Migrations
                     b.Navigation("Siblings");
                 });
 
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganCompetition", b =>
+                {
+                    b.Navigation("Enrollments");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganEnrollment", b =>
+                {
+                    b.Navigation("Scores");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.MahraganEvent", b =>
+                {
+                    b.Navigation("Competitions");
+                });
+
             modelBuilder.Entity("SchoolSystemAPI.Models.Student", b =>
                 {
                     b.Navigation("AttendanceRecords");
 
                     b.Navigation("Grades");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaArea", b =>
+                {
+                    b.Navigation("Students");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaClass", b =>
@@ -835,6 +1594,17 @@ namespace SchoolSystemAPI.Migrations
             modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaStudent", b =>
                 {
                     b.Navigation("Attendances");
+
+                    b.Navigation("PointTransactions");
+
+                    b.Navigation("Visitations");
+                });
+
+            modelBuilder.Entity("SchoolSystemAPI.Models.TarbeyaTrip", b =>
+                {
+                    b.Navigation("Expenses");
+
+                    b.Navigation("Subscriptions");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>⭐ بنك النقط (Gamification)</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .point-btn { padding: 10px 15px; margin: 5px; font-weight: bold; border-radius: 8px; cursor: pointer; border: none; }
+        .btn-plus { background: var(--primary); color: white; }
+        .btn-minus { background: var(--danger); color: white; }
+        .student-card { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 15px; border-right: 5px solid var(--primary); display: none; }
+        .transactions-list { margin-top: 20px; font-size: 14px; }
+        .transactions-list li { padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <h3>⭐ بنك النقط</h3>
+        <p>قم بالبحث عن المخدوم باستخدام الاسم أو <b>الباركود</b> لإدارة نقاطه.</p>
+        
+        <div class="controls" style="display:flex; gap:10px;">
+            <input type="text" id="searchQuery" placeholder="الاسم أو الباركود..." style="flex:1;" onkeypress="handleEnter(event)">
+            <button class="btn btn-primary" onclick="searchStudent()">🔍 بحث</button>
+        </div>
+
+        <div id="searchResults" style="margin-top:15px;"></div>
+
+        <!-- Selected Student Profile -->
+        <div id="studentProfile" class="student-card">
+            <h4 id="spName" style="margin-top:0; color:var(--primary);"></h4>
+            <p style="margin:5px 0;">رصيد النقط الحالي: <b id="spTotal" style="font-size:20px; color:var(--primary);">0</b></p>
+            <input type="hidden" id="spId">
+
+            <div style="margin-top:15px; border-top: 1px solid #ddd; padding-top:15px;">
+                <label>إضافة سريعة:</label><br>
+                <button class="point-btn btn-plus" onclick="addPoints(10, 'حضور ومواظبة')">+10 حضور</button>
+                <button class="point-btn btn-plus" onclick="addPoints(5, 'حفظ ألحان')">+5 ألحان</button>
+                <button class="point-btn btn-plus" onclick="addPoints(5, 'مشاركة وتفاعل')">+5 مشاركة</button>
+                <button class="point-btn btn-minus" onclick="addPoints(-20, 'استبدال بهدية')">-20 هدية</button>
+            </div>
+
+            <div style="margin-top:15px;">
+                <label>معاملة مخصصة:</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="number" id="customAmount" placeholder="القيمة (+ أو -)" style="width:100px;">
+                    <input type="text" id="customReason" placeholder="السبب..." style="flex:1;">
+                    <button class="btn btn-secondary" onclick="addCustomPoints()">إرسال</button>
+                </div>
+            </div>
+
+            <div class="transactions-list">
+                <h4>آخر المعاملات:</h4>
+                <ul id="txList" style="list-style:none; padding:0;"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        function handleEnter(e) {
+            if(e.key === 'Enter') searchStudent();
+        }
+
+        async function searchStudent() {
+            const query = document.getElementById('searchQuery').value;
+            if(!query) return;
+
+            const res = await fetchApi(`/TarbeyaPoints/search?query=${encodeURIComponent(query)}`);
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '';
+            document.getElementById('studentProfile').style.display = 'none';
+
+            if(res && res.success) {
+                if(res.students.length === 0) {
+                    resultsDiv.innerHTML = '<p class="text-danger">لم يتم العثور على مخدوم بهذا البحث.</p>';
+                    return;
+                }
+                
+                // If only 1 result (e.g. strict barcode match), auto select it
+                if(res.students.length === 1) {
+                    selectStudent(res.students[0].id, res.students[0].name, res.students[0].totalPoints);
+                } else {
+                    // Show list to choose from
+                    let html = '<ul style="list-style:none; padding:0; border: 1px solid #eee; border-radius:8px;">';
+                    res.students.forEach(s => {
+                        html += `<li style="padding:10px; border-bottom:1px solid #eee; cursor:pointer;" onclick="selectStudent(${s.id}, '${s.name}', ${s.totalPoints})">
+                            <strong>${s.name}</strong> (${s.className}) - ${s.totalPoints} نقطة
+                        </li>`;
+                    });
+                    html += '</ul>';
+                    resultsDiv.innerHTML = html;
+                }
+            }
+        }
+
+        async function selectStudent(id, name, totalPoints) {
+            document.getElementById('searchResults').innerHTML = ''; // Hide search list
+            
+            document.getElementById('spId').value = id;
+            document.getElementById('spName').innerText = name;
+            document.getElementById('spTotal').innerText = totalPoints;
+            document.getElementById('studentProfile').style.display = 'block';
+
+            await loadTransactions(id);
+        }
+
+        async function loadTransactions(id) {
+            const res = await fetchApi(`/TarbeyaPoints/${id}/transactions`);
+            const ul = document.getElementById('txList');
+            ul.innerHTML = '';
+
+            if(res && res.success) {
+                res.transactions.forEach(t => {
+                    const color = t.amount > 0 ? 'green' : 'red';
+                    const date = new Date(t.date).toLocaleString('ar-EG');
+                    ul.innerHTML += `<li>
+                        <span><b style="color:${color};" dir="ltr">${t.amount > 0 ? '+' : ''}${t.amount}</b> ${t.reason || ''}</span>
+                        <span style="font-size:12px; color:#888;">${date} | ${t.servantName}</span>
+                    </li>`;
+                });
+            }
+        }
+
+        async function addPoints(amount, reason) {
+            const id = document.getElementById('spId').value;
+            if(!id) return;
+
+            const res = await fetchApi('/TarbeyaPoints', 'POST', { studentId: parseInt(id), amount: amount, reason: reason });
+            if(res && res.success) {
+                document.getElementById('spTotal').innerText = res.newTotal;
+                loadTransactions(id);
+            } else {
+                alert('حدث خطأ أثناء تسجيل النقاط!');
+            }
+        }
+
+        function addCustomPoints() {
+            const amount = parseInt(document.getElementById('customAmount').value);
+            const reason = document.getElementById('customReason').value;
+            if(isNaN(amount) || !reason) {
+                alert('يرجى إدخال القيمة والسبب الصحيح');
+                return;
+            }
+            addPoints(amount, reason);
+            document.getElementById('customAmount').value = '';
+            document.getElementById('customReason').value = '';
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

@@ -86,7 +86,7 @@ public class TarbeyaAttendanceController : ControllerBase
             query = query.Where(a => a.Student!.Class!.Stage!.FamilyId == user.TarbeyaFamilyId);
             if (classId.HasValue) query = query.Where(a => a.Student!.ClassId == classId.Value);
         }
-        else if (user.Role == "TarbeyaGeneralAdmin")
+        else if (user.Role == "TarbeyaGeneralAdmin" || user.Role == "Admin")
         {
             if (classId.HasValue) query = query.Where(a => a.Student!.ClassId == classId.Value);
         }

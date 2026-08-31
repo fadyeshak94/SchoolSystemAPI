@@ -35,6 +35,7 @@ public class TarbeyaDashboardController : ControllerBase
         var query = _context.TarbeyaStudents
             .Include(s => s.Class)
             .ThenInclude(c => c!.Stage)
+            .Include(s => s.AreaNavigation)
             .AsQueryable();
 
         // Apply Role-based filtering
@@ -48,7 +49,7 @@ public class TarbeyaDashboardController : ControllerBase
             if (user.TarbeyaFamilyId == null) return Ok(new { success = true, students = new List<object>() });
             query = query.Where(s => s.Class!.Stage!.FamilyId == user.TarbeyaFamilyId);
         }
-        else if (user.Role == "TarbeyaGeneralAdmin")
+        else if (user.Role == "TarbeyaGeneralAdmin" || user.Role == "Admin")
         {
             // Full access
         }
@@ -58,9 +59,9 @@ public class TarbeyaDashboardController : ControllerBase
         }
 
         // Apply Area filter if provided
-        if (!string.IsNullOrEmpty(area))
+        if (!string.IsNullOrEmpty(area) && int.TryParse(area, out int areaId))
         {
-            query = query.Where(s => s.Area == area);
+            query = query.Where(s => s.AreaId == areaId);
         }
 
         var students = await query.ToListAsync();
@@ -90,7 +91,7 @@ public class TarbeyaDashboardController : ControllerBase
                         student.Id,
                         student.Name,
                         student.Phone,
-                        student.Area,
+                        AreaName = student.AreaNavigation != null ? student.AreaNavigation.Name : "",
                         ClassName = student.Class?.Name,
                         StageName = student.Class?.Stage?.Name,
                         GeneralNotes = student.GeneralNotes
@@ -104,7 +105,7 @@ public class TarbeyaDashboardController : ControllerBase
                     student.Id,
                     student.Name,
                     student.Phone,
-                    student.Area,
+                    AreaName = student.AreaNavigation != null ? student.AreaNavigation.Name : "",
                     ClassName = student.Class?.Name,
                     StageName = student.Class?.Stage?.Name,
                     GeneralNotes = student.GeneralNotes
@@ -138,7 +139,7 @@ public class TarbeyaDashboardController : ControllerBase
             if (user.TarbeyaFamilyId == null) return Ok(new { success = true, students = new List<object>() });
             query = query.Where(s => s.Class!.Stage!.FamilyId == user.TarbeyaFamilyId);
         }
-        else if (user.Role == "TarbeyaGeneralAdmin")
+        else if (user.Role == "TarbeyaGeneralAdmin" || user.Role == "Admin")
         {
             // Full access
         }

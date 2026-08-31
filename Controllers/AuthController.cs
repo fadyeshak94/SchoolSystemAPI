@@ -34,6 +34,22 @@ public class AuthController : ControllerBase
             
         return Ok(new { success = true, message });
     }
+
+    [HttpGet("me")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public IActionResult GetMe()
+    {
+        var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var username = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+
+        if (int.TryParse(idClaim, out int id))
+        {
+            return Ok(new { success = true, user = new { id, username, role } });
+        }
+        
+        return BadRequest(new { success = false, message = "Invalid token claims" });
+    }
 }
 
 public class LoginDto

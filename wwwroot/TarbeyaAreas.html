@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📍 إدارة المناطق</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px;
+        }
+        .modal.active { display: flex; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3>📍 إدارة المناطق الجغرافية</h3>
+            <button class="btn btn-primary" onclick="openModal()">➕ إضافة منطقة</button>
+        </div>
+        <p>قم بإضافة المناطق ليتم استخدامها في تسجيل المخدومين والافتقاد.</p>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>اسم المنطقة</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="areasBody">
+                <tr><td colspan="3" class="text-center">جاري التحميل...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    <div class="modal" id="areaModal">
+        <div class="modal-content">
+            <h4 id="modalTitle">إضافة منطقة</h4>
+            <input type="hidden" id="areaId">
+            
+            <label>اسم المنطقة:</label>
+            <input type="text" id="areaName" placeholder="مثال: شارع شبرا...">
+
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn btn-primary" style="flex:1;" onclick="saveArea()">حفظ</button>
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeModal()">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = async () => {
+            await loadAreas();
+        };
+
+        async function loadAreas() {
+            const tbody = document.getElementById('areasBody');
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center">جاري التحميل...</td></tr>';
+            
+            const res = await fetchApi('/TarbeyaAreas');
+            if (res && res.success) {
+                let html = '';
+                if(res.areas.length === 0) {
+                    html = '<tr><td colspan="3" class="text-center">لا توجد مناطق مسجلة بعد.</td></tr>';
+                } else {
+                    res.areas.forEach((a, index) => {
+                        html += `<tr>
+                            <td>${index + 1}</td>
+                            <td><strong>${a.name}</strong></td>
+                            <td>
+                                <button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" 
+                                    onclick="openModal(${a.id}, '${a.name}')">✏️ تعديل</button>
+                                <button class="btn btn-danger" style="padding:5px 10px; font-size:12px;" 
+                                    onclick="deleteArea(${a.id})">🗑️ حذف</button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+                tbody.innerHTML = html;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">حدث خطأ في تحميل البيانات</td></tr>';
+            }
+        }
+
+        function openModal(id = null, name = '') {
+            document.getElementById('areaId').value = id || '';
+            document.getElementById('areaName').value = name;
+            document.getElementById('modalTitle').innerText = id ? 'تعديل منطقة' : 'إضافة منطقة';
+            document.getElementById('areaModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('areaModal').classList.remove('active');
+        }
+
+        async function saveArea() {
+            const id = document.getElementById('areaId').value;
+            const name = document.getElementById('areaName').value;
+
+            if(!name) return alert("الاسم مطلوب");
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/TarbeyaAreas/${id}` : '/TarbeyaAreas';
+
+            const res = await fetchApi(url, method, { name });
+            if(res && res.success) {
+                closeModal();
+                loadAreas();
+            } else {
+                alert('خطأ: ' + (res?.message || 'لا تملك الصلاحية'));
+            }
+        }
+
+        async function deleteArea(id) {
+            if(!confirm("هل أنت متأكد من حذف هذه المنطقة؟")) return;
+            const res = await fetchApi(`/TarbeyaAreas/${id}`, 'DELETE');
+            if(res && res.success) {
+                loadAreas();
+            } else {
+                alert('خطأ: ' + (res?.message || 'لا تملك الصلاحية'));
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

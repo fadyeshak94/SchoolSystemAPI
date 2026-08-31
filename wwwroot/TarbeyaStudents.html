@@ -5,6 +5,17 @@
     <meta charset="UTF-8">
     <title>🧑‍🎓 إدارة المخدومين</title>
     <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .form-grid input, .form-grid select {
+            width: 100%;
+        }
+    </style>
 </head>
 <body>
     <div id="statusBar" class="status-bar"></div>
@@ -12,29 +23,54 @@
         <h3>🧑‍🎓 بيانات المخدومين</h3>
         <p>هنا يمكنك إضافة مخدوم جديد أو تعديل البيانات بناءً على صلاحياتك.</p>
         
-        <div class="controls">
-            <input type="text" id="sName" placeholder="الاسم">
-            <input type="date" id="sBirthDate">
-            <input type="text" id="sPhone" placeholder="رقم التليفون">
-            <input type="text" id="sArea" placeholder="المنطقة / الشارع">
-            <input type="number" id="sClassId" placeholder="رقم الفصل (Class ID)">
-            <button class="btn btn-primary" onclick="addStudent()">➕ إضافة مخدوم</button>
+        <div class="form-grid">
+            <input type="text" id="sName" placeholder="الاسم (رباعي)">
+            
+            <div class="radio-group" id="sGenderGroup">
+                <input type="radio" id="genderMale" name="sGender" value="ذكر" checked>
+                <label for="genderMale">👨 ذكر</label>
+                <input type="radio" id="genderFemale" name="sGender" value="أنثى">
+                <label for="genderFemale">👩 أنثى</label>
+            </div>
+            
+            <input type="date" id="sBirthDate" placeholder="تاريخ الميلاد">
+            
+            <select id="sClassId">
+                <option value="">-- اختر الفصل --</option>
+            </select>
+            
+            <input type="text" id="sPhone" placeholder="رقم تليفون المخدوم">
+            <input type="text" id="sParentPhone" placeholder="رقم ولي الأمر">
+            
+            <select id="sAreaId">
+                <option value="">-- اختر المنطقة --</option>
+            </select>
+
+            <input type="text" id="sAddress" placeholder="العنوان التفصيلي">
+            <input type="text" id="sConfessionFather" placeholder="أب الاعتراف">
+            
+            <input type="text" id="sMedicalNotes" placeholder="ملاحظات طبية / احتياجات خاصة">
+            <input type="text" id="sBarcode" placeholder="الباركود">
         </div>
+        <button class="btn btn-primary" style="width:100%" onclick="addStudent()">➕ إضافة مخدوم</button>
     </div>
 
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th>الاسم</th>
-                    <th>المنطقة</th>
+                    <th>الاسم / النوع</th>
+                    <th>التواصل</th>
+                    <th>المنطقة / العنوان</th>
+                    <th>أب الاعتراف</th>
                     <th>الفصل</th>
-                    <th>الملاحظات العامة</th>
-                    <th>ملاحظات خاصة (سرية)</th>
+                    <th>احتياجات خاصة</th>
+                    <th>الباركود / النقط</th>
+                    <th>ملاحظات</th>
                 </tr>
             </thead>
             <tbody id="studentsBody">
-                <tr><td colspan="5" class="text-center">جاري التحميل...</td></tr>
+                <tr><td colspan="8" class="text-center">جاري التحميل...</td></tr>
             </tbody>
         </table>
     </div>
@@ -42,8 +78,32 @@
     <script src="/js/app.js"></script>
     <script>
         window.onload = async () => {
-            await loadStudents();
+            await Promise.all([
+                loadAreas(),
+                loadClasses(),
+                loadStudents()
+            ]);
         };
+
+        async function loadAreas() {
+            const res = await fetchApi('/TarbeyaAreas');
+            if (res && res.success) {
+                const select = document.getElementById('sAreaId');
+                res.areas.forEach(a => {
+                    select.innerHTML += `<option value="${a.id}">${a.name}</option>`;
+                });
+            }
+        }
+
+        async function loadClasses() {
+            const res = await fetchApi('/TarbeyaHierarchy/flat-classes');
+            if (res && res.success) {
+                const select = document.getElementById('sClassId');
+                res.classes.forEach(c => {
+                    select.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+                });
+            }
+        }
 
         async function loadStudents() {
             const res = await fetchApi('/TarbeyaStudents');
@@ -52,31 +112,55 @@
                 let html = '';
                 res.students.forEach(s => {
                     html += `<tr>
-                        <td><strong>${s.name}</strong><br><small>${s.phone || ''}</small></td>
-                        <td>${s.area || '-'}</td>
+                        <td><strong>${s.name}</strong><br><small>${s.gender || '-'}</small></td>
+                        <td><small>ت: ${s.phone || '-'}<br>ولي: ${s.parentPhone || '-'}</small></td>
+                        <td>${s.areaName || '-'}<br><small>${s.address || ''}</small></td>
+                        <td>${s.confessionFather || '-'}</td>
                         <td>${s.className || s.classId}</td>
-                        <td>${s.generalNotes || '-'}</td>
-                        <td style="color:var(--danger); font-size:12px;">${s.privateNotes || 'محجوب / لا يوجد'}</td>
+                        <td style="color:var(--danger);">${s.medicalNotes || '-'}</td>
+                        <td><span style="background:#eee;padding:2px 5px;border-radius:4px;font-size:12px;">${s.barcode || '-'}</span> <br> <b style="color:var(--primary);">${s.totalPoints || 0} نقطة</b></td>
+                        <td><small>ع: ${s.generalNotes || '-'}<br><span style="color:red">س: ${s.privateNotes || 'محجوب'}</span></small></td>
                     </tr>`;
                 });
-                tbody.innerHTML = html || '<tr><td colspan="5" class="text-center">لا توجد بيانات</td></tr>';
+                tbody.innerHTML = html || '<tr><td colspan="8" class="text-center">لا توجد بيانات</td></tr>';
             }
         }
 
         async function addStudent() {
+            const areaId = document.getElementById('sAreaId').value;
+            const classId = document.getElementById('sClassId').value;
+
+            if(!classId) return alert('يجب اختيار الفصل');
+
             const data = {
                 name: document.getElementById('sName').value,
+                gender: document.querySelector('input[name="sGender"]:checked').value,
                 birthDate: document.getElementById('sBirthDate').value || null,
                 phone: document.getElementById('sPhone').value,
-                area: document.getElementById('sArea').value,
-                classId: parseInt(document.getElementById('sClassId').value)
+                parentPhone: document.getElementById('sParentPhone').value,
+                areaId: areaId ? parseInt(areaId) : null,
+                address: document.getElementById('sAddress').value,
+                confessionFather: document.getElementById('sConfessionFather').value,
+                medicalNotes: document.getElementById('sMedicalNotes').value,
+                barcode: document.getElementById('sBarcode').value,
+                classId: parseInt(classId)
             };
+            
             const res = await fetchApi('/TarbeyaStudents', 'POST', data);
             if(res && res.success) {
-                alert('تم الإضافة');
+                alert('تم الإضافة بنجاح');
+                // clear inputs
+                document.getElementById('sName').value = '';
+                document.getElementById('sPhone').value = '';
+                document.getElementById('sParentPhone').value = '';
+                document.getElementById('sAddress').value = '';
+                document.getElementById('sConfessionFather').value = '';
+                document.getElementById('sMedicalNotes').value = '';
+                document.getElementById('sBarcode').value = '';
+                
                 loadStudents();
             } else {
-                alert('خطأ: ' + (res?.message || 'غير مصرح'));
+                alert('خطأ: ' + (res?.message || 'تأكد من إدخال البيانات بصورة صحيحة'));
             }
         }
     </script>

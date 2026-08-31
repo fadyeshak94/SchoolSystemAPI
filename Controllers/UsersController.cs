@@ -153,6 +153,10 @@ public class UsersController : ControllerBase
         {
             allowedClasses = allowedClasses.Where(c => c.Stage == stageAccess);
         }
+        else
+        {
+            allowedClasses = Enumerable.Empty<ClassRoom>();
+        }
 
         return Ok(new { success = true, classes = allowedClasses.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
     }

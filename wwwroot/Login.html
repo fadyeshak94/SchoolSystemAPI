@@ -102,8 +102,21 @@
 
     <script src="/js/app.js"></script>
     <script>
+        function getRedirectUrl(token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const role = (payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "").toLowerCase();
+                
+                if (role === 'admin') return '/Portal.html';
+                if (role.startsWith('tarbeya')) return '/TarbeyaHierarchy.html';
+                return '/Dashboard.html';
+            } catch(e) {
+                return '/Dashboard.html';
+            }
+        }
+
         if (localStorage.getItem('appToken')) {
-            window.location.href = '/Registration.html';
+            window.location.href = getRedirectUrl(localStorage.getItem('appToken'));
         }
 
         let pendingUsername = '';
@@ -139,7 +152,7 @@
                         document.getElementById('resetModal').classList.add('active');
                     } else {
                         localStorage.setItem('appToken', data.token);
-                        window.location.href = '/Registration.html';
+                        window.location.href = getRedirectUrl(data.token);
                     }
                 } else {
                     errorMsg.textContent = data.message || "بيانات الدخول غير صحيحة";
@@ -181,7 +194,7 @@
                 const data = await response.json();
                 if (data.success) {
                     localStorage.setItem('appToken', pendingToken);
-                    window.location.href = '/Registration.html';
+                    window.location.href = getRedirectUrl(pendingToken);
                 } else {
                     err.textContent = data.message || "فشل تغيير كلمة المرور";
                     err.style.display = 'block';

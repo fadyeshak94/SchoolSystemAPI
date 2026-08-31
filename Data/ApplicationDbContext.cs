@@ -35,6 +35,31 @@ public class ApplicationDbContext : DbContext
     public DbSet<TarbeyaClass> TarbeyaClasses { get; set; }
     public DbSet<TarbeyaStudent> TarbeyaStudents { get; set; }
     public DbSet<TarbeyaAttendance> TarbeyaAttendances { get; set; }
+    public DbSet<TarbeyaVisitationRecord> TarbeyaVisitationRecords { get; set; }
+    public DbSet<TarbeyaPointTransaction> TarbeyaPointTransactions { get; set; }
+    public DbSet<TarbeyaArea> TarbeyaAreas { get; set; }
+    
+    // Trips & Financials
+    public DbSet<TarbeyaTrip> TarbeyaTrips { get; set; }
+    public DbSet<TarbeyaTripSubscription> TarbeyaTripSubscriptions { get; set; }
+    public DbSet<TarbeyaTripExpense> TarbeyaTripExpenses { get; set; }
+
+    // Family Finances
+    public DbSet<TarbeyaFamilyTransaction> TarbeyaFamilyTransactions { get; set; }
+
+    // Servants Management
+    public DbSet<ServantAttendance> ServantAttendances { get; set; }
+    public DbSet<ServiceTask> ServiceTasks { get; set; }
+    
+    // Notifications & Spiritual Tracking
+    public DbSet<Notification> Notifications { get; set; }
+    public DbSet<TarbeyaLiturgyAttendance> TarbeyaLiturgyAttendances { get; set; }
+
+    // Mahragan & Summer Clubs
+    public DbSet<MahraganEvent> MahraganEvents { get; set; }
+    public DbSet<MahraganCompetition> MahraganCompetitions { get; set; }
+    public DbSet<MahraganEnrollment> MahraganEnrollments { get; set; }
+    public DbSet<MahraganScore> MahraganScores { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -195,14 +220,21 @@ public class ApplicationDbContext : DbContext
                   .HasForeignKey(e => e.StageId).OnDelete(DeleteBehavior.Restrict);
         });
 
+        modelBuilder.Entity<TarbeyaArea>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+        });
+
         modelBuilder.Entity<TarbeyaStudent>(entity => {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Phone).HasMaxLength(50);
             entity.Property(e => e.Address).HasMaxLength(500);
-            entity.Property(e => e.Area).HasMaxLength(150);
+            entity.Property(e => e.ConfessionFather).HasMaxLength(150);
             entity.HasOne(e => e.Class).WithMany(c => c.Students)
                   .HasForeignKey(e => e.ClassId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.AreaNavigation).WithMany(a => a.Students)
+                  .HasForeignKey(e => e.AreaId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<TarbeyaAttendance>(entity => {
@@ -211,6 +243,131 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(e => e.Student).WithMany(s => s.Attendances)
                   .HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(e => new { e.StudentId, e.Date }).IsUnique(); 
+        });
+
+        modelBuilder.Entity<TarbeyaLiturgyAttendance>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Date).HasColumnType("date");
+            entity.HasOne(e => e.Student).WithMany()
+                  .HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(e => new { e.StudentId, e.Date }).IsUnique(); 
+        });
+
+        modelBuilder.Entity<TarbeyaVisitationRecord>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Student).WithMany(s => s.Visitations)
+                  .HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Servant).WithMany()
+                  .HasForeignKey(e => e.ServantId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<TarbeyaPointTransaction>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Student).WithMany(s => s.PointTransactions)
+                  .HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Servant).WithMany()
+                  .HasForeignKey(e => e.ServantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TarbeyaTrip>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.TicketPrice).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.Family).WithMany()
+                  .HasForeignKey(e => e.FamilyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TarbeyaTripSubscription>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AmountPaid).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.Trip).WithMany(t => t.Subscriptions)
+                  .HasForeignKey(e => e.TripId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Student).WithMany()
+                  .HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Servant).WithMany()
+                  .HasForeignKey(e => e.ServantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TarbeyaTripExpense>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ItemDescription).IsRequired().HasMaxLength(250);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.Trip).WithMany(t => t.Expenses)
+                  .HasForeignKey(e => e.TripId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.AddedByFamilyAdmin).WithMany()
+                  .HasForeignKey(e => e.AddedByFamilyAdminId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Family Finances
+        modelBuilder.Entity<TarbeyaFamilyTransaction>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Category).HasMaxLength(150);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.HasOne(e => e.Family).WithMany()
+                  .HasForeignKey(e => e.FamilyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.AddedByUser).WithMany()
+                  .HasForeignKey(e => e.AddedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Servants Management
+        modelBuilder.Entity<ServantAttendance>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Servant).WithMany()
+                  .HasForeignKey(e => e.ServantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Family).WithMany()
+                  .HasForeignKey(e => e.FamilyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ServiceTask>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(150);
+            entity.HasOne(e => e.AssignedToServant).WithMany()
+                  .HasForeignKey(e => e.AssignedToServantId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.AssignedByAdmin).WithMany()
+                  .HasForeignKey(e => e.AssignedByAdminId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Family).WithMany()
+                  .HasForeignKey(e => e.FamilyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Notification>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(150);
+            entity.HasOne(e => e.User).WithMany()
+                  .HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Mahragan & Summer Clubs
+        modelBuilder.Entity<MahraganEvent>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ThemeName).IsRequired().HasMaxLength(150);
+        });
+
+        modelBuilder.Entity<MahraganCompetition>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+            entity.Property(e => e.PassingScore).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.Event).WithMany(ev => ev.Competitions)
+                  .HasForeignKey(e => e.EventId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.TargetStage).WithMany()
+                  .HasForeignKey(e => e.TargetStageId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<MahraganEnrollment>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.BarcodeString).HasMaxLength(50);
+            entity.HasOne(e => e.Student).WithMany()
+                  .HasForeignKey(e => e.StudentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Competition).WithMany(c => c.Enrollments)
+                  .HasForeignKey(e => e.CompetitionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MahraganScore>(entity => {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Score).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.StageName).IsRequired().HasMaxLength(100);
+            entity.HasOne(e => e.Enrollment).WithMany(en => en.Scores)
+                  .HasForeignKey(e => e.EnrollmentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<AppUser>()

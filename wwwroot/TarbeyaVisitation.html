@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🙏 الافتقاد الرعوي</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: #fff; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px;
+        }
+        .modal.active { display: flex; }
+        .danger-text { color: var(--danger); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <h3>🙏 نظام الافتقاد الرعوي</h3>
+        <p>هذه القائمة تعرض المخدومين الذين تغيبوا لأكثر من <span class="danger-text">3 أسابيع متتالية</span>، وتحتاج للاطمئنان عليهم وافتقادهم.</p>
+        <button class="btn btn-secondary" onclick="loadNeedsVisitation()">🔄 تحديث القائمة</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>المخدوم</th>
+                    <th>المنطقة</th>
+                    <th>الفصل</th>
+                    <th>ملاحظات طبية</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="visitationBody">
+                <tr><td colspan="5" class="text-center">جاري التحميل...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal for recording visitation -->
+    <div class="modal" id="visitationModal">
+        <div class="modal-content">
+            <h4>تسجيل افتقاد لـ <span id="modalStudentName" class="text-primary"></span></h4>
+            <input type="hidden" id="vStudentId">
+            
+            <label>نوع الافتقاد:</label>
+            <select id="vType">
+                <option value="0">📞 تليفون</option>
+                <option value="1">🏠 زيارة منزلية</option>
+                <option value="2">⛪ تقابلو في الكنيسة</option>
+            </select>
+
+            <label>التاريخ:</label>
+            <input type="date" id="vDate">
+
+            <label>نتيجة الافتقاد / التقرير:</label>
+            <textarea id="vResult" rows="3" placeholder="أكتب تقرير الزيارة أو نتيجة المكالمة..."></textarea>
+
+            <div style="display:flex; gap:10px; margin-top:15px;">
+                <button class="btn btn-primary" style="flex:1;" onclick="saveVisitation()">حفظ</button>
+                <button class="btn btn-secondary" style="flex:1;" onclick="closeModal()">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = async () => {
+            document.getElementById('vDate').valueAsDate = new Date();
+            await loadNeedsVisitation();
+        };
+
+        async function loadNeedsVisitation() {
+            const tbody = document.getElementById('visitationBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">جاري التحميل...</td></tr>';
+            
+            const res = await fetchApi('/TarbeyaVisitation/needs-visitation');
+            if (res && res.success) {
+                let html = '';
+                if(res.students.length === 0) {
+                    html = '<tr><td colspan="5" class="text-center" style="color:green;font-weight:bold;">🎉 لا يوجد مخدومين متغيبين!</td></tr>';
+                } else {
+                    res.students.forEach(s => {
+                        html += `<tr>
+                            <td><strong>${s.name}</strong><br><small>ت: ${s.phone || ''} | أسرة: ${s.parentPhone || ''}</small></td>
+                            <td>${s.area || '-'}</td>
+                            <td>${s.className || ''} - ${s.stageName || ''}</td>
+                            <td class="danger-text">${s.medicalNotes || '-'}</td>
+                            <td>
+                                <button class="btn btn-primary" style="padding:5px 10px; font-size:12px;" 
+                                    onclick="openModal(${s.id}, '${s.name}')">📝 تسجيل</button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+                tbody.innerHTML = html;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">حدث خطأ في تحميل البيانات</td></tr>';
+            }
+        }
+
+        function openModal(studentId, name) {
+            document.getElementById('vStudentId').value = studentId;
+            document.getElementById('modalStudentName').innerText = name;
+            document.getElementById('vResult').value = '';
+            document.getElementById('visitationModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('visitationModal').classList.remove('active');
+        }
+
+        async function saveVisitation() {
+            const data = {
+                studentId: parseInt(document.getElementById('vStudentId').value),
+                type: parseInt(document.getElementById('vType').value),
+                date: document.getElementById('vDate').value || null,
+                result: document.getElementById('vResult').value
+            };
+
+            const res = await fetchApi('/TarbeyaVisitation', 'POST', data);
+            if(res && res.success) {
+                alert('تم تسجيل الافتقاد بنجاح!');
+                closeModal();
+                loadNeedsVisitation(); // Refresh the list
+            } else {
+                alert('خطأ: ' + (res?.message || 'حدث خطأ غير معروف'));
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

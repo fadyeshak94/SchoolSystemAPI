@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Services;
+using SchoolSystemAPI.Hubs;
 using System.Text;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,9 +22,18 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // 4. تسجيل الـ Services اللي بنيناها
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IResultsService, ResultsService>();
+builder.Services.AddScoped<ITarbeyaAttendanceService, TarbeyaAttendanceService>();
+builder.Services.AddScoped<IVisitationService, VisitationService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>(); // صور الـ PNG والـ ZIP
 builder.Services.AddScoped<IPdfService, PdfService>(); // الـ QuestPDF للشهادات
 builder.Services.AddHttpContextAccessor();
+
+// SignalR & MediatR
+builder.Services.AddSignalR();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+builder.Services.AddHostedService<TarbeyaNotificationWorker>();
+
+builder.Services.AddEndpointsApiExplorer();
 
 // 5. إعداد الـ CORS عشان الواجهة (HTML/JS) تقدر تكلم الـ API
 builder.Services.AddCors(options =>
@@ -54,6 +65,21 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? "default_secret_key_needs_to_be_long_enough"))
     };
+    
+    // Support SignalR Token Auth via Query String
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationHub"))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 var app = builder.Build();
@@ -80,5 +106,6 @@ app.UseAuthentication(); // تفعيل الحماية
 app.UseAuthorization();  // تفعيل الصلاحيات
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.Run();

@@ -84,7 +84,8 @@ public class AuthService : IAuthService
             new Claim(ClaimTypes.Name, user.Username),
             new Claim(ClaimTypes.Role, user.Role),
             new Claim("ClassRoomId", user.ClassRoomId?.ToString() ?? string.Empty),
-            new Claim("StageAccess", user.StageAccess ?? string.Empty)
+            new Claim("StageAccess", user.StageAccess ?? string.Empty),
+            new Claim("TarbeyaFamilyId", user.TarbeyaFamilyId?.ToString() ?? string.Empty)
         };
 
         var token = new JwtSecurityToken(

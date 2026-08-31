@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مالية الأسرة - النظام الكنسي</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .finance-card {
+            border-radius: 1rem;
+            border: none;
+            transition: transform 0.3s ease;
+        }
+        .finance-card:hover {
+            transform: translateY(-5px);
+        }
+        .icon-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="d-flex" id="wrapper">
+        <div id="sidebar-wrapper"></div>
+
+        <div id="page-content-wrapper" class="w-100 bg-light">
+            <nav id="top-nav" class="navbar navbar-expand-lg navbar-light bg-white border-bottom px-4">
+                <button class="btn btn-primary" id="menu-toggle"><i class="fas fa-bars"></i></button>
+            </nav>
+
+            <div class="container-fluid p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-primary fw-bold"><i class="fas fa-coins me-2"></i>خزينة ومالية الأسرة</h2>
+                    <button class="btn btn-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                        <i class="fas fa-plus me-2"></i>إضافة حركة مالية
+                    </button>
+                </div>
+
+                <!-- إحصائيات -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card finance-card bg-primary text-white shadow-sm">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="icon-circle bg-white text-primary me-3">
+                                    <i class="fas fa-wallet"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 opacity-75">الرصيد الحالي للأسرة</h6>
+                                    <h3 class="mb-0 fw-bold">ج.م <span id="totalBalance">0</span></h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card finance-card bg-success text-white shadow-sm">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="icon-circle bg-white text-success me-3">
+                                    <i class="fas fa-arrow-up"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 opacity-75">إجمالي الإيرادات</h6>
+                                    <h3 class="mb-0 fw-bold">ج.م <span id="totalIncome">0</span></h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card finance-card bg-danger text-white shadow-sm">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="icon-circle bg-white text-danger me-3">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 opacity-75">إجمالي المصروفات</h6>
+                                    <h3 class="mb-0 fw-bold">ج.م <span id="totalExpense">0</span></h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- جدول الحركات المالية -->
+                <div class="card shadow-sm border-0 rounded-4">
+                    <div class="card-header bg-white border-bottom-0 pt-4 pb-0 px-4">
+                        <h5 class="fw-bold mb-0">سجل الحركات المالية</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>التاريخ</th>
+                                        <th>النوع</th>
+                                        <th>التصنيف</th>
+                                        <th>المبلغ</th>
+                                        <th>البيان / ملاحظات</th>
+                                        <th>المسؤول</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsBody">
+                                    <!-- يتم ملؤها عبر JavaScript -->
+                                    <tr><td colspan="6" class="text-center text-muted">جاري تحميل البيانات... (هذه واجهة مبدئية)</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Transaction -->
+    <div class="modal fade" id="transactionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header bg-success text-white rounded-top-4">
+                    <h5 class="modal-title"><i class="fas fa-money-bill-wave me-2"></i>إضافة حركة مالية جديدة</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="transactionForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">نوع الحركة</label>
+                                <select class="form-select" id="transType" required>
+                                    <option value="Income">إيراد (دخول)</option>
+                                    <option value="Expense">مصروف (خروج)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">المبلغ</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="transAmount" required min="1">
+                                    <span class="input-group-text">ج.م</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">التصنيف</label>
+                            <select class="form-select" id="transCategory" required>
+                                <!-- Income Categories -->
+                                <optgroup label="إيرادات" id="incomeCats">
+                                    <option value="عشور">عشور</option>
+                                    <option value="دعم وتبرعات">دعم وتبرعات</option>
+                                    <option value="اشتراكات رحلات">اشتراكات رحلات</option>
+                                </optgroup>
+                                <!-- Expense Categories -->
+                                <optgroup label="مصروفات" id="expenseCats" style="display:none;">
+                                    <option value="هدايا ومكافآت">هدايا ومكافآت</option>
+                                    <option value="مصروفات رحلة">مصروفات رحلة</option>
+                                    <option value="مطبوعات ووسائل إيضاح">مطبوعات ووسائل إيضاح</option>
+                                    <option value="أخرى">أخرى</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">البيان / ملاحظات</label>
+                            <input type="text" class="form-control" id="transDescription" placeholder="مثال: تبرع من فاعل خير..." required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-success text-white" onclick="alert('واجهة تجريبية - سيتم حفظ البيانات عندما تكتمل الـ API الخاصة بها')">حفظ الحركة</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/layout.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            
+            // Dynamic category dropdown logic
+            document.getElementById('transType').addEventListener('change', function() {
+                if (this.value === 'Income') {
+                    document.getElementById('incomeCats').style.display = 'block';
+                    document.getElementById('expenseCats').style.display = 'none';
+                    document.getElementById('transCategory').value = 'عشور';
+                } else {
+                    document.getElementById('incomeCats').style.display = 'none';
+                    document.getElementById('expenseCats').style.display = 'block';
+                    document.getElementById('transCategory').value = 'هدايا ومكافآت';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

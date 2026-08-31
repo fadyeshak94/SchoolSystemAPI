@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🎪 مهرجان الكرازة والأنشطة</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    
+    <div class="card role-section" id="adminSection" style="display:none;">
+        <h3 style="color:var(--primary);">➕ إعدادات المهرجان (للمشرفين)</h3>
+        <div class="form-grid">
+            <input type="number" id="mYear" placeholder="السنة (مثال: 2026)">
+            <input type="text" id="mTheme" placeholder="شعار المهرجان (احفظوا طريقي)">
+            <button class="btn btn-primary" onclick="createEvent()">إنشاء موسم</button>
+        </div>
+        <hr style="margin: 15px 0; border-color:var(--border-color);">
+        <div class="form-grid">
+            <select id="mEventId"><option value="">-- اختر الموسم --</option></select>
+            <input type="text" id="cName" placeholder="اسم المسابقة (ألحان، دراسي)">
+            <input type="number" id="cStageId" placeholder="كود المرحلة العمرية (Stage ID)">
+            <input type="number" id="cPass" placeholder="درجة التأهل (Passing Score)">
+            <button class="btn btn-warning" onclick="createComp()">إضافة مسابقة</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📝 تسجيل المخدومين في المهرجان</h3>
+        <div class="form-grid">
+            <input type="number" id="enStudentId" placeholder="كود المخدوم (Student ID)">
+            <select id="enCompId"><option value="">-- اختر المسابقة --</option></select>
+            <button class="btn btn-success" onclick="enrollStudent()">تسجيل وطباعة باركود</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>🏆 التصفيات وتسجيل الدرجات</h3>
+        <div class="form-grid">
+            <input type="number" id="scEnrollId" placeholder="كود الاشتراك (Enrollment ID)">
+            <input type="text" id="scStageName" placeholder="اسم التصفية (تصفية أولى، نهائية)">
+            <input type="number" id="scScore" placeholder="الدرجة">
+            <button class="btn btn-primary" onclick="recordScore()">حفظ النتيجة</button>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentUserRole = '';
+
+        window.onload = async () => {
+            const res = await fetchApi('/Auth/me');
+            if (res && res.success) {
+                currentUserRole = res.user.role;
+                if (['TarbeyaFamilyAdmin', 'TarbeyaGeneralAdmin', 'Admin'].includes(currentUserRole)) {
+                    document.getElementById('adminSection').style.display = 'block';
+                }
+                loadEvents();
+            }
+        };
+
+        async function loadEvents() {
+            const res = await fetchApi('/TarbeyaMahragan/events');
+            if (res && res.success) {
+                const sel = document.getElementById('mEventId');
+                const compSel = document.getElementById('enCompId');
+                sel.innerHTML = '<option value="">-- اختر الموسم --</option>';
+                compSel.innerHTML = '<option value="">-- اختر المسابقة --</option>';
+                
+                res.events.forEach(e => {
+                    sel.innerHTML += `<option value="${e.id}">${e.themeName} (${e.year})</option>`;
+                    e.competitions.forEach(c => {
+                        compSel.innerHTML += `<option value="${c.id}">${c.name} - ${e.themeName}</option>`;
+                    });
+                });
+            }
+        }
+
+        async function createEvent() {
+            const data = {
+                year: parseInt(document.getElementById('mYear').value),
+                themeName: document.getElementById('mTheme').value,
+                isActive: true
+            };
+            const res = await fetchApi('/TarbeyaMahragan/events', 'POST', data);
+            if(res && res.success) { alert('تم إنشاء الموسم'); loadEvents(); }
+        }
+
+        async function createComp() {
+            const data = {
+                name: document.getElementById('cName').value,
+                targetStageId: parseInt(document.getElementById('cStageId').value),
+                passingScore: parseFloat(document.getElementById('cPass').value)
+            };
+            const eventId = document.getElementById('mEventId').value;
+            if(!eventId || !data.name) return;
+
+            const res = await fetchApi(`/TarbeyaMahragan/events/${eventId}/competitions`, 'POST', data);
+            if(res && res.success) { alert('تم إضافة المسابقة'); loadEvents(); }
+        }
+
+        async function enrollStudent() {
+            const data = {
+                studentId: parseInt(document.getElementById('enStudentId').value),
+                competitionId: parseInt(document.getElementById('enCompId').value),
+                barcodeString: '' // will be auto-generated
+            };
+            const res = await fetchApi('/TarbeyaMahragan/enroll', 'POST', data);
+            if(res && res.success) alert(`تم التسجيل بنجاح!\nالباركود: ${res.barcode}`);
+            else alert(res?.message || 'خطأ في التسجيل');
+        }
+
+        async function recordScore() {
+            const data = {
+                enrollmentId: parseInt(document.getElementById('scEnrollId').value),
+                stageName: document.getElementById('scStageName').value,
+                score: parseFloat(document.getElementById('scScore').value)
+            };
+            const res = await fetchApi('/TarbeyaMahragan/scores', 'POST', data);
+            if(res && res.success) {
+                if(res.isQualified) alert('تم الحفظ. 🎉 الطالب تأهل للمرحلة القادمة!');
+                else alert('تم الحفظ. للأسف لم يتأهل الطالب.');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

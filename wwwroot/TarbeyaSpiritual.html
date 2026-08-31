@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المتابعة الروحية - النظام الكنسي</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="d-flex" id="wrapper">
+        <div id="sidebar-wrapper"></div>
+
+        <div id="page-content-wrapper" class="w-100 bg-light">
+            <nav id="top-nav" class="navbar navbar-expand-lg navbar-light bg-white border-bottom px-4">
+                <button class="btn btn-primary" id="menu-toggle"><i class="fas fa-bars"></i></button>
+            </nav>
+
+            <div class="container-fluid p-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="text-primary fw-bold"><i class="fas fa-cross me-2"></i>المتابعة الروحية للمخدومين</h2>
+                </div>
+
+                <div class="card shadow-sm border-0 rounded-4 mb-4">
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label text-muted">تحديد الفصل</label>
+                                <select id="classFilter" class="form-select" onchange="loadSpiritualData()">
+                                    <option value="">-- اختر الفصل --</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle" id="spiritualTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>اسم المخدوم</th>
+                                        <th>أب الاعتراف</th>
+                                        <th>تاريخ آخر اعتراف</th>
+                                        <th>حضور قداسات هذا الشهر</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- البيانات ستضاف هنا عبر جافاسكريبت -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Update Confession -->
+    <div class="modal fade" id="confessionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header bg-primary text-white rounded-top-4">
+                    <h5 class="modal-title"><i class="fas fa-pray me-2"></i>تحديث الاعتراف</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" id="confessionStudentId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">تاريخ الاعتراف</label>
+                        <input type="date" class="form-control" id="confessionDate">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">اسم أب الاعتراف</label>
+                        <input type="text" class="form-control" id="confessionFather" placeholder="مثال: أبونا ...">
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-primary" onclick="saveConfession()">حفظ التحديث</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Record Liturgy -->
+    <div class="modal fade" id="liturgyModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header bg-info text-white rounded-top-4">
+                    <h5 class="modal-title"><i class="fas fa-church me-2"></i>تسجيل حضور قداس</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" id="liturgyStudentId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">تاريخ القداس</label>
+                        <input type="date" class="form-control" id="liturgyDate">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">الحالة</label>
+                        <select class="form-select" id="liturgyStatus">
+                            <option value="Attended">حضر</option>
+                            <option value="Absent">غائب</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-info text-white" onclick="saveLiturgy()">تسجيل الحضور</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", async () => {
+            
+            // Set default dates
+            document.getElementById('confessionDate').valueAsDate = new Date();
+            document.getElementById('liturgyDate').valueAsDate = new Date();
+
+            await loadClasses();
+        });
+
+        async function loadClasses() {
+            try {
+                let data = await fetchApi('/api/TarbeyaClasses');
+                if(data && data.success) {
+                    let select = document.getElementById('classFilter');
+                    data.data.forEach(c => {
+                        select.innerHTML += `<option value="${c.id}">${c.name} (${c.stageName})</option>`;
+                    });
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function loadSpiritualData() {
+            let classId = document.getElementById('classFilter').value;
+            if(!classId) return;
+
+            let tbody = document.querySelector("#spiritualTable tbody");
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary"></div></td></tr>';
+
+            try {
+                let data = await fetchApi(`/api/TarbeyaStudents?classId=${classId}`);
+                if(data && data.success) {
+                    tbody.innerHTML = '';
+                    data.data.forEach(s => {
+                        let confDate = s.lastConfessionDate ? new Date(s.lastConfessionDate).toLocaleDateString('ar-EG') : 'لم يسجل';
+                        let confFather = s.fatherConfessorName || s.confessionFather || 'غير محدد';
+                        let row = `
+                            <tr>
+                                <td class="fw-bold">${s.name}</td>
+                                <td><span class="badge bg-light text-dark border">${confFather}</span></td>
+                                <td>
+                                    <span class="badge ${s.lastConfessionDate ? 'bg-success' : 'bg-secondary'}">${confDate}</span>
+                                </td>
+                                <td>
+                                    <!-- This would ideally come from the API, placeholder for now -->
+                                    <span class="badge bg-info text-white">0</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill me-1" onclick="openConfessionModal(${s.id}, '${confFather}')" title="تحديث الاعتراف">
+                                        <i class="fas fa-pray"></i> اعتراف
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-info rounded-pill" onclick="openLiturgyModal(${s.id})" title="حضور قداس">
+                                        <i class="fas fa-church"></i> قداس
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                        tbody.innerHTML += row;
+                    });
+                }
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">خطأ في جلب البيانات</td></tr>';
+            }
+        }
+
+        let confessionModal;
+        let liturgyModal;
+
+        function openConfessionModal(id, father) {
+            document.getElementById('confessionStudentId').value = id;
+            document.getElementById('confessionFather').value = father === 'غير محدد' ? '' : father;
+            if(!confessionModal) confessionModal = new bootstrap.Modal(document.getElementById('confessionModal'));
+            confessionModal.show();
+        }
+
+        function openLiturgyModal(id) {
+            document.getElementById('liturgyStudentId').value = id;
+            if(!liturgyModal) liturgyModal = new bootstrap.Modal(document.getElementById('liturgyModal'));
+            liturgyModal.show();
+        }
+
+        async function saveConfession() {
+            let id = document.getElementById('confessionStudentId').value;
+            let date = document.getElementById('confessionDate').value;
+            let father = document.getElementById('confessionFather').value;
+
+            try {
+                let res = await fetchApi(`/api/TarbeyaStudents/${id}/confession`, {
+                    method: 'POST',
+                    body: JSON.stringify({ confessionDate: date, fatherConfessorName: father })
+                });
+
+                if(res && res.success) {
+                    alert('تم التحديث بنجاح!');
+                    confessionModal.hide();
+                    loadSpiritualData();
+                } else {
+                    alert('فشل التحديث');
+                }
+            } catch(e) { alert('خطأ في الاتصال'); }
+        }
+
+        async function saveLiturgy() {
+            let id = document.getElementById('liturgyStudentId').value;
+            let date = document.getElementById('liturgyDate').value;
+            let status = document.getElementById('liturgyStatus').value;
+
+            try {
+                let res = await fetchApi(`/api/TarbeyaStudents/${id}/liturgy-attendance`, {
+                    method: 'POST',
+                    body: JSON.stringify({ date: date, status: status })
+                });
+
+                if(res && res.success) {
+                    alert('تم تسجيل الحضور بنجاح!');
+                    liturgyModal.hide();
+                    loadSpiritualData();
+                } else {
+                    alert('فشل التسجيل');
+                }
+            } catch(e) { alert('خطأ في الاتصال'); }
+        }
+    </script>
+</body>
+</html>

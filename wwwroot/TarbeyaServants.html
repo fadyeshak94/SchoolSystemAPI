@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🤝 إدارة الخدام والمهام</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .task-card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-right: 4px solid var(--primary); }
+        .task-card.Pending { border-right-color: var(--warning); }
+        .task-card.InProgress { border-right-color: var(--primary); }
+        .task-card.Completed { border-right-color: var(--success); opacity: 0.8; }
+        .task-card h4 { margin: 0 0 5px 0; }
+        .task-card p { margin: 0 0 10px 0; font-size: 0.9em; color: var(--text-muted); }
+        .task-meta { display: flex; justify-content: space-between; font-size: 0.8em; color: #888; }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    
+    <div class="card role-section" id="adminSection" style="display:none;">
+        <h3 style="color:var(--primary);">➕ تكليف بمهمة جديدة (Task Delegation)</h3>
+        <div class="form-grid">
+            <input type="text" id="tTitle" placeholder="عنوان المهمة (مثال: تحضير وسيلة إيضاح)">
+            <input type="text" id="tDesc" placeholder="التفاصيل">
+            <input type="date" id="tDueDate">
+            <select id="tServantId">
+                <option value="">-- اختر الخادم --</option>
+            </select>
+            <button class="btn btn-primary" onclick="createTask()">إرسال التكليف</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📋 المهام (Service Tasks)</h3>
+        <div id="tasksList">جاري التحميل...</div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentUserRole = '';
+        let currentUserId = 0;
+
+        window.onload = async () => {
+            const res = await fetchApi('/Auth/me');
+            if (res && res.success) {
+                currentUserRole = res.user.role;
+                currentUserId = res.user.id;
+                if (['TarbeyaFamilyAdmin', 'TarbeyaGeneralAdmin', 'Admin'].includes(currentUserRole)) {
+                    document.getElementById('adminSection').style.display = 'block';
+                    loadFamilyServants();
+                }
+                loadTasks();
+            }
+        };
+
+        async function loadFamilyServants() {
+            // For simplicity we load users with Role = TarbeyaServant (In real app, filter by family)
+            const res = await fetchApi('/Users'); // assuming this exists, or we need a specific endpoint
+            if (res && res.success) {
+                const sel = document.getElementById('tServantId');
+                res.users.filter(u => u.role === 'TarbeyaServant').forEach(u => {
+                    sel.innerHTML += `<option value="${u.id}">${u.username}</option>`;
+                });
+            }
+        }
+
+        async function loadTasks() {
+            const res = await fetchApi('/TarbeyaServants/tasks');
+            const div = document.getElementById('tasksList');
+            if (res && res.success && res.tasks.length > 0) {
+                let html = '';
+                res.tasks.forEach(t => {
+                    html += `
+                        <div class="task-card ${t.statusName}">
+                            <h4>${t.title} <span style="font-size:12px; padding:2px 5px; border-radius:4px; background:#eee;">${t.statusName}</span></h4>
+                            <p>${t.description}</p>
+                            <div class="task-meta">
+                                <span>الموكل إليه: ${t.assignedToName}</span>
+                                <span>الموعد: ${new Date(t.dueDate).toLocaleDateString('ar-EG')}</span>
+                            </div>
+                            <div style="margin-top:10px;">
+                                <select onchange="updateTaskStatus(${t.id}, this.value)" style="padding:5px; width:auto; display:inline-block;">
+                                    <option value="1" ${t.statusName==='Pending'?'selected':''}>Pending</option>
+                                    <option value="2" ${t.statusName==='InProgress'?'selected':''}>In Progress</option>
+                                    <option value="3" ${t.statusName==='Completed'?'selected':''}>Completed</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                });
+                div.innerHTML = html;
+            } else {
+                div.innerHTML = '<p class="text-center">لا توجد مهام.</p>';
+            }
+        }
+
+        async function createTask() {
+            const data = {
+                title: document.getElementById('tTitle').value,
+                description: document.getElementById('tDesc').value,
+                dueDate: document.getElementById('tDueDate').value,
+                assignedToServantId: parseInt(document.getElementById('tServantId').value)
+            };
+            if(!data.title || !data.assignedToServantId) return alert('أكمل البيانات');
+
+            const res = await fetchApi('/TarbeyaServants/tasks', 'POST', data);
+            if(res && res.success) {
+                alert('تم التكليف بنجاح');
+                loadTasks();
+            } else alert(res?.message || 'خطأ');
+        }
+
+        async function updateTaskStatus(id, statusVal) {
+            const res = await fetchApi(`/TarbeyaServants/tasks/${id}/status`, 'PUT', parseInt(statusVal));
+            if(res && res.success) loadTasks();
+            else alert('خطأ في التحديث');
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

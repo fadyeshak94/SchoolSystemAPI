@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🛡️ إدارة الخدام والصلاحيات</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .role-badge { padding: 4px 8px; border-radius: 4px; color: white; font-size: 12px; font-weight: bold; }
+        .role-genadmin { background-color: var(--danger); }
+        .role-famadmin { background-color: var(--warning); color: #333;}
+        .role-servant { background-color: var(--success); }
+    </style>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+    <div class="card">
+        <h3>🛡️ إدارة الخدام (المستخدمين والصلاحيات)</h3>
+        
+        <div class="controls" id="addControls" style="display: none; background: #f8fafc; padding: 15px; border-radius: 8px;">
+            <input type="text" id="newUsername" placeholder="اسم المستخدم (للدخول)">
+            <input type="password" id="newPassword" placeholder="كلمة المرور">
+            <select id="newRole" onchange="toggleScopeInputs()">
+                <option value="TarbeyaServant">خادم فصل (TarbeyaServant)</option>
+                <option id="optFamAdmin" value="TarbeyaFamilyAdmin" style="display:none;">أمين أسرة (TarbeyaFamilyAdmin)</option>
+                <option id="optGenAdmin" value="TarbeyaGeneralAdmin" style="display:none;">أمين عام (TarbeyaGeneralAdmin)</option>
+            </select>
+            
+            <select id="familyScope" style="display:none;">
+                <option value="">-- اختر الأسرة --</option>
+            </select>
+            
+            <select id="classScope">
+                <option value="">-- اختر الفصل --</option>
+            </select>
+            
+            <button class="btn btn-primary" onclick="addUser()">➕ إضافة مستخدم</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم المستخدم</th>
+                    <th>الصلاحية</th>
+                    <th>نطاق الخدمة (أسرة / فصل)</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="usersBody">
+                <tr><td colspan="4" class="text-center">جاري التحميل...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let myRole = '';
+        window.onload = async () => {
+            const token = localStorage.getItem('appToken');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                myRole = (payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "").toLowerCase();
+            }
+            
+            if (myRole === "admin" || myRole === "tarbeyageneraladmin" || myRole === "tarbeyafamilyadmin") {
+                document.getElementById('addControls').style.display = 'flex';
+                if (myRole === "admin" || myRole === "tarbeyageneraladmin") {
+                    document.getElementById('optFamAdmin').style.display = 'block';
+                    document.getElementById('optGenAdmin').style.display = 'block';
+                }
+                await loadHierarchyForDropdowns();
+                await loadUsers();
+            } else {
+                document.getElementById('usersBody').innerHTML = '<tr><td colspan="4" class="text-center">غير مصرح لك بمشاهدة هذه الصفحة</td></tr>';
+            }
+        };
+
+        function toggleScopeInputs() {
+            const role = document.getElementById('newRole').value;
+            if (role === 'TarbeyaGeneralAdmin') {
+                document.getElementById('familyScope').style.display = 'none';
+                document.getElementById('classScope').style.display = 'none';
+            } else if (role === 'TarbeyaFamilyAdmin') {
+                document.getElementById('familyScope').style.display = 'inline-block';
+                document.getElementById('classScope').style.display = 'none';
+            } else {
+                document.getElementById('familyScope').style.display = 'none';
+                document.getElementById('classScope').style.display = 'inline-block';
+            }
+        }
+
+        async function loadHierarchyForDropdowns() {
+            const res = await fetchApi('/TarbeyaHierarchy/families');
+            if (res && res.success) {
+                let famOptions = '<option value="">-- اختر الأسرة --</option>';
+                let classOptions = '<option value="">-- اختر الفصل --</option>';
+
+                res.families.forEach(f => {
+                    famOptions += `<option value="${f.id}">${f.name}</option>`;
+                    f.stages.forEach(s => {
+                        s.classes.forEach(c => {
+                            classOptions += `<option value="${c.id}">${c.name} (مرحلة ${s.name} - أسرة ${f.name})</option>`;
+                        });
+                    });
+                });
+                document.getElementById('familyScope').innerHTML = famOptions;
+                document.getElementById('classScope').innerHTML = classOptions;
+            }
+        }
+
+        async function loadUsers() {
+            const res = await fetchApi('/TarbeyaUsers');
+            const tbody = document.getElementById('usersBody');
+            if (res && res.success) {
+                let html = '';
+                res.users.forEach(u => {
+                    let roleBadge = '';
+                    let scope = '';
+                    
+                    if (u.role === 'TarbeyaGeneralAdmin') {
+                        roleBadge = '<span class="role-badge role-genadmin">أمين عام</span>';
+                        scope = 'صلاحية مطلقة';
+                    } else if (u.role === 'TarbeyaFamilyAdmin') {
+                        roleBadge = '<span class="role-badge role-famadmin">أمين أسرة</span>';
+                        scope = u.familyName ? `أسرة ${u.familyName}` : '-';
+                    } else if (u.role === 'TarbeyaServant') {
+                        roleBadge = '<span class="role-badge role-servant">خادم فصل</span>';
+                        scope = u.className ? `فصل ${u.className}` : '-';
+                    }
+
+                    const canResetPass = (myRole === 'admin' || myRole === 'tarbeyageneraladmin');
+                    
+                    html += `<tr>
+                        <td><strong>${u.username}</strong></td>
+                        <td>${roleBadge}</td>
+                        <td>${scope}</td>
+                        <td>
+                            ${canResetPass ? `<button class="btn btn-warning" style="font-size:12px; padding:4px 8px;" onclick="resetPass(${u.id})">تغيير كلمة المرور</button>` : ''}
+                        </td>
+                    </tr>`;
+                });
+                tbody.innerHTML = html || '<tr><td colspan="4" class="text-center">لا يوجد خدام</td></tr>';
+            }
+        }
+
+        async function addUser() {
+            const data = {
+                username: document.getElementById('newUsername').value,
+                password: document.getElementById('newPassword').value,
+                role: document.getElementById('newRole').value,
+                tarbeyaFamilyId: document.getElementById('familyScope').value ? parseInt(document.getElementById('familyScope').value) : null,
+                tarbeyaClassId: document.getElementById('classScope').value ? parseInt(document.getElementById('classScope').value) : null
+            };
+            
+            if (!data.username || !data.password) {
+                alert("يجب إدخال اسم المستخدم وكلمة المرور");
+                return;
+            }
+
+            const res = await fetchApi('/TarbeyaUsers', 'POST', data);
+            if(res && res.success) {
+                alert('تم إضافة المستخدم بنجاح');
+                loadUsers();
+            } else {
+                alert('خطأ: ' + (res?.message || 'غير مصرح'));
+            }
+        }
+
+        async function resetPass(id) {
+            const newPass = prompt("أدخل كلمة المرور الجديدة:");
+            if (!newPass) return;
+            
+            const res = await fetchApi(`/TarbeyaUsers/${id}/password`, 'PUT', { newPassword: newPass });
+            if(res && res.success) {
+                alert('تم التغيير بنجاح');
+            } else {
+                alert('خطأ في تغيير كلمة المرور');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>
