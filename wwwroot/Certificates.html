@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>🎓 شهادات التقدير</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
     <style>
       body { direction: rtl; padding: 20px; font-family: 'Segoe UI', Tahoma, sans-serif; background: #f0f2f5; }
       .header { background: linear-gradient(135deg, #10b981, #047857); color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
@@ -51,7 +54,7 @@
         try {
             const data = await fetchApi('/users/me/classes');
             const select = document.getElementById('classSelect');
-            select.innerHTML = '';
+            select.innerHTML = '<option value="all">-- جميع الفصول (كل الناجحين) --</option>';
             
             if (data && data.classes && data.classes.length > 0) {
                 let lastStage = null;
@@ -90,116 +93,154 @@
         statusBox.style.display = 'none';
 
         try {
-            // Fetch results
-            const response = await fetchApi(`/results/class/${classId}?term=all&subject=all`);
-            if (response && response.success && response.students) {
-                let certHtml = '<div style="font-family:\'Segoe UI\', Tahoma, sans-serif; text-align:center; direction:rtl; padding:20px;">';
-                let count = 0;
-                
-                const classInfo = classMap[classId];
+            let classesToFetch = [];
+            if (classId === 'all') {
+                classesToFetch = Object.keys(classMap);
+            } else {
+                classesToFetch = [classId];
+            }
 
-                response.students.forEach((s, idx) => {
-                    if (s.percentage >= 50) { // Assuming 50% is passing
-                        count++;
-                        let gradeTier = getTier(s.percentage);
-                        let logoSch = typeof LOGO_SCHOOL_BASE64 !== 'undefined' ? LOGO_SCHOOL_BASE64 : '';
-                        let logoDio = typeof LOGO_DIOCESE_BASE64 !== 'undefined' ? LOGO_DIOCESE_BASE64 : '';
-                        
-                        let stageText = classInfo && classInfo.stage ? classInfo.stage : '';
-                        let yearText = classInfo && classInfo.year ? classInfo.year : '';
-                        
-                        // Build grades table horizontally
-                        let theadRows = '';
-                        let tbodyRows = '';
-                        if (s.cols) {
-                            for (let sub in s.cols) {
-                                theadRows += `<th style="padding: 10px; border: 1px solid #ccc; background: #1e293b; color: white;">${sub}</th>`;
-                                let scoreVal = typeof s.cols[sub] === 'object' ? s.cols[sub].total : s.cols[sub];
-                                tbodyRows += `<td style="padding: 10px; border: 1px solid #ccc; background: #fdf8ec; color: #1e293b; font-weight: bold;">${scoreVal}</td>`;
-                            }
+            let allStudentsData = [];
+            for (let cid of classesToFetch) {
+                const response = await fetchApi(`/results/class/${cid}?term=all&subject=all`);
+                if (response && response.success && response.students) {
+                    response.students.forEach(s => {
+                        if (s.percentage >= 50) {
+                            allStudentsData.push({ s, classInfo: classMap[cid] });
                         }
+                    });
+                }
+            }
 
-                        certHtml += `
-                            <div style="page-break-after: ${idx < response.students.length - 1 ? 'always' : 'auto'}; border: 4px solid #c9a227; outline: 1px solid #333; outline-offset: -8px; padding: 30px 40px; margin: 20px; background: #fdf8ec; position: relative; height: 720px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; box-sizing: border-box;">
-                                
-                                <div style="position:absolute; top:25px; right:30px;">
-                                    <img src="data:image/png;base64,${logoDio}" style="width:110px; height:110px; object-fit:contain;" onerror="this.style.display='none'">
-                                </div>
-                                <div style="position:absolute; top:25px; left:30px;">
-                                    <img src="/images/Logo.png" style="width:110px; height:110px; object-fit:contain; border-radius: 50%; background-color: white; padding: 5px;" onerror="this.style.display='none'">
-                                </div>
-                                
-                                <h1 style="color:#1a2744; font-size:42px; margin-bottom:10px; margin-top:5px; border-bottom: 3px solid #c9a227; padding-bottom: 5px; display: inline-block;">شهادة تقدير</h1>
-                                
-                                <p style="font-size:20px; color:#555; line-height: 1.6; text-align: center; margin-top: 10px; width: 70%;">
-                                    يسٌر مدرسة القديس ديديموس للعلوم الكنسية بكنيسة الشهيد العظيم مارمينا والبابا كيرلس السادس بالخصوص أن
-                                </p>
-                                <p style="font-size:22px; color:#555; margin: 5px 0;">
-                                    تهنئ الطالب<span> / </span>ة <strong style="color:#7a1f1f; font-size: 28px; margin: 0 5px;">${s.name}</strong>
-                                </p>
-                                <p style="font-size:22px; color:#555; margin-bottom: 20px;">
-                                    على اجتياز السنة ${yearText} مرحلة ${stageText}
-                                </p>
-                                
-                                <table style="border-collapse: collapse; width: 85%; margin: 0 auto 20px auto; font-size: 18px; text-align: center;">
-                                    <thead>
-                                        <tr>
-                                            ${theadRows}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            ${tbodyRows}
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                
-                                <div style="background: #fdfbf7; border: 2px solid #c9a227; border-radius: 12px; padding: 15px 20px; margin-bottom: 80px; font-size: 22px; color: #1a2744; font-weight: bold; width: 65%; display: flex; justify-content: space-around; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                    <span>الدرجة النهائية<span> : </span><span dir="ltr">${s.total}</span></span>
-                                    <span>|</span>
-                                    <span>النسبة<span> : </span><span dir="ltr">${s.percentage.toFixed(1)}%</span></span>
-                                    <span>|</span>
-                                    <span>التقدير<span> : </span>${gradeTier}</span>
-                                </div>
-                                
-                                <div style="position:absolute; bottom:40px; right:80px; text-align:center;">
-                                    <hr style="border: none; border-top: 2px solid #333; width: 160px; margin-bottom: 15px;">
-                                    <p style="font-size:22px; font-weight:bold; color: #1a2744; margin: 0;">إدارة المدرسة</p>
-                                </div>
-                                <div style="position:absolute; bottom:40px; left:80px; text-align:center;">
-                                    <hr style="border: none; border-top: 2px solid #333; width: 160px; margin-bottom: 15px;">
-                                    <p style="font-size:22px; font-weight:bold; color: #1a2744; margin: 0;">الكنيسة</p>
-                                </div>
-                            </div>
-                        `;
+            if (allStudentsData.length === 0) {
+                throw new Error('لا يوجد طلاب ناجحين لاستخراج شهادات لهم.');
+            }
+
+            statusBox.style.display = 'block';
+            statusBox.className = 'status-box status-success';
+            statusBox.style.backgroundColor = '#fff3cd';
+            statusBox.style.color = '#856404';
+            statusBox.style.borderColor = '#ffeeba';
+            statusBox.textContent = `⏳ جاري معالجة الشهادات (0 من ${Math.ceil(allStudentsData.length / 2)} صفحة)...`;
+
+            let pages = [];
+            for (let i = 0; i < allStudentsData.length; i += 2) {
+                pages.push(allStudentsData.slice(i, i + 2));
+            }
+
+            const opt = {
+                margin:       0,
+                filename:     'Certificates_' + (classId === 'all' ? 'All_Classes' : 'Class_' + classId) + '.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'px', format: [1122, 1587], orientation: 'portrait' }
+            };
+
+            let worker = html2pdf().set(opt);
+
+            for (let pIdx = 0; pIdx < pages.length; pIdx++) {
+                let pageStudents = pages[pIdx];
+                let pageHtml = '<div style="font-family:\'Segoe UI\', Tahoma, sans-serif; text-align:center; direction:rtl; padding:20px; width: 1122px; min-height: 1587px; box-sizing: border-box; background: white;">';
+                
+                pageStudents.forEach((data) => {
+                    let s = data.s;
+                    let classInfo = data.classInfo;
+                    
+                    let gradeTier = getTier(s.percentage);
+                    let logoSch = typeof LOGO_SCHOOL_BASE64 !== 'undefined' ? LOGO_SCHOOL_BASE64 : '';
+                    let logoDio = typeof LOGO_DIOCESE_BASE64 !== 'undefined' ? LOGO_DIOCESE_BASE64 : '';
+                    
+                    let stageText = classInfo && classInfo.stage ? classInfo.stage : '';
+                    let yearText = classInfo && classInfo.year ? classInfo.year : '';
+                    
+                    let theadRows = '';
+                    let tbodyRows = '';
+                    if (s.cols) {
+                        for (let sub in s.cols) {
+                            let subName = sub.replace(/ /g, '&nbsp;');
+                            theadRows += `<th style="padding: 10px; border: 1px solid #ccc; background: #1e293b; color: white;">${subName}</th>`;
+                            let scoreVal = typeof s.cols[sub] === 'object' ? s.cols[sub].total : s.cols[sub];
+                            tbodyRows += `<td style="padding: 10px; border: 1px solid #ccc; background: #fdf8ec; color: #1e293b; font-weight: bold;">${scoreVal}</td>`;
+                        }
                     }
+
+                    pageHtml += `
+                        <div style="border: 4px solid #c9a227; outline: 1px solid #333; outline-offset: -8px; padding: 30px 40px; margin: 0 0 20px 0; background: #fdf8ec; position: relative; height: 720px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; box-sizing: border-box;">
+                            
+                            <div style="position:absolute; top:25px; right:30px;">
+                                <img src="data:image/png;base64,${logoDio}" style="width:110px; height:110px; object-fit:contain;" onerror="this.style.display='none'">
+                            </div>
+                            <div style="position:absolute; top:25px; left:30px;">
+                                <img src="/images/Logo.png" style="width:110px; height:110px; object-fit:contain; border-radius: 50%; background-color: white; padding: 5px;" onerror="this.style.display='none'">
+                            </div>
+                            
+                            <h1 style="font-family: 'Aref Ruqaa', serif; color:#1a2744; font-size:75px; margin-bottom:0px; margin-top:5px; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">شهادة شكر وتقدير</h1>
+                            
+                            <p style="font-size:22px; color:#555; line-height: 1.8; text-align: center; margin-top: 15px; width: 90%;">
+                                يسر&nbsp;مدرسة&nbsp;القديس&nbsp;ديديموس&nbsp;للعلوم&nbsp;الكنسية<br>
+                                بكنيسة&nbsp;الشهيد&nbsp;العظيم&nbsp;مارمينا&nbsp;والبابا&nbsp;كيرلس&nbsp;السادس&nbsp;بالخصوص<br>
+                                أن&nbsp;تهنئ&nbsp;الطالب<span>/</span>ة&nbsp;<strong style="color:#7a1f1f; font-size: 28px; margin: 0 5px;">${s.name.replace(/ /g, '&nbsp;')}</strong>
+                            </p>
+                            <p style="font-size:22px; color:#555; margin-bottom: 20px;">
+                                على&nbsp;اجتياز&nbsp;السنة&nbsp;${yearText.replace(/ /g, '&nbsp;')}&nbsp;مرحلة&nbsp;${stageText.replace(/ /g, '&nbsp;')}
+                            </p>
+                            
+                            <table style="border-collapse: collapse; width: 85%; margin: 0 auto 20px auto; font-size: 18px; text-align: center;">
+                                <thead>
+                                    <tr>
+                                        ${theadRows}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        ${tbodyRows}
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div style="background: #fdfbf7; border: 2px solid #c9a227; border-radius: 12px; padding: 15px 20px; margin-bottom: 80px; font-size: 22px; color: #1a2744; font-weight: bold; width: 65%; display: flex; justify-content: space-around; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                <span>الدرجة النهائية<span> : </span><span dir="ltr">${s.total}</span></span>
+                                <span>|</span>
+                                <span>النسبة<span> : </span><span dir="ltr">${s.percentage.toFixed(1)}%</span></span>
+                                <span>|</span>
+                                <span>التقدير<span> : </span>${gradeTier}</span>
+                            </div>
+                            
+                            <div style="position:absolute; bottom:40px; right:80px; text-align:center;">
+                                <hr style="border: none; border-top: 2px solid #333; width: 160px; margin-bottom: 15px;">
+                                <p style="font-size:22px; font-weight:bold; color: #1a2744; margin: 0;">إدارة المدرسة</p>
+                            </div>
+                            <div style="position:absolute; bottom:40px; left:80px; text-align:center;">
+                                <hr style="border: none; border-top: 2px solid #333; width: 160px; margin-bottom: 15px;">
+                                <p style="font-size:22px; font-weight:bold; color: #1a2744; margin: 0;">الكنيسة</p>
+                            </div>
+                        </div>
+                    `;
                 });
 
-                certHtml += '</div>';
-
-                if (count === 0) {
-                    throw new Error('لا يوجد طلاب ناجحين في هذا الفصل لاستخراج شهادات لهم.');
-                }
+                pageHtml += '</div>';
 
                 let container = document.createElement('div');
-                container.innerHTML = certHtml;
+                container.innerHTML = pageHtml;
 
-                const opt = {
-                    margin:       0,
-                    filename:     'Certificates_Class_' + classId + '.pdf',
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2 },
-                    jsPDF:        { unit: 'px', format: [1122, 793], orientation: 'landscape' } // A4 Landscape roughly
-                };
-
-                await html2pdf().set(opt).from(container).save();
-
-                statusBox.className = 'status-box status-success';
-                statusBox.textContent = `✅ تم استخراج الشهادات بنجاح (${count} شهادة).`;
-            } else {
-                statusBox.className = 'status-box status-error';
-                statusBox.textContent = '❌ خطأ: لم يتم العثور على نتائج للطلاب.';
+                if (pIdx === 0) {
+                    worker = worker.from(container).toPdf();
+                } else {
+                    worker = worker.get('pdf').then(pdf => { pdf.addPage(); }).from(container).toContainer().toCanvas().toImg().toPdf();
+                }
+                
+                await worker;
+                statusBox.textContent = `⏳ جاري تجميع الصفحات (${pIdx + 1} من ${pages.length})... برجاء الانتظار`;
             }
+
+            await worker.save();
+
+            statusBox.style.backgroundColor = '';
+            statusBox.style.color = '';
+            statusBox.style.borderColor = '';
+            statusBox.className = 'status-box status-success';
+            statusBox.textContent = `✅ تم استخراج الشهادات بنجاح (${allStudentsData.length} شهادة في ${pages.length} صفحة).`;
+
         } catch (err) {
             statusBox.className = 'status-box status-error';
             statusBox.textContent = '❌ ' + err.message;
