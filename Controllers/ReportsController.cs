@@ -22,6 +22,7 @@ public class ReportsController : ControllerBase
     {
         var classes = await _uow.ClassRooms.FindAsync(c => true);
         var students = await _uow.Students.FindAsync(s => true);
+
         var grades = await _uow.StudentGrades.FindAsync(g => true);
 
         var reportList = classes.Select(cls =>
