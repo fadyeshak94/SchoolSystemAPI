@@ -158,7 +158,7 @@ public class StudentsController : ControllerBase
     }
 
     // جلب بيانات طالب واحد بالكامل
-    [HttpGet("{id}")]
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetStudentById(int id)
     {
         var student = await _uow.Students.GetByIdAsync(id);
@@ -207,7 +207,7 @@ public class StudentsController : ControllerBase
     }
 
     // 6. حذف طالب
-    [HttpDelete("{id}")]
+    [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteStudent(int id)
     {
         var student = await _uow.Students.GetByIdAsync(id);
@@ -262,7 +262,7 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("status-report")]
-    public async Task<IActionResult> GetStudentsStatusReport([FromQuery] int? classId)
+    public async Task<IActionResult> GetStudentsStatusReport([FromQuery] int? classId = null)
     {
         var studentsQuery = await _uow.Students.FindAsync(s => true);
         if (classId.HasValue)
