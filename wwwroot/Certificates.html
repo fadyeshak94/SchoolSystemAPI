@@ -157,8 +157,31 @@
                     let tbodyRows = '';
                     if (s.cols) {
                         for (let sub in s.cols) {
-                            let subName = sub.replace(/ /g, '&nbsp;');
-                            theadRows += `<th style="padding: 10px; border: 1px solid #ccc; background: #1e293b; color: white;">${subName}</th>`;
+                            let subName = sub;
+                            let sStage = stageText.trim();
+                            let sName = subName.trim();
+                            let yText = yearText.trim();
+
+                            if (sName.includes('مواد متغيرة') || sName.includes('متغيره')) {
+                                if (sStage.includes('ابتدائي أ') || sStage.includes('ابتدائي ا')) {
+                                    continue;
+                                } else if (sStage.includes('ابتدائي ب')) {
+                                    if (yText.includes('رابعة') || yText.includes('اولى') || yText.includes('أولى') || yText.includes('1')) subName = 'كتاب مقدس';
+                                    else if (yText.includes('خامسة') || yText.includes('ثانية') || yText.includes('ثانيه') || yText.includes('تانية') || yText.includes('2')) subName = 'عقيدة';
+                                    else if (yText.includes('سادسة') || yText.includes('ثالثة') || yText.includes('ثالثه') || yText.includes('تالتة') || yText.includes('3')) subName = 'تاريخ كنيسة';
+                                } else if (sStage.includes('اعدادي') || sStage.includes('إعدادي') || sStage.includes('عدادي')) {
+                                    if (yText.includes('اولى') || yText.includes('أولى') || yText.includes('1')) subName = 'كتاب مقدس';
+                                    else if (yText.includes('ثانية') || yText.includes('ثانيه') || yText.includes('تانية') || yText.includes('2')) subName = 'عقيدة';
+                                    else if (yText.includes('ثالثة') || yText.includes('ثالثه') || yText.includes('تالتة') || yText.includes('3')) subName = 'تاريخ كنيسة';
+                                } else if (sStage.includes('كبار')) {
+                                    if (yText.includes('اولى') || yText.includes('أولى') || yText.includes('1')) subName = 'كتاب مقدس';
+                                    else if (yText.includes('ثانية') || yText.includes('ثانيه') || yText.includes('تانية') || yText.includes('2')) subName = 'تاريخ كنيسة';
+                                    else if (yText.includes('ثالثة') || yText.includes('ثالثه') || yText.includes('تالتة') || yText.includes('3')) subName = 'عقيدة';
+                                }
+                            }
+
+                            let subNameHtml = subName.replace(/ /g, '&nbsp;');
+                            theadRows += `<th style="padding: 10px; border: 1px solid #ccc; background: #1e293b; color: white;">${subNameHtml}</th>`;
                             let scoreVal = typeof s.cols[sub] === 'object' ? s.cols[sub].total : s.cols[sub];
                             tbodyRows += `<td style="padding: 10px; border: 1px solid #ccc; background: #fdf8ec; color: #1e293b; font-weight: bold;">${scoreVal}</td>`;
                         }

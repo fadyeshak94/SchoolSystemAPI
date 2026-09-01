@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,6 +19,10 @@
 
     <div class="controls">
         <select id="classSelect" onchange="loadGrades()"></select>
+        <select id="termSelect" onchange="loadGrades()">
+            <option value="ت1">الترم الأول (ت1)</option>
+            <option value="ت2">الترم الثاني (ت2)</option>
+        </select>
         <button class="btn btn-success" id="saveAllBtn" onclick="saveAllGrades()" style="display:none; margin-right:auto;">💾 حفظ الكل</button>
     </div>
 
@@ -32,13 +36,14 @@
 
         async function loadGrades() {
             const classId = document.getElementById('classSelect').value;
+            const term = document.getElementById('termSelect').value;
             if (!classId) return;
 
             document.getElementById('content').innerHTML = '<div class="spinner"></div>';
             document.getElementById('saveAllBtn').style.display = 'none';
             changes = {};
 
-            const res = await fetchApi(`/grades/class/${classId}/full`); 
+            const res = await fetchApi(`/grades/class/${classId}/full?term=${term}`); 
             if (!res || !res.students) return;
 
             let html = '<table><thead><tr><th>#</th><th>الاسم</th>';
@@ -74,7 +79,12 @@
             const btn = document.getElementById('saveAllBtn');
             btn.disabled = true;
 
-            const res = await fetchApi('/grades/saveAll', 'POST', { classId: document.getElementById('classSelect').value, updates: changes });
+            const payload = { 
+                classId: document.getElementById('classSelect').value, 
+                term: document.getElementById('termSelect').value,
+                updates: changes 
+            };
+            const res = await fetchApi('/grades/saveAll', 'POST', payload);
             btn.disabled = false;
 
             if (res && res.success) {

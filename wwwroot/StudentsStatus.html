@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📊 حالة الطلاب</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .table-container { width: 100%; overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #eee; margin-top: 20px; box-shadow: var(--box-shadow); }
+        table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f8fafc; color: #334155; font-weight: bold; }
+        tr:hover { background: #f1f5f9; }
+        
+        .badge { display: inline-block; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-info { background: #e0e7ff; color: #3730a3; }
+        
+        .class-header { background: var(--primary); color: white; font-weight: bold; font-size: 16px; text-align: center; }
+        
+        .filter-container { display: flex; gap: 10px; margin-bottom: 20px; }
+        .filter-select { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; }
+        
+        .empty-state { text-align: center; padding: 40px; color: #64748b; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div class="card" style="padding: 25px;">
+        <h3 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px;">📊</span> تقرير حالة الطلاب بالفصول
+        </h3>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            يعرض هذا التقرير حالة جميع الطلاب من حيث النجاح والرسوب وتحديث البيانات والاشتراك في السنة الجديدة.
+        </p>
+
+        <div class="filter-container">
+            <select id="stageFilter" class="filter-select" onchange="filterClasses()">
+                <option value="">-- كل المراحل --</option>
+            </select>
+            <select id="classFilter" class="filter-select" onchange="loadReport()">
+                <option value="">-- كل الفصول --</option>
+            </select>
+        </div>
+
+        <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>كود الطالب</th>
+                        <th>اسم الطالب</th>
+                        <th>النسبة المئوية</th>
+                        <th>النجاح / الرسوب</th>
+                        <th>حالة الاشتراك</th>
+                        <th>طلب التجديد</th>
+                    </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                    <tr>
+                        <td colspan="6" class="empty-state">⏳ جاري تحميل التقرير...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let allStudents = [];
+        let allMyClasses = [];
+
+        window.onload = async () => {
+            requireRole('Admin');
+            
+            try {
+                const classRes = await fetchApi('/users/me/classes');
+                if (classRes && classRes.classes) {
+                    allMyClasses = classRes.classes;
+                    
+                    const stages = [...new Set(allMyClasses.map(c => c.stage).filter(s => s))];
+                    const stageFilter = document.getElementById('stageFilter');
+                    stages.forEach(st => {
+                        const opt = document.createElement('option');
+                        opt.value = st; opt.textContent = st;
+                        stageFilter.appendChild(opt);
+                    });
+                }
+                
+                await loadReport();
+            } catch (e) {
+                console.error("Error loading page data:", e);
+                showStatus('statusBar', 'error', 'حدث خطأ في تحميل البيانات الأساسية');
+            }
+        };
+
+        function filterClasses() {
+            const selectedStage = document.getElementById('stageFilter').value;
+            const classSelect = document.getElementById('classFilter');
+            classSelect.innerHTML = '<option value="">-- كل الفصول --</option>';
+            
+            if (selectedStage) {
+                const filtered = allMyClasses.filter(c => c.stage === selectedStage);
+                filtered.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name + (c.year ? ' (' + c.year + ')' : '');
+                    classSelect.appendChild(opt);
+                });
+            }
+            loadReport();
+        }
+
+        async function loadReport() {
+            const tbody = document.getElementById('reportTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">⏳ جاري التحميل...</td></tr>';
+            
+            const classId = document.getElementById('classFilter').value;
+            let url = '/students/status-report';
+            if (classId) {
+                url += `?classId=${classId}`;
+            }
+
+            try {
+                const res = await fetchApi(url);
+                if (res && res.success) {
+                    allStudents = res.students;
+                    renderReport();
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:var(--danger);">❌ خطأ: ${res?.message || 'فشل تحميل التقرير'}</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:var(--danger);">❌ خطأ في الاتصال بالخادم</td></tr>`;
+            }
+        }
+
+        function renderReport() {
+            const tbody = document.getElementById('reportTableBody');
+            
+            if (allStudents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">✅ لا توجد بيانات لعرضها</td></tr>';
+                return;
+            }
+
+            // Group by classId
+            const grouped = {};
+            allStudents.forEach(s => {
+                if (!grouped[s.classId]) {
+                    grouped[s.classId] = { className: s.className, students: [] };
+                }
+                grouped[s.classId].students.push(s);
+            });
+
+            let html = '';
+            for (const cId in grouped) {
+                const group = grouped[cId];
+                
+                // Add Class Header
+                html += `<tr><td colspan="6" class="class-header">فصل: ${group.className} (${group.students.length} طالب)</td></tr>`;
+                
+                group.students.forEach(req => {
+                    const passBadge = req.isPassed 
+                        ? '<span class="badge badge-success">ناجح ✅</span>' 
+                        : '<span class="badge badge-danger">راسب ❌</span>';
+                        
+                    let subscriptionBadge = '';
+                    if (req.hasUpdatedData) {
+                        subscriptionBadge = '<span class="badge badge-info">حدث بياناته (مشترك)</span>';
+                    } else {
+                        subscriptionBadge = '<span class="badge badge-warning">لم يشترك بعد</span>';
+                    }
+                    
+                    let reqStatus = '-';
+                    if (req.renewalStatus === 'Pending') reqStatus = 'معلق ⏳';
+                    if (req.renewalStatus === 'Waitlisted') reqStatus = 'قائمة انتظار ⚠️';
+                    if (req.renewalStatus === 'Approved') reqStatus = 'تمت الموافقة ✔️';
+
+                    html += `
+                        <tr>
+                            <td style="color:#64748b; font-size:13px; font-weight:bold;">#${req.id}</td>
+                            <td style="font-weight:bold; color:var(--primary);">${req.name}</td>
+                            <td dir="ltr" style="text-align:right;">${req.percentage.toFixed(1)}%</td>
+                            <td>${passBadge}</td>
+                            <td>${subscriptionBadge}</td>
+                            <td style="font-size:13px;">${reqStatus}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            tbody.innerHTML = html;
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

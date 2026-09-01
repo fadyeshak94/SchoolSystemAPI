@@ -85,7 +85,7 @@ public class GradesController : ControllerBase
     }
 
     [HttpGet("class/{classId}/full")]
-    public async Task<IActionResult> GetFullClassGrades(int classId)
+    public async Task<IActionResult> GetFullClassGrades(int classId, [FromQuery] string? term)
     {
         var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
         var studentIds = students.Select(s => s.Id).ToList();
@@ -95,7 +95,7 @@ public class GradesController : ControllerBase
 
         var result = students.Select(s =>
         {
-            var studentGrades = grades.Where(g => g.StudentId == s.Id).ToList();
+            var studentGrades = grades.Where(g => g.StudentId == s.Id && (string.IsNullOrEmpty(term) || g.Term == term)).ToList();
             var subDict = new Dictionary<string, decimal>();
             decimal total = 0;
 
@@ -131,8 +131,7 @@ public class GradesController : ControllerBase
         {
             foreach (var (subject, score) in subjectsDict)
             {
-                // Assuming updating Term 1 ExamScore for simplicity from this UI
-                var grade = grades.FirstOrDefault(g => g.StudentId == studentId && g.SubjectName == subject && g.Term == "ت1");
+                var grade = grades.FirstOrDefault(g => g.StudentId == studentId && g.SubjectName == subject && g.Term == request.Term);
                 
                 if (grade != null)
                 {
@@ -145,7 +144,7 @@ public class GradesController : ControllerBase
                     {
                         StudentId = studentId,
                         SubjectName = subject,
-                        Term = "ت1",
+                        Term = request.Term,
                         ExamScore = score,
                         AttendanceScore = 0
                     };
@@ -178,6 +177,7 @@ public class GradeUpdateDto
 public class SaveAllGradesDto
 {
     public int ClassId { get; set; }
+    public string Term { get; set; } = string.Empty;
     public Dictionary<int, Dictionary<string, decimal>> Updates { get; set; } = new();
 }
 

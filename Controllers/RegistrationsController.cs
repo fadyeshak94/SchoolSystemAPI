@@ -64,20 +64,54 @@ public class RegistrationsController : ControllerBase
         var pendingList = await _uow.PendingRegistrations.FindAsync(p => p.Status == "Pending" || p.Status == "Waitlisted");
         var classRooms = await _uow.ClassRooms.FindAsync(c => true);
         var classMap = classRooms.ToDictionary(c => c.Id, c => c.Name);
+        
+        var studentIds = pendingList.Where(p => p.StudentId.HasValue).Select(p => p.StudentId.Value).ToList();
+        var students = await _uow.Students.FindAsync(s => studentIds.Contains(s.Id));
+        
+        var studentsArchive = await _uow.StudentArchives.FindAsync(sa => studentIds.Contains(sa.OriginalStudentId));
+        
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var currentYear = appSettings?.AcademicYear ?? "السنة الحالية";
 
-        var result = pendingList.Select(p => new
-        {
-            p.Id,
-            p.StudentId,
-            p.Name,
-            p.Gender,
-            p.GovGrade,
-            p.ClassId,
-            ClassName = classMap.ContainsKey(p.ClassId) ? classMap[p.ClassId] : "غير معروف",
-            p.AmountPaid,
-            p.IsRenewal,
-            p.RequestDate,
-            p.Status
+        var result = pendingList.Select(p => {
+            string prevYear = "-";
+            string prevClass = "-";
+
+            if (p.IsRenewal && p.StudentId.HasValue)
+            {
+                var archive = studentsArchive.Where(a => a.OriginalStudentId == p.StudentId.Value).OrderByDescending(a => a.Id).FirstOrDefault();
+                if (archive != null)
+                {
+                    prevYear = archive.AcademicYear;
+                    prevClass = archive.ClassName;
+                }
+                else
+                {
+                    var student = students.FirstOrDefault(s => s.Id == p.StudentId.Value);
+                    if (student != null)
+                    {
+                        prevYear = currentYear;
+                        prevClass = classMap.ContainsKey(student.ClassRoomId) ? classMap[student.ClassRoomId] : "-";
+                    }
+                }
+            }
+
+            return new
+            {
+                p.Id,
+                p.StudentId,
+                p.Name,
+                p.Gender,
+                p.GovGrade,
+                p.ClassId,
+                ClassName = classMap.ContainsKey(p.ClassId) ? classMap[p.ClassId] : "غير معروف",
+                p.AmountPaid,
+                p.IsRenewal,
+                p.RequestDate,
+                p.Status,
+                PrevYear = prevYear,
+                PrevClass = prevClass
+            };
         }).OrderBy(p => p.RequestDate).ToList();
 
         return Ok(new { success = true, requests = result });

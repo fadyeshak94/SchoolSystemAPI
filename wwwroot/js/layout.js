@@ -21,34 +21,78 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (e) {}
     }
 
-    const links = [
-        { path: "/Dashboard.html", icon: "📊", text: "لوحة التحكم" },
-        { path: "/Registration.html", icon: "💳", text: "التسجيل والاشتراكات" },
-        { path: "/StudentManage.html", icon: "✏️", text: "الطلاب" },
-        { path: "/ClassStudents.html", icon: "📋", text: "قوائم الفصول" },
-        { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" },
-        { path: "/AttendanceTrack.html", icon: "📅", text: "متابعة الحضور" },
-        { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" },
-        { path: "/SubjectGrades.html", icon: "✏️", text: "رصد الدرجات" },
-        { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
-        { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
-        { path: "/Certificates.html", icon: "🎓", text: "الشهادات" },
-        { path: "/IDCard.html", icon: "🪪", text: "الكارنيهات" },
-        { path: "/Renewals.html", icon: "📞", text: "تجديد الاشتراكات" },
-        { path: "/Statistics.html", icon: "📈", text: "الإحصائيات" },
-        { path: "/Settings.html", icon: "⚙️", text: "الإعدادات" }
+    const menuGroups = [
+        {
+            title: "الرئيسية",
+            links: [
+                { path: "/Dashboard.html", icon: "📊", text: "لوحة التحكم" },
+                { path: "/Registration.html", icon: "💳", text: "التسجيل والاشتراكات" },
+                { path: "/Renewals.html", icon: "📞", text: "تجديد الاشتراكات" }
+            ]
+        },
+        {
+            title: "شؤون الطلاب",
+            links: [
+                { path: "/StudentManage.html", icon: "✏️", text: "الطلاب" },
+                { path: "/ClassStudents.html", icon: "📋", text: "قوائم الفصول" },
+                { path: "/IDCard.html", icon: "🪪", text: "الكارنيهات" }
+            ]
+        },
+        {
+            title: "الحضور والأعذار",
+            links: [
+                { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" },
+                { path: "/AttendanceTrack.html", icon: "📅", text: "متابعة الحضور" },
+                { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" }
+            ]
+        },
+        {
+            title: "الشؤون الأكاديمية",
+            links: [
+                { path: "/SubjectGrades.html", icon: "✏️", text: "رصد الدرجات" },
+                { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
+                { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
+                { path: "/Certificates.html", icon: "🎓", text: "الشهادات" }
+            ]
+        }
     ];
 
     if (userRole === "Admin") {
-        links.push({ path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" });
-        links.push({ path: "/ManageRegistrations.html", icon: "📝", text: "إدارة التسجيلات" });
-        links.push({ path: "/Siblings.html", icon: "👨‍👩‍👧‍👦", text: "إدارة الإخوة" });
-        links.push({ path: "/Permissions.html", icon: "🛡️", text: "الصلاحيات" });
-        links.push({ path: "/Archive.html", icon: "📦", text: "الأرشيف" });
-        links.push({ path: "/AuditLogs.html", icon: "📜", text: "سجل العمليات" });
+        menuGroups.push({
+            title: "الإدارة والتقارير",
+            links: [
+                { path: "/ManageRegistrations.html", icon: "📝", text: "إدارة التسجيلات" },
+                { path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" },
+                { path: "/Siblings.html", icon: "👨‍👩‍👧‍👦", text: "إدارة الإخوة" },
+                { path: "/StudentsStatus.html", icon: "📊", text: "حالة الطلاب" },
+                { path: "/ClassesPerformance.html", icon: "📈", text: "أداء الفصول" },
+                { path: "/AttendanceReport.html", icon: "📅", text: "تقرير الغياب" },
+                { path: "/Statistics.html", icon: "📈", text: "الإحصائيات" }
+            ]
+        });
+        menuGroups.push({
+            title: "النظام والأرشيف",
+            links: [
+                { path: "/Archive.html", icon: "📦", text: "الأرشيف" },
+                { path: "/Permissions.html", icon: "🛡️", text: "الصلاحيات" },
+                { path: "/AuditLogs.html", icon: "📜", text: "سجل العمليات" },
+                { path: "/Settings.html", icon: "⚙️", text: "الإعدادات" }
+            ]
+        });
+    } else {
+        menuGroups.push({
+            title: "النظام",
+            links: [
+                { path: "/Statistics.html", icon: "📈", text: "الإحصائيات" },
+                { path: "/Settings.html", icon: "⚙️", text: "الإعدادات" }
+            ]
+        });
     }
 
     const currentPath = window.location.pathname;
+    
+    // Flat links for finding page title
+    const allLinks = menuGroups.flatMap(g => g.links);
 
     // Build Sidebar HTML
     let sidebarHtml = `
@@ -59,19 +103,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 <h2 style="margin: 0; font-size: 1.2rem;">نظام ادارة المدرسة </h2>
             </div>
             <ul class="sidebar-menu">
-                ${links.map(link => `
-                    <li>
-                        <a href="${link.path}" class="${currentPath.toLowerCase().includes(link.path.toLowerCase()) ? 'active' : ''}">
-                            <span style="margin-left: 10px;">${link.icon}</span> ${link.text}
-                        </a>
+                ${menuGroups.map(group => `
+                    <li class="sidebar-category" style="padding: 15px 20px 5px; font-size: 11px; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">
+                        ${group.title}
                     </li>
+                    ${group.links.map(link => `
+                        <li>
+                            <a href="${link.path}" class="${currentPath.toLowerCase().includes(link.path.toLowerCase()) ? 'active' : ''}">
+                                <span style="margin-left: 10px; font-size: 1.1em;">${link.icon}</span> ${link.text}
+                            </a>
+                        </li>
+                    `).join('')}
                 `).join('')}
             </ul>
         </div>
     `;
 
     // Build Header HTML
-    let pageTitle = links.find(l => currentPath.toLowerCase().includes(l.path.toLowerCase()))?.text || "نظام المدارس";
+    let pageTitle = allLinks.find(l => currentPath.toLowerCase().includes(l.path.toLowerCase()))?.text || "نظام المدارس";
     let headerHtml = `
         <header class="top-header">
             <div style="display: flex; align-items: center; gap: 15px;">

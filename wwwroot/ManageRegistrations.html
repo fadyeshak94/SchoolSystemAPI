@@ -56,7 +56,9 @@
                         <th>رقم الطلب</th>
                         <th>اسم الطالب</th>
                         <th>نوع الطلب</th>
-                        <th>المرحلة/الحكومي</th>
+                        <th>السنة السابقة</th>
+                        <th>الفصل السابق</th>
+                        <th>السن (المرحلة/الحكومي)</th>
                         <th>المبلغ المدفوع</th>
                         <th>الفصل المقترح والتعديل</th>
                         <th style="text-align:center;">إجراءات</th>
@@ -64,7 +66,7 @@
                 </thead>
                 <tbody id="requestsTableBody">
                     <tr>
-                        <td colspan="8" class="empty-state">⏳ جاري تحميل الطلبات المعلقة...</td>
+                        <td colspan="10" class="empty-state">⏳ جاري تحميل الطلبات المعلقة...</td>
                     </tr>
                 </tbody>
             </table>
@@ -113,7 +115,7 @@
             const tbody = document.getElementById('requestsTableBody');
             
             if (pendingRequests.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">✅ لا توجد طلبات معلقة حالياً</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="empty-state">✅ لا توجد طلبات معلقة حالياً</td></tr>';
                 return;
             }
 
@@ -149,6 +151,8 @@
                         <td style="color:#64748b; font-size:12px;">#${req.id}<br>${dateStr}</td>
                         <td style="font-weight:bold; color:var(--primary);">${req.name}${waitlistWarning}</td>
                         <td>${typeBadge}</td>
+                        <td>${req.prevYear || '-'}</td>
+                        <td>${req.prevClass || '-'}</td>
                         <td>${req.govGrade || '-'}</td>
                         <td style="font-weight:bold; color:var(--success);">${req.amountPaid} ج.م</td>
                         <td>

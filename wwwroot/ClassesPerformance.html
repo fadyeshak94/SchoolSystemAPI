@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📈 تقرير أداء الفصول</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .table-container { width: 100%; overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #eee; margin-top: 20px; box-shadow: var(--box-shadow); }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid #eee; }
+        th { background: #f8fafc; color: #334155; font-weight: bold; }
+        tr:hover { background: #f1f5f9; }
+        
+        .stage-header { background: var(--primary); color: white; font-weight: bold; font-size: 16px; text-align: center; }
+        .text-right { text-align: right; }
+        
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; }
+        .badge-excellent { background: #dbeafe; color: #1e40af; }
+        .badge-vgood { background: #d1fae5; color: #065f46; }
+        .badge-good { background: #fef3c7; color: #92400e; }
+        .badge-acceptable { background: #ffedd5; color: #9a3412; }
+        .badge-fail { background: #fee2e2; color: #991b1b; }
+        
+        .summary-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; text-align: center; }
+        .summary-title { font-size: 13px; color: #64748b; font-weight: bold; margin-bottom: 5px; }
+        .summary-value { font-size: 20px; font-weight: bold; color: var(--primary); }
+        .summary-sub { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+        
+        .empty-state { text-align: center; padding: 40px; color: #64748b; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div class="card" style="padding: 25px;">
+        <h3 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px;">📈</span> تقرير أداء الفصول والتقديرات
+        </h3>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            يعرض هذا التقرير نسب النجاح والرسوب وتوزيع التقديرات (امتياز، جيد جداً، جيد، مقبول) لكل فصل.
+        </p>
+
+        <div class="summary-dashboard" id="summaryDashboard" style="display:none;">
+            <div class="summary-card">
+                <div class="summary-title">المدرسة ككل (النجاح)</div>
+                <div class="summary-value" id="schoolPassRate">-</div>
+                <div class="summary-sub" id="schoolPassSub">-</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-title">أعلى فصل (نسبة النجاح)</div>
+                <div class="summary-value" id="highestClass">-</div>
+                <div class="summary-sub" id="highestClassSub">-</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-title">أقل فصل (نسبة النجاح)</div>
+                <div class="summary-value" id="lowestClass">-</div>
+                <div class="summary-sub" id="lowestClassSub">-</div>
+            </div>
+        </div>
+
+        <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-right">الفصل</th>
+                        <th>إجمالي الطلاب</th>
+                        <th>نسبة النجاح</th>
+                        <th>نسبة الرسوب</th>
+                        <th>امتياز (>= 85%)</th>
+                        <th>جيد جداً (>= 75%)</th>
+                        <th>جيد (>= 65%)</th>
+                        <th>مقبول (>= 50%)</th>
+                        <th>ضعيف (< 50%)</th>
+                    </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                    <tr>
+                        <td colspan="9" class="empty-state">⏳ جاري تحميل التقرير...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = async () => {
+            requireRole('Admin');
+            await loadReport();
+        };
+
+        async function loadReport() {
+            const tbody = document.getElementById('reportTableBody');
+            try {
+                const res = await fetchApi('/reports/classes-performance');
+                if (res && res.success) {
+                    renderReport(res.reports);
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color:var(--danger);">❌ خطأ: ${res?.message || 'فشل تحميل التقرير'}</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color:var(--danger);">❌ خطأ في الاتصال بالخادم</td></tr>`;
+            }
+        }
+
+        function renderReport(reports) {
+            const tbody = document.getElementById('reportTableBody');
+            
+            if (!reports || reports.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state">✅ لا توجد بيانات لعرضها</td></tr>';
+                return;
+            }
+
+            let html = '';
+            let currentStage = '';
+            
+            // Calculate Dashboard Summaries
+            let totalSchoolStudents = 0;
+            let totalSchoolPassed = 0;
+            let highestClass = null;
+            let lowestClass = null;
+            
+            const stageStats = {};
+
+            reports.forEach(r => {
+                totalSchoolStudents += r.totalStudents;
+                totalSchoolPassed += r.passedCount;
+                
+                if (!highestClass || r.passPercentage > highestClass.passPercentage) highestClass = r;
+                if (!lowestClass || r.passPercentage < lowestClass.passPercentage) lowestClass = r;
+                
+                if (!stageStats[r.stage]) {
+                    stageStats[r.stage] = { total: 0, passed: 0 };
+                }
+                stageStats[r.stage].total += r.totalStudents;
+                stageStats[r.stage].passed += r.passedCount;
+            });
+
+            // Update Dashboard UI
+            document.getElementById('summaryDashboard').style.display = 'grid';
+            
+            let schoolPassPercent = totalSchoolStudents > 0 ? ((totalSchoolPassed / totalSchoolStudents) * 100).toFixed(1) : 0;
+            document.getElementById('schoolPassRate').textContent = schoolPassPercent + '%';
+            document.getElementById('schoolPassSub').textContent = `${totalSchoolPassed} ناجح من أصل ${totalSchoolStudents}`;
+            
+            if (highestClass) {
+                document.getElementById('highestClass').textContent = highestClass.className;
+                document.getElementById('highestClassSub').textContent = highestClass.passPercentage + '% نجاح';
+            }
+            if (lowestClass) {
+                document.getElementById('lowestClass').textContent = lowestClass.className;
+                document.getElementById('lowestClassSub').textContent = lowestClass.passPercentage + '% نجاح';
+            }
+
+            reports.forEach(r => {
+                if (r.stage !== currentStage) {
+                    let stTotal = stageStats[r.stage]?.total || 0;
+                    let stPassed = stageStats[r.stage]?.passed || 0;
+                    let stPercent = stTotal > 0 ? ((stPassed / stTotal) * 100).toFixed(1) : 0;
+                    
+                    html += `<tr><td colspan="9" class="stage-header">مرحلة: ${r.stage || 'غير محدد'} &nbsp;|&nbsp; نسبة نجاح المرحلة: ${stPercent}%</td></tr>`;
+                    currentStage = r.stage;
+                }
+
+                html += `
+                    <tr>
+                        <td class="text-right" style="font-weight:bold; color:var(--primary);">${r.className}</td>
+                        <td style="font-weight:bold;">${r.totalStudents}</td>
+                        <td dir="ltr" style="color:var(--success); font-weight:bold;">${r.passPercentage}%</td>
+                        <td dir="ltr" style="color:var(--danger); font-weight:bold;">${r.failPercentage}%</td>
+                        <td>
+                            <div class="badge badge-excellent">${r.excellentCount}</div>
+                            <div style="font-size:11px; color:#64748b; margin-top:3px;" dir="ltr">${r.excellentPercentage}%</div>
+                        </td>
+                        <td>
+                            <div class="badge badge-vgood">${r.veryGoodCount}</div>
+                            <div style="font-size:11px; color:#64748b; margin-top:3px;" dir="ltr">${r.veryGoodPercentage}%</div>
+                        </td>
+                        <td>
+                            <div class="badge badge-good">${r.goodCount}</div>
+                            <div style="font-size:11px; color:#64748b; margin-top:3px;" dir="ltr">${r.goodPercentage}%</div>
+                        </td>
+                        <td>
+                            <div class="badge badge-acceptable">${r.acceptableCount}</div>
+                            <div style="font-size:11px; color:#64748b; margin-top:3px;" dir="ltr">${r.acceptablePercentage}%</div>
+                        </td>
+                        <td>
+                            <div class="badge badge-fail">${r.failedCount}</div>
+                            <div style="font-size:11px; color:#64748b; margin-top:3px;" dir="ltr">${r.failPercentage}%</div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

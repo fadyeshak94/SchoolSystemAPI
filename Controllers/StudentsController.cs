@@ -260,6 +260,53 @@ public class StudentsController : ControllerBase
         await _uow.CompleteAsync();
         return Ok(new { success = true, updatedCount = updated });
     }
+
+    [HttpGet("status-report")]
+    public async Task<IActionResult> GetStudentsStatusReport([FromQuery] int? classId)
+    {
+        var studentsQuery = await _uow.Students.FindAsync(s => true);
+        if (classId.HasValue)
+        {
+            studentsQuery = studentsQuery.Where(s => s.ClassRoomId == classId.Value);
+        }
+
+        var classes = await _uow.ClassRooms.FindAsync(c => true);
+        var classMap = classes.ToDictionary(c => c.Id, c => c);
+
+        var pendingRegistrations = await _uow.PendingRegistrations.FindAsync(p => true);
+        var grades = await _uow.StudentGrades.FindAsync(g => true);
+
+        var result = studentsQuery.Select(s =>
+        {
+            var cRoom = classMap.ContainsKey(s.ClassRoomId) ? classMap[s.ClassRoomId] : null;
+            var stage = cRoom?.Stage ?? "ابتدائي";
+            
+            var studentGrades = grades.Where(g => g.StudentId == s.Id).ToList();
+            decimal totalScore = studentGrades.Sum(g => g.ExamScore + g.AttendanceScore);
+            decimal maxScore = stage.Contains("ابتدائي") ? 400m : 500m;
+            decimal percentage = maxScore > 0 ? (totalScore / maxScore) * 100m : 0;
+            bool isPassed = percentage >= 50m;
+
+            var renewalReq = pendingRegistrations.Where(p => p.StudentId == s.Id).OrderByDescending(p => p.RequestDate).FirstOrDefault();
+            bool hasUpdatedData = renewalReq != null;
+            string renewalStatus = renewalReq?.Status ?? "None";
+
+            return new
+            {
+                id = s.Id,
+                name = s.Name,
+                className = cRoom?.Name ?? "غير مسجل",
+                classId = s.ClassRoomId,
+                stage = stage,
+                isPassed = isPassed,
+                percentage = percentage,
+                hasUpdatedData = hasUpdatedData,
+                renewalStatus = renewalStatus
+            };
+        }).OrderBy(s => s.classId).ThenBy(s => s.name).ToList();
+
+        return Ok(new { success = true, students = result });
+    }
 }
 
 public class PhoneObj
