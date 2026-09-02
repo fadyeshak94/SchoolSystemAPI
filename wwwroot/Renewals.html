@@ -245,6 +245,11 @@
                 const studentResult = res.students.find(s => s.id === studentId);
                 if (!studentResult) throw new Error('لم يتم العثور على نتيجة لهذا الطالب (قد يكون غائب أو لم يرصد له درجات).');
                 
+                const classesRes = await fetchApi('/users/me/classes');
+                const classInfo = classesRes && classesRes.classes ? classesRes.classes.find(c => c.id == classId) : null;
+                let stageText = classInfo && classInfo.stage ? classInfo.stage : '';
+                let yearText = classInfo && classInfo.year ? classInfo.year : (classInfo && classInfo.name ? classInfo.name : '');
+
                 let logoDio = typeof LOGO_DIOCESE_BASE64 !== 'undefined' ? LOGO_DIOCESE_BASE64 : '';
 
                 const card = document.createElement('div');
@@ -257,7 +262,30 @@
                 let theadRows = '';
                 let tbodyRows = '';
                 res.columns.forEach(c => {
-                    theadRows += `<th style="padding: 15px; border: 1px solid #ccc; background: #1e293b; color: white;">${c.label}</th>`;
+                    let subName = c.label;
+                    let sStage = stageText.trim();
+                    let sName = subName.trim();
+                    let yText = yearText.trim();
+
+                    if (sName.includes('مواد متغيرة') || sName.includes('متغيره')) {
+                        if (sStage.includes('ابتدائي أ') || sStage.includes('ابتدائي ا')) {
+                            return;
+                        } else if (sStage.includes('ابتدائي ب')) {
+                            if (yText.includes('رابعة') || yText.includes('اولى') || yText.includes('أولى') || yText.includes('1')) subName = 'كتاب مقدس';
+                            else if (yText.includes('خامسة') || yText.includes('ثانية') || yText.includes('ثانيه') || yText.includes('تانية') || yText.includes('2')) subName = 'عقيدة';
+                            else if (yText.includes('سادسة') || yText.includes('ثالثة') || yText.includes('ثالثه') || yText.includes('تالتة') || yText.includes('3')) subName = 'تاريخ كنيسة';
+                        } else if (sStage.includes('اعدادي') || sStage.includes('إعدادي') || sStage.includes('عدادي')) {
+                            if (yText.includes('اولى') || yText.includes('أولى') || yText.includes('1')) subName = 'كتاب مقدس';
+                            else if (yText.includes('ثانية') || yText.includes('ثانيه') || yText.includes('تانية') || yText.includes('2')) subName = 'عقيدة';
+                            else if (yText.includes('ثالثة') || yText.includes('ثالثه') || yText.includes('تالتة') || yText.includes('3')) subName = 'تاريخ كنيسة';
+                        } else if (sStage.includes('كبار')) {
+                            if (yText.includes('اولى') || yText.includes('أولى') || yText.includes('1')) subName = 'كتاب مقدس';
+                            else if (yText.includes('ثانية') || yText.includes('ثانيه') || yText.includes('تانية') || yText.includes('2')) subName = 'تاريخ كنيسة';
+                            else if (yText.includes('ثالثة') || yText.includes('ثالثه') || yText.includes('تالتة') || yText.includes('3')) subName = 'عقيدة';
+                        }
+                    }
+
+                    theadRows += `<th style="padding: 15px; border: 1px solid #ccc; background: #1e293b; color: white;">${subName}</th>`;
                     let val = studentResult.cols[c.key];
                     let displayVal = typeof val === 'object' && val !== null ? val.total : (val || 0);
                     tbodyRows += `<td style="padding: 15px; border: 1px solid #ccc; background: #fdf8ec; color: #1e293b; font-weight: bold;">${displayVal}</td>`;
@@ -302,10 +330,12 @@
                                     </tbody>
                                 </table>
                                 
-                                <div style="background: #fdfbf7; border: 3px solid #c9a227; border-radius: 12px; padding: 15px 30px; margin-bottom: 40px; font-size: 28px; color: #1a2744; font-weight: bold; width: 70%; display: flex; justify-content: space-around; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; z-index: 2;">
+                                <div style="background: #fdfbf7; border: 3px solid #c9a227; border-radius: 12px; padding: 15px 30px; margin-bottom: 40px; font-size: 28px; color: #1a2744; font-weight: bold; width: 80%; display: flex; justify-content: space-around; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; z-index: 2;">
                                     <span>الدرجة النهائية<span> : </span><span dir="ltr">${studentResult.total}</span></span>
                                     <span>|</span>
                                     <span>النسبة<span> : </span><span dir="ltr">${studentResult.percentage.toFixed(1)}%</span></span>
+                                    <span>|</span>
+                                    <span>التقدير<span> : </span>${getTier(studentResult.percentage)}</span>
                                 </div>
                             </div>
                         </div>
@@ -366,6 +396,14 @@
                 statusBar.style.backgroundColor = '';
                 statusBar.textContent = '❌ ' + err.message;
             }
+        }
+
+        function getTier(pct) {
+            if (pct >= 90) return 'ممتاز';
+            if (pct >= 80) return 'جيد جداً';
+            if (pct >= 65) return 'جيد';
+            if (pct >= 50) return 'مقبول';
+            return 'دون المستوى';
         }
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
