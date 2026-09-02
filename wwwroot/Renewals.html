@@ -1,10 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>📞 تجديد الاشتراكات</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
     <style>
         .header { background: linear-gradient(135deg, var(--success), #065f46); }
         .action-icons a { text-decoration: none; font-size: 16px; margin: 0 5px; }
@@ -84,6 +87,7 @@
     </div>
 
     <script src="/js/app.js"></script>
+    <script src="/js/logos.js"></script>
     <script>
         let allRenewals = [];
         const GOV_GRADES = [
@@ -137,8 +141,12 @@
                 html += `<tr class="student-row" data-name="${s.name}">
                     <td style="text-align:right;"><span class="sname" style="font-weight:bold;">${s.name}</span></td>
                     <td>${phoneStr ? `<a href="tel:${phoneStr}" style="color:var(--success);font-weight:bold;text-decoration:none;">${phoneStr}</a>` : '<span style="color:var(--danger);font-size:12px;">بدون رقم</span>'}</td>
-                    <td style="width:120px;">
-                        ${phoneStr ? `<div class="action-icons"><a href="https://wa.me/2${phoneStr}?text=${msg}" target="_blank" title="واتساب">💬</a><a href="tel:${phoneStr}" title="اتصال">📞</a></div>` : ''}
+                    <td style="width:150px;">
+                        ${phoneStr ? `<div class="action-icons">
+                            <a href="https://wa.me/2${phoneStr}?text=${msg}" target="_blank" title="رسالة تجديد">💬</a>
+                            <a href="javascript:void(0)" onclick="shareResultWhatsApp(${s.id}, '${s.name.replace(/'/g, "\\'")}', '${phoneStr}')" title="إرسال النتيجة">📊</a>
+                            <a href="tel:${phoneStr}" title="اتصال">📞</a>
+                        </div>` : ''}
                     </td>
                     <td style="width:50px;">
                         <button class="btn" style="padding: 5px 10px; font-size:12px; background:var(--primary); color:white;" onclick="openEditModal(${s.id})">✏️ تعديل</button>
@@ -213,7 +221,154 @@
                 document.getElementById('editErrorMsg').style.display = 'block';
             }
         }
+
+        async function shareResultWhatsApp(studentId, studentName, phone) {
+            if (!phone) {
+                alert('لا يوجد رقم هاتف لهذا الطالب.');
+                return;
+            }
+            
+            const classSelect = document.getElementById('classSelect');
+            const classId = classSelect.value;
+            const classNameText = classSelect.options[classSelect.selectedIndex].text;
+            
+            const statusBar = document.getElementById('statusBar');
+            statusBar.style.display = 'block';
+            statusBar.className = 'status-bar';
+            statusBar.style.backgroundColor = '#3b82f6';
+            statusBar.textContent = '⏳ جاري تحضير النتيجة كصورة...';
+
+            try {
+                const res = await fetchApi(`/results/class/${classId}?term=all&subject=all`);
+                if (!res || !res.students) throw new Error('فشل في تحميل النتائج. تأكد من وجود درجات للفصل.');
+                
+                const studentResult = res.students.find(s => s.id === studentId);
+                if (!studentResult) throw new Error('لم يتم العثور على نتيجة لهذا الطالب (قد يكون غائب أو لم يرصد له درجات).');
+                
+                let logoDio = typeof LOGO_DIOCESE_BASE64 !== 'undefined' ? LOGO_DIOCESE_BASE64 : '';
+
+                const card = document.createElement('div');
+                card.style.width = '1200px';
+                card.style.padding = '0';
+                card.style.fontFamily = "'Segoe UI', Tahoma, sans-serif";
+                card.style.direction = 'rtl';
+                card.style.background = 'white';
+                
+                let theadRows = '';
+                let tbodyRows = '';
+                res.columns.forEach(c => {
+                    theadRows += `<th style="padding: 15px; border: 1px solid #ccc; background: #1e293b; color: white;">${c.label}</th>`;
+                    let val = studentResult.cols[c.key];
+                    let displayVal = typeof val === 'object' && val !== null ? val.total : (val || 0);
+                    tbodyRows += `<td style="padding: 15px; border: 1px solid #ccc; background: #fdf8ec; color: #1e293b; font-weight: bold;">${displayVal}</td>`;
+                });
+
+                let html = `
+                    <div style="padding: 40px; margin: 0; background: #fdf8ec; box-sizing: border-box;">
+                        <div style="border: 10px double #c9a227; padding: 8px; box-sizing: border-box; background: white;">
+                            <div style="border: 2px solid #c9a227; padding: 20px; position: relative; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; box-sizing: border-box; background: #fdf8ec;">
+                                
+                                <div style="position:absolute; top:20px; right:40px; z-index: 2;">
+                                    <img src="data:image/png;base64,${logoDio}" style="width:110px; height:110px; object-fit:contain;" onerror="this.style.display='none'">
+                                </div>
+                                <div style="position:absolute; top:20px; left: 50%; transform: translateX(-50%); z-index: 2;">
+                                    <img src="/images/cross.png" style="width:110px; height:110px; object-fit:contain;" onerror="this.style.display='none'">
+                                </div>
+                                <div style="position:absolute; top:20px; left:40px; z-index: 2;">
+                                    <img src="/images/Logo.png" style="width:110px; height:110px; object-fit:contain; border-radius: 50%; background-color: white; padding: 5px;" onerror="this.style.display='none'">
+                                </div>
+                                
+                                <div style="position:absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; z-index: 0; pointer-events: none;">
+                                    <img src="/images/Logo.png" style="width:450px; height:450px; object-fit:contain;" onerror="this.style.display='none'">
+                                </div>
+                                
+                                <h1 style="font-family: 'Aref Ruqaa', serif; color:#1a2744; font-size:75px; margin-bottom:15px; margin-top:130px; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); position: relative; z-index: 2;">بيان درجات</h1>
+                                <h3 style="font-family: 'Segoe UI', Tahoma, sans-serif; color:#555; font-size:25px; margin-bottom:30px; margin-top:0; font-weight:normal; position: relative; z-index: 2;">${classNameText}</h3>
+                                
+                                <p style="font-size:35px; color:#555; margin-bottom: 40px; position: relative; z-index: 2; font-weight: bold;">
+                                    الطالب / <strong style="color:#7a1f1f; font-size: 55px; margin: 0 10px; font-family: 'Aref Ruqaa', serif;">${studentName}</strong>
+                                </p>
+                                
+                                <table style="border-collapse: collapse; width: 90%; margin: 0 auto 40px auto; font-size: 24px; text-align: center; position: relative; z-index: 2;">
+                                    <thead>
+                                        <tr>
+                                            ${theadRows}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            ${tbodyRows}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                
+                                <div style="background: #fdfbf7; border: 3px solid #c9a227; border-radius: 12px; padding: 15px 30px; margin-bottom: 40px; font-size: 28px; color: #1a2744; font-weight: bold; width: 70%; display: flex; justify-content: space-around; box-shadow: 0 4px 6px rgba(0,0,0,0.05); position: relative; z-index: 2;">
+                                    <span>الدرجة النهائية<span> : </span><span dir="ltr">${studentResult.total}</span></span>
+                                    <span>|</span>
+                                    <span>النسبة<span> : </span><span dir="ltr">${studentResult.percentage.toFixed(1)}%</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                card.innerHTML = html;
+                
+                // Append outside viewport
+                card.style.position = 'fixed';
+                card.style.left = '-9999px';
+                card.style.top = '0';
+                document.body.appendChild(card);
+                
+                // Ensure html2canvas is loaded
+                if (typeof html2canvas === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+                        script.onload = resolve;
+                        script.onerror = () => reject(new Error('فشل تحميل مكتبة تحويل الصورة.'));
+                        document.head.appendChild(script);
+                    });
+                }
+
+                const canvas = await html2canvas(card, { scale: 2, backgroundColor: null });
+                document.body.removeChild(card);
+                
+                canvas.toBlob(async (blob) => {
+                    try {
+                        // 1. Download the image automatically
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `نتيجة_${studentName}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        statusBar.className = 'status-bar';
+                        statusBar.style.backgroundColor = '#10b981';
+                        statusBar.textContent = '✅ تم تحميل النتيجة! يمكنك سحبها (Drag & Drop) إلى محادثة الواتساب.';
+                        
+                        // 2. Open WhatsApp
+                        const msg = encodeURIComponent(`مدرسة القديس ديديموس للعلوم الكنسية بتبارلك يا ${studentName} على السنة اللى فاتت وتتمنى تكمل معانا\nهانستناك لتجديد الاشتراك فى غرفة المدرسة بداية من الجمعة 4 سبتمبر\n\n(برجاء إرسال صورة النتيجة المرفقة لمعرفة التفاصيل)\n\nوهنحتاج تبعتلنا على الواتساب دلوقتي البيانات:\n- النوع\n- لو ولد مرشوم شماس ولا لا\n- لو حابب تضيف ارقام واتساب تاني\n- فى المدرسة الحكومية انت داخل سنة كام`);
+                        window.open(`https://wa.me/2${phone}?text=${msg}`, '_blank');
+                    } catch (err) {
+                        console.error(err);
+                        statusBar.className = 'status-bar error';
+                        statusBar.style.backgroundColor = '';
+                        statusBar.textContent = '❌ حدث خطأ أثناء تجهيز الصورة.';
+                    }
+                }, 'image/png');
+                
+            } catch (err) {
+                console.error(err);
+                statusBar.className = 'status-bar error';
+                statusBar.style.backgroundColor = '';
+                statusBar.textContent = '❌ ' + err.message;
+            }
+        }
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="/js/layout.js"></script>
   </body>
 </html>
