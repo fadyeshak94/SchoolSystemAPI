@@ -129,7 +129,7 @@
             if (name.length < 3) { warnBox.style.display = 'none'; return; }
 
             dupTimer = setTimeout(async () => {
-                const res = await fetchApi(`/students/search?query=${name}`);
+                const res = await fetchApi(`/students/search?name=${name}`);
                 if (res && res.students && res.students.length > 0) {
                     let html = '⚠️ في طلاب بأسماء شبيهة متسجلين بالفعل:<br>';
                     res.students.forEach(s => {

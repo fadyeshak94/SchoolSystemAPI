@@ -49,10 +49,14 @@ public class StudentsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> AddStudent([FromBody] AddStudentDto dto)
     {
-        // التحقق من إن الـ ID مش مكرر
+        // التحقق من إن الـ ID مش مكرر (مثلاً بسبب فتح الصفحة في نفس الوقت)
         var existingStudent = await _uow.Students.GetByIdAsync(dto.Id);
         if (existingStudent != null)
-            return BadRequest(new { success = false, message = "رقم الطالب ده مستخدم بالفعل لطالب تاني" });
+        {
+            // نجيب أعلى ID موجود ونزود 1 عشان نحل مشكلة التكرار
+            var allStudents = await _uow.Students.FindAsync(s => true);
+            dto.Id = allStudents.Any() ? allStudents.Max(s => s.Id) + 1 : 1;
+        }
 
         var newStudent = new Student
         {
