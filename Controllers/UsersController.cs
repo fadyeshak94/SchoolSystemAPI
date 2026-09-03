@@ -28,6 +28,7 @@ public class UsersController : ControllerBase
         {
             id = u.Id,
             username = u.Username,
+            nameAR = u.NameAR,
             email = u.Email,
             role = u.Role,
             title = u.Title,
@@ -65,6 +66,7 @@ public class UsersController : ControllerBase
         var newUser = new AppUser
         {
             Username = dto.Username,
+            NameAR = dto.NameAR,
             Email = dto.Email,
             Role = dto.Role,
             Title = dto.Title,
@@ -95,6 +97,7 @@ public class UsersController : ControllerBase
         user.ClassRoomId = dto.ClassId;
         user.StageAccess = dto.StageAccess;
         user.Title = dto.Title;
+        if (dto.NameAR != null) user.NameAR = dto.NameAR;
         user.PhoneNumber = dto.PhoneNumber;
         user.ConfessionFather = dto.ConfessionFather;
         user.DateOfBirth = dto.DateOfBirth;
@@ -130,6 +133,7 @@ public class UsersController : ControllerBase
             }
         }
 
+        if (dto.NameAR != null) user.NameAR = dto.NameAR;
         user.PhoneNumber = dto.PhoneNumber;
         user.ConfessionFather = dto.ConfessionFather;
         user.DateOfBirth = dto.DateOfBirth;
@@ -262,6 +266,7 @@ public class UsersController : ControllerBase
 public class AddUserDto
 {
     public string Username { get; set; } = string.Empty;
+    public string? NameAR { get; set; }
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = "Secretary";
     public string? Title { get; set; }
@@ -279,6 +284,7 @@ public class UpdateUserDto
     public string? StageAccess { get; set; }
     public string? Role { get; set; }
     public string? Title { get; set; }
+    public string? NameAR { get; set; }
     public string? PhoneNumber { get; set; }
     public string? ConfessionFather { get; set; }
     public DateTime? DateOfBirth { get; set; }
@@ -286,6 +292,7 @@ public class UpdateUserDto
 
 public class UpdatePersonalDataDto
 {
+    public string? NameAR { get; set; }
     public string? PhoneNumber { get; set; }
     public string? ConfessionFather { get; set; }
     public DateTime? DateOfBirth { get; set; }

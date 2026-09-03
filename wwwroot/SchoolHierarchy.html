@@ -650,9 +650,10 @@
                 const isPrincipal = member.isPrincipal;
                 html += `
                     <div class="board-card ${isPrincipal ? 'principal' : ''}">
-                        ${isPrincipal ? '<div class="principal-badge">⭐ الناظر (العضو المنتدب المفوض بالإدارة)</div>' : '<div style="font-size:11px; font-weight:bold; color:#64748b; margin-bottom:5px;">عضو مجلس إدارة</div>'}
-                        <div style="font-size: 16px; font-weight: 800; color: #1e293b;">${member.username}</div>
-                        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">${member.title || 'إدارة المدرسة'}</div>
+                          <div style="flex:1; padding-right:15px; text-align:right;">
+                        <div style="font-size: 11px; font-weight: bold; color: #f59e0b; margin-bottom: 3px;">${member.title}</div>
+                        <div style="font-size: 16px; font-weight: 800; color: #1e293b;">${member.nameAR || member.username}</div>
+                    </div>    <div style="font-size: 12px; color: #64748b; margin-top: 4px;">${member.title || 'إدارة المدرسة'}</div>
                         <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">الصلاحية: كامل النظام والتقارير</div>
                     </div>
                 `;
@@ -670,7 +671,7 @@
             let html = '';
             stages.forEach(st => {
                 const trusteesHtml = st.trustees && st.trustees.length > 0 
-                    ? st.trustees.map(t => `<span class="trustee-tag">👤 ${t.username} (${t.title})</span>`).join('') 
+                    ? st.trustees.map(t => `<span class="trustee-tag">👤 ${t.nameAR || t.username} (${t.title})</span>`).join('') 
                     : '<span style="color:#94a3b8; font-size:11px;">لم يتم تعيين أمين مرحلة بعد</span>';
 
                 const classesHtml = st.classes && st.classes.length > 0
@@ -714,9 +715,9 @@
             secList.forEach(s => {
                 html += `
                     <div class="sec-card">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <strong style="font-size:14px; color:#1e293b;">💼 ${s.username}</strong>
-                            <span style="font-size:10px; background:#f3e8ff; color:#7c3aed; padding:2px 6px; border-radius:4px; font-weight:bold;">سكرتارية</span>
+                        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:8px;">
+                            <strong style="font-size:14px; color:#1e293b;">💼 ${s.nameAR || s.username}</strong>
+                            <span style="font-size:11px; background:#fef3c7; color:#d97706; padding:2px 8px; border-radius:12px; font-weight:bold;">${s.title}</span>
                         </div>
                         <div style="font-size:12px; color:#64748b;">${s.title || 'مسؤولة سكرتارية'}</div>
                         <div style="font-size:11px; color:#059669; margin-top:8px; font-weight:600;">
@@ -738,7 +739,7 @@
                         rows.push({
                             assignmentId: assign.id,
                             servantId: servant.id,
-                            servantName: servant.username,
+                            servantName: servant.nameAR || servant.username,
                             title: servant.title || 'خادم',
                             stage: assign.stage || '-',
                             className: assign.className || '-',
@@ -749,7 +750,7 @@
                     rows.push({
                         assignmentId: null,
                         servantId: servant.id,
-                        servantName: servant.username,
+                        servantName: servant.nameAR || servant.username,
                         title: servant.title || 'خادم',
                         stage: '-',
                         className: 'لم يُسكّن بعد',
@@ -843,7 +844,7 @@
                 (data.allUsers || []).forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u.id;
-                    opt.textContent = `${u.username} (${u.title || u.role})`;
+                    opt.textContent = `${u.nameAR || u.username} (${u.title || u.role})`;
                     userSelect.appendChild(opt);
                 });
             }
@@ -855,7 +856,7 @@
                 (data.allUsers || []).forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u.id;
-                    opt.textContent = `${u.username} (${u.title || u.role})`;
+                    opt.textContent = `${u.nameAR || u.username} (${u.title || u.role})`;
                     trusteeSelect.appendChild(opt);
                 });
             }

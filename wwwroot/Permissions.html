@@ -55,6 +55,7 @@
         <div id="newStageWrap" style="display:none;"><label>المرحلة</label><select id="newStage"></select></div>
         <div><label>الدور والمسمى</label><select id="newRole"><option value="Admin|الناظر (العضو المنتدب)">الناظر (العضو المنتدب)</option><option value="Admin|عضو مجلس إدارة">عضو مجلس إدارة</option><option value="StageSupervisor|أمين مرحلة">أمين مرحلة</option><option value="Secretary|مسؤولة سكرتارية">مسؤولة سكرتارية</option><option value="Servant|خادم">خادم</option><option value="User|مستخدم">مستخدم</option></select></div>
         <div><label>كلمة المرور</label><input type="text" id="newPassword" placeholder="اختياري الآن"></div>
+        <div><label>الاسم عربي</label><input type="text" id="newNameAR" placeholder="الاسم ثلاثي أو رباعي"></div>
         <div><label>رقم التليفون</label><input type="text" id="newPhone"></div>
         <div><label>أب الاعتراف</label><input type="text" id="newConfessionFather"></div>
         <div><label>تاريخ الميلاد</label><input type="date" id="newDob"></div>
@@ -160,6 +161,7 @@
           html += '</select></td>';
           
           html += '<td>';
+          html += '<input type="text" class="namear-input" placeholder="الاسم عربي" value="' + (u.nameAR || '') + '" style="width:100px; padding:4px; font-size:11px; margin-bottom:4px; display:block;">';
           html += '<input type="text" class="phone-input" placeholder="التليفون" value="' + (u.phoneNumber || '') + '" style="width:100px; padding:4px; font-size:11px; margin-bottom:4px; display:block;">';
           html += '<input type="text" class="cfather-input" placeholder="أب الاعتراف" value="' + (u.confessionFather || '') + '" style="width:100px; padding:4px; font-size:11px; margin-bottom:4px; display:block;">';
           html += '<input type="date" class="dob-input" value="' + (u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '') + '" style="width:100px; padding:4px; font-size:11px; display:block;">';
@@ -209,6 +211,7 @@
         var roleValue = row.querySelector('.role-select').value.split('|');
         var role = roleValue[0];
         var title = roleValue.length > 1 ? roleValue[1] : '';
+        var nameAR = row.querySelector('.namear-input').value.trim();
         var phoneNumber = row.querySelector('.phone-input').value.trim();
         var confessionFather = row.querySelector('.cfather-input').value.trim();
         var dateOfBirth = row.querySelector('.dob-input').value || null;
@@ -219,6 +222,7 @@
                 stageAccess: stageAccess,
                 role: role,
                 title: title,
+                nameAR: nameAR || null,
                 phoneNumber: phoneNumber,
                 confessionFather: confessionFather,
                 dateOfBirth: dateOfBirth
@@ -269,6 +273,7 @@
           stageAccess: accessType === 'stage' ? document.getElementById('newStage').value : '',
           role: roleValue[0],
           title: roleValue.length > 1 ? roleValue[1] : '',
+          nameAR: document.getElementById('newNameAR').value.trim() || null,
           password: document.getElementById('newPassword').value.trim(),
           phoneNumber: document.getElementById('newPhone').value.trim(),
           confessionFather: document.getElementById('newConfessionFather').value.trim(),
@@ -285,6 +290,7 @@
             if(res && res.success) {
                 showStatus('success', res.message);
                 document.getElementById('newUsername').value = '';
+                document.getElementById('newNameAR').value = '';
                 document.getElementById('newEmail').value = '';
                 document.getElementById('newPassword').value = '';
                 document.getElementById('newPhone').value = '';

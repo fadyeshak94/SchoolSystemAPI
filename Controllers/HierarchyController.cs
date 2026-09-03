@@ -70,6 +70,7 @@ public class HierarchyController : ControllerBase
             {
                 id = u.Id,
                 username = u.Username,
+                nameAR = u.NameAR,
                 email = u.Email,
                 role = u.Role,
                 title = string.IsNullOrEmpty(u.Title) ? "عضو مجلس إدارة" : u.Title,
@@ -92,14 +93,15 @@ public class HierarchyController : ControllerBase
 
         var stagesList = stagesToReturn.Select(stageName =>
         {
-            var stageClasses = classes.Where(c => (c.Stage ?? "").Trim() == stageName).ToList();
+            var stageClasses = classes.Where(c => NormalizeArabic(c.Stage) == NormalizeArabic(stageName)).ToList();
             var stageClassIds = stageClasses.Select(c => c.Id).ToHashSet();
 
-            var trustees = users.Where(u => u.Role == "StageSupervisor" && (u.StageAccess ?? "").Trim() == stageName)
+            var trustees = users.Where(u => u.Role == "StageSupervisor" && NormalizeArabic(u.StageAccess) == NormalizeArabic(stageName))
                 .Select(u => new
                 {
                     id = u.Id,
                     username = u.Username,
+                    nameAR = u.NameAR,
                     email = u.Email,
                     title = string.IsNullOrEmpty(u.Title) ? $"أمين مرحلة {stageName}" : u.Title
                 }).ToList();
@@ -133,6 +135,7 @@ public class HierarchyController : ControllerBase
             {
                 id = u.Id,
                 username = u.Username,
+                nameAR = u.NameAR,
                 email = u.Email,
                 title = string.IsNullOrEmpty(u.Title) ? "مسؤولة سكرتارية" : u.Title,
                 phoneNumber = u.PhoneNumber,
@@ -161,6 +164,7 @@ public class HierarchyController : ControllerBase
             {
                 id = u.Id,
                 username = u.Username,
+                nameAR = u.NameAR,
                 email = u.Email,
                 title = string.IsNullOrEmpty(u.Title) ? "خادم" : u.Title,
                 phoneNumber = u.PhoneNumber,
@@ -180,7 +184,7 @@ public class HierarchyController : ControllerBase
         var allClasses = classes.AsEnumerable();
         if (currentRole == "StageSupervisor" && !string.IsNullOrEmpty(currentStageAccess))
         {
-            allClasses = allClasses.Where(c => c.Stage == currentStageAccess);
+            allClasses = allClasses.Where(c => NormalizeArabic(c.Stage) == NormalizeArabic(currentStageAccess));
         }
 
         return Ok(new
@@ -349,6 +353,17 @@ public class HierarchyController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(new { success = true, message = "تم تحديث البيانات الإدارية بنجاح" });
+    }
+
+    private string NormalizeArabic(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return "";
+        return input.Trim()
+            .Replace("أ", "ا")
+            .Replace("إ", "ا")
+            .Replace("آ", "ا")
+            .Replace("ة", "ه")
+            .Replace("ى", "ي");
     }
 }
 
