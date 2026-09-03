@@ -46,6 +46,12 @@ public class AttendanceController : ControllerBase
     [HttpPost("entry/save")]
     public async Task<IActionResult> SaveAttendanceEntry([FromBody] SaveAttendanceDto request)
     {
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? User.FindFirst("Role")?.Value;
+        if (role == "Servant")
+        {
+            return Forbid();
+        }
+
         var studentIds = request.Records.Select(r => r.StudentId).ToList();
         
         var existingRecords = await _uow.AttendanceRecords

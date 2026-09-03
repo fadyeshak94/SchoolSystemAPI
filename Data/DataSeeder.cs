@@ -15,20 +15,92 @@ public static class DataSeeder
         // Auto apply pending migrations
         if (context.Database.IsSqlServer())
         {
-            await context.Database.MigrateAsync();
+            try
+            {
+                await context.Database.MigrateAsync();
+            }
+            catch { }
+
+            // Ensure Title column exists
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    "IF COL_LENGTH('Users', 'Title') IS NULL ALTER TABLE Users ADD Title NVARCHAR(150) NULL;");
+            }
+            catch { }
+
+            // Ensure ServantAssignments table exists
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(@"
+                    IF OBJECT_ID('ServantAssignments', 'U') IS NULL
+                    BEGIN
+                        CREATE TABLE ServantAssignments (
+                            Id INT IDENTITY(1,1) PRIMARY KEY,
+                            UserId INT NOT NULL,
+                            ClassRoomId INT NOT NULL,
+                            SubjectName NVARCHAR(100) NOT NULL,
+                            AcademicYear NVARCHAR(20) NULL,
+                            CONSTRAINT FK_ServantAssignments_Users_UserId FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+                            CONSTRAINT FK_ServantAssignments_ClassRooms_ClassRoomId FOREIGN KEY (ClassRoomId) REFERENCES ClassRooms(Id) ON DELETE CASCADE
+                        );
+                        CREATE UNIQUE INDEX IX_ServantAssignments_UserId_ClassRoomId_SubjectName ON ServantAssignments(UserId, ClassRoomId, SubjectName);
+                    END");
+            }
+            catch { }
         }
 
-        if (!context.Users.Any(u => u.Username == "admin"))
+        var adminUsers = await context.Users.Where(u => u.Username.ToLower() == "admin").ToListAsync();
+        if (!adminUsers.Any())
         {
             var salt = authService.GenerateSalt();
             var adminUser = new AppUser
             {
                 Username = "admin",
                 Role = "Admin",
+                Title = "الناظر (العضو المنتدب المفوض بالإدارة)",
                 Salt = salt,
                 PasswordHash = authService.HashPassword("1234", salt)
             };
             context.Users.Add(adminUser);
+            await context.SaveChangesAsync();
+        }
+        else
+        {
+            foreach (var a in adminUsers)
+            {
+                a.Role = "Admin";
+                if (string.IsNullOrEmpty(a.Title) || a.Title == "مسؤولة سكرتارية") 
+                {
+                    a.Title = "الناظر (العضو المنتدب المفوض بالإدارة)";
+                }
+            }
+            await context.SaveChangesAsync();
+        }
+
+        // Migrate all legacy 'User' accounts to 'Secretary' smoothly without changing usernames or passwords!
+        var legacyUsers = await context.Users.Where(u => u.Role == "User").ToListAsync();
+        if (legacyUsers.Any())
+        {
+            foreach (var u in legacyUsers)
+            {
+                u.Role = "Secretary";
+                if (string.IsNullOrEmpty(u.Title))
+                {
+                    u.Title = "مسؤولة سكرتارية";
+                }
+            }
+            await context.SaveChangesAsync();
+        }
+
+        // Set default title for admin if missing
+        var adminsWithoutTitle = await context.Users.Where(u => u.Role == "Admin" && string.IsNullOrEmpty(u.Title)).ToListAsync();
+        if (adminsWithoutTitle.Any())
+        {
+            foreach (var a in adminsWithoutTitle)
+            {
+                a.Title = "الناظر (العضو المنتدب المفوض بالإدارة)";
+            }
             await context.SaveChangesAsync();
         }
 

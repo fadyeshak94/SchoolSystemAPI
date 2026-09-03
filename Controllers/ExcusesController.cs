@@ -76,7 +76,7 @@ public class ExcusesController : ControllerBase
     }
 
     [HttpGet("pending")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Secretary,StageSupervisor")]
     public async Task<IActionResult> GetPendingExcuses()
     {
         var excuses = await _uow.Excuses.FindAsync(e => e.Status == "Pending");
@@ -97,7 +97,7 @@ public class ExcusesController : ControllerBase
     }
 
     [HttpPost("{id}/approve")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Secretary,StageSupervisor")]
     public async Task<IActionResult> ApproveExcuse(int id)
     {
         var excuse = await _uow.Excuses.GetByIdAsync(id);
@@ -158,7 +158,7 @@ public class ExcusesController : ControllerBase
     }
 
     [HttpPost("{id}/reject")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Secretary,StageSupervisor")]
     public async Task<IActionResult> RejectExcuse(int id)
     {
         var excuse = await _uow.Excuses.GetByIdAsync(id);

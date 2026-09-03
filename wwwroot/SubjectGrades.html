@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,12 +29,7 @@
 
         <label>📖 المادة:</label>
         <select id="subjectSelect">
-            <option value="">-- اختر مادة --</option>
-            <option value="أجبية">أجبية</option>
-            <option value="الحان">الحان</option>
-            <option value="طقس">طقس</option>
-            <option value="قبطي">قبطي</option>
-            <option value="مواد_متغيرة">مواد متغيرة</option>
+            <option value="">-- اختر المادة --</option>
         </select>
         
         <button class="btn btn-primary" onclick="loadGrades()">📋 عرض الطلاب</button>
@@ -53,15 +48,40 @@
         let changedValues = {};
 
         window.onload = async () => {
-            loadClassesDropdown('classSelect');
+            await loadClassesDropdown('classSelect');
             
-            // جلب الإعدادات (التيرم والسنة)
+            // ربط تغيير الفصل بتحديث المواد
+            const classSelect = document.getElementById('classSelect');
+            classSelect.addEventListener('change', loadSubjectsDropdown);
+            if (classSelect.value) {
+                loadSubjectsDropdown();
+            }
+
+            // جلب الإعدادات (للفصل الحالي)
             const settings = await fetchApi('/settings');
             if (settings) {
                 currentTerm = settings.currentTerm || "1";
                 currentYear = settings.academicYear || "2026-2027";
             }
         };
+
+        async function loadSubjectsDropdown() {
+            const classId = document.getElementById('classSelect').value;
+            const subjectSelect = document.getElementById('subjectSelect');
+            subjectSelect.innerHTML = '<option value="">-- اختر المادة --</option>';
+            
+            if (!classId) return;
+
+            const subjects = await fetchApi(`/grades/allowed-subjects?classId=${classId}`);
+            if (subjects && subjects.length > 0) {
+                subjects.forEach(sub => {
+                    const opt = document.createElement('option');
+                    opt.value = sub;
+                    opt.textContent = sub.replace('_', ' ');
+                    subjectSelect.appendChild(opt);
+                });
+            }
+        }
 
         async function loadGrades() {
             const classId = document.getElementById('classSelect').value;

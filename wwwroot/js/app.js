@@ -86,6 +86,20 @@ async function loadClassesDropdown(selectElementId, includeAllOption = true) {
     }
 }
 
+function parseJwtToken(token) {
+    if (!token) return null;
+    try {
+        let base64Url = token.split('.')[1];
+        let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        let jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        try { return JSON.parse(atob(token.split('.')[1])); } catch (e2) { return null; }
+    }
+}
+
 // دالة التحقق من الصلاحيات
 function requireRole(...allowedRoles) {
     const token = localStorage.getItem('appToken');
@@ -95,10 +109,15 @@ function requireRole(...allowedRoles) {
     }
     
     try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "User";
+        const payload = parseJwtToken(token);
+        if (!payload) throw new Error("Invalid token");
+        let rawRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "User";
+        const role = Array.isArray(rawRole) ? rawRole[0] : rawRole;
         
-        if (!allowedRoles.includes(role)) {
+        const roleLower = String(role).toLowerCase();
+        const allowedLower = allowedRoles.map(r => String(r).toLowerCase());
+        
+        if (!allowedLower.includes(roleLower)) {
             alert('🚫 عذراً، ليس لديك صلاحية للوصول لهذه الصفحة.');
             window.location.href = '/ClassStudents.html';
             return false;

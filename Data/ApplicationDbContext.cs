@@ -29,6 +29,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<PendingRegistration> PendingRegistrations { get; set; }
     public DbSet<Family> Families { get; set; }
+    public DbSet<ServantAssignment> ServantAssignments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,9 +42,10 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Username).IsRequired().HasMaxLength(100);
-            entity.HasIndex(e => e.Username).IsUnique(); // Ù„Ù…Ù†Ø¹ Ø§Ù„ØªÙƒØ±Ø§Ø±
+            entity.HasIndex(e => e.Username).IsUnique(); // لمنع التكرار
             entity.Property(e => e.Email).HasMaxLength(150);
-            entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("User");
+            entity.Property(e => e.Role).HasMaxLength(30).HasDefaultValue("User");
+            entity.Property(e => e.Title).HasMaxLength(150);
             
             // Relation with ClassRoom (Optional)
             entity.HasOne(e => e.ClassRoom)
@@ -165,6 +167,28 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.AcademicYear, e.ClassName });
+        });
+
+        // ==========================================
+        // 8. ServantAssignment Configuration
+        // ==========================================
+        modelBuilder.Entity<ServantAssignment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SubjectName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.AcademicYear).HasMaxLength(20);
+
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.ServantAssignments)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ClassRoom)
+                  .WithMany(c => c.ServantAssignments)
+                  .HasForeignKey(e => e.ClassRoomId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.UserId, e.ClassRoomId, e.SubjectName }).IsUnique();
         });
     }
 

@@ -20,10 +20,40 @@ public class GradesController : ControllerBase
         _resultsService = resultsService;
     }
 
+    [HttpGet("allowed-subjects")]
+    public async Task<IActionResult> GetAllowedSubjects([FromQuery] int classId)
+    {
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Secretary";
+        var allSubjects = new[] { "عقيدة", "طقس", "كتاب", "تاريخ", "حفظ_ومحفوظات", "سلوك", "حضور" };
+        
+        if (role == "Admin" || role == "Secretary" || role == "StageSupervisor" || role == "User")
+        {
+            return Ok(allSubjects);
+        }
+
+        if (role == "Servant")
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var assignments = await _uow.ServantAssignments.FindAsync(sa => sa.UserId == userId && sa.ClassRoomId == classId);
+                var assignedSubjects = assignments.Select(a => a.SubjectName).Distinct().ToList();
+                return Ok(assignedSubjects);
+            }
+        }
+        
+        return Ok(new string[0]);
+    }
+
     // 1. جلب درجات مادة معينة لتيرم معين (لصفحة GridView)
     [HttpGet("grid")]
     public async Task<IActionResult> GetGridData([FromQuery] int classId, [FromQuery] string term, [FromQuery] string subject)
     {
+        if (!await IsUserAuthorizedForClassAndSubject(classId, subject))
+        {
+            return Forbid();
+        }
+
         var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
         var studentIds = students.Select(s => s.Id).ToList();
 
@@ -47,6 +77,11 @@ public class GradesController : ControllerBase
     [HttpPost("grid/save")]
     public async Task<IActionResult> SaveGridUpdates([FromBody] SaveGridDto request)
     {
+        if (!await IsUserAuthorizedForClassAndSubject(request.ClassId, request.Subject))
+        {
+            return StatusCode(403, new { success = false, message = "غير مصرح لك برصد درجات هذا الفصل والمادة" });
+        }
+
         var students = await _uow.Students.FindAsync(s => s.ClassRoomId == request.ClassId);
         var studentIds = students.Select(s => s.Id).ToList();
 
@@ -91,7 +126,22 @@ public class GradesController : ControllerBase
         var studentIds = students.Select(s => s.Id).ToList();
         var grades = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
 
-        var subjects = new[] { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Secretary";
+        List<string> subjects = new List<string> { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
+
+        if (role == "Servant")
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var assignments = await _uow.ServantAssignments.FindAsync(sa => sa.UserId == userId && sa.ClassRoomId == classId);
+                subjects = assignments.Select(a => a.SubjectName).Distinct().ToList();
+            }
+            else
+            {
+                subjects.Clear();
+            }
+        }
 
         var result = students.Select(s =>
         {
@@ -157,6 +207,32 @@ public class GradesController : ControllerBase
 
         await _uow.CompleteAsync();
         return Ok(new { success = true, message = $"تم حفظ {savedCount} تعديل بنجاح" });
+    }
+
+    private async Task<bool> IsUserAuthorizedForClassAndSubject(int classId, string subject)
+    {
+        var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Secretary";
+        if (role == "Admin" || role == "Secretary" || role == "User") return true;
+
+        if (role == "StageSupervisor")
+        {
+            var stageAccess = User.FindFirst("StageAccess")?.Value;
+            var classroom = (await _uow.ClassRooms.FindAsync(c => c.Id == classId)).FirstOrDefault();
+            return classroom != null && (classroom.Stage ?? "").Trim().Equals(stageAccess?.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (role == "Servant")
+        {
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var assignments = await _uow.ServantAssignments.FindAsync(sa => 
+                    sa.UserId == userId && sa.ClassRoomId == classId && sa.SubjectName == subject);
+                return assignments.Any();
+            }
+        }
+
+        return false;
     }
 }
 

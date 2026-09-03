@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏛️ الهيكل الإداري والمدرسي</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .hierarchy-header {
+            background: linear-gradient(135deg, #1e3a8a, #0f172a);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .hierarchy-header h1 { margin: 0; font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .hierarchy-header p { margin: 5px 0 0; font-size: 13px; color: #93c5fd; }
+        
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: var(--glass-bg, #ffffff);
+            border-radius: 14px;
+            padding: 16px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            border-right: 4px solid var(--primary, #1e3a8a);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.1); }
+        .stat-icon { font-size: 28px; }
+        .stat-info .num { font-size: 22px; font-weight: 800; color: #1e293b; }
+        .stat-info .txt { font-size: 12px; color: #64748b; font-weight: 600; }
+
+        /* Tabs */
+        .tabs-nav {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 25px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            position: relative;
+            white-space: nowrap;
+        }
+        .tab-btn:hover { color: #1e3a8a; background: rgba(30, 58, 138, 0.04); }
+        .tab-btn.active {
+            color: #1e3a8a;
+            border-bottom: 3px solid #1e3a8a;
+            background: rgba(30, 58, 138, 0.08);
+        }
+
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Visual Org Tree */
+        .org-level { margin-bottom: 30px; }
+        .level-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #334155;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-right: 8px;
+            border-right: 4px solid #1e3a8a;
+        }
+
+        .board-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 15px;
+        }
+        .board-card {
+            background: white;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            border-top: 4px solid #f59e0b;
+            position: relative;
+        }
+        .board-card.principal {
+            background: linear-gradient(135deg, #fffbeb, #ffffff);
+            border-top: 4px solid #d97706;
+            box-shadow: 0 4px 15px rgba(217, 119, 6, 0.15);
+        }
+        .principal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            border: 1px solid #fde68a;
+        }
+
+        /* Stages Grid */
+        .stages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 18px;
+        }
+        .stage-box {
+            background: white;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            border-top: 4px solid #0284c7;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .stage-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 10px;
+        }
+        .stage-box-header h3 { margin: 0; font-size: 16px; color: #0f172a; }
+        .trustees-list {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 12px;
+        }
+        .trustee-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin: 3px 2px;
+            font-weight: bold;
+        }
+        .classes-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .class-pill {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Secretariat Section */
+        .secretariat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .sec-card {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-right: 4px solid #8b5cf6;
+        }
+
+        /* Subjects Badges */
+        .subject-badge {
+            display: inline-block;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            color: white;
+            margin: 2px;
+        }
+        .sub-أجبية { background: #0284c7; }
+        .sub-لغة_قبطية, .sub-قبطي { background: #b45309; }
+        .sub-ألحان { background: #7c3aed; }
+        .sub-طقس { background: #059669; }
+        .sub-كتاب_مقدس { background: #dc2626; }
+        .sub-عقيدة { background: #4f46e5; }
+        .sub-تاريخ_كنيسة { background: #0f766e; }
+
+        /* Filter bar */
+        .filter-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .filter-group { flex: 1; min-width: 140px; }
+        .filter-group label { display: block; font-size: 11px; font-weight: bold; color: #475569; margin-bottom: 5px; }
+        .filter-group select, .filter-group input { width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(3px);
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: popIn 0.25s ease;
+        }
+        @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .modal-header {
+            padding: 18px 24px;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 { margin: 0; font-size: 16px; color: #0f172a; }
+        .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #64748b; }
+        .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+        .form-row { display: flex; flex-direction: column; gap: 6px; }
+        .form-row label { font-size: 12px; font-weight: bold; color: #334155; }
+        .form-row input, .form-row select { padding: 9px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 13px; }
+        .form-row input:focus, .form-row select:focus { border-color: #1e3a8a; outline: none; }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-action {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        .btn-primary { background: #1e3a8a; color: white; }
+        .btn-primary:hover { background: #172554; }
+        .btn-amber { background: #d97706; color: white; }
+        .btn-amber:hover { background: #b45309; }
+        .btn-green { background: #059669; color: white; }
+        .btn-green:hover { background: #047857; }
+        .btn-gray { background: #e2e8f0; color: #334155; }
+        .btn-gray:hover { background: #cbd5e1; }
+        .btn-danger-sm { background: #fee2e2; color: #dc2626; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: bold; }
+        .btn-danger-sm:hover { background: #fecaca; }
+    </style>
+</head>
+<body>
+
+    <div id="statusBar" class="status-bar"></div>
+
+    <!-- Header -->
+    <div class="hierarchy-header">
+        <div>
+            <h1>🏛️ الهيكل الإداري والمدرسي</h1>
+            <p>مجلس الإدارة والناظر، مسؤولو المراحل الخمس، السكرتارية، وتكليفات الخدام والمواد</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn-action btn-green" onclick="openModal('addServantModal')">➕ خادم جديد وتكليفه</button>
+            <button class="btn-action btn-amber" onclick="openModal('assignServantModal')">🔗 تسكين خادم مسجل</button>
+            <button class="btn-action btn-gray" id="btnAdminActions" style="display:none;" onclick="openModal('trusteeModal')">🛡️ تعيين أمين مرحلة</button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="quick-stats">
+        <div class="stat-card" style="border-color: #d97706;">
+            <div class="stat-icon">👑</div>
+            <div class="stat-info">
+                <div class="num" id="statBoard">0</div>
+                <div class="txt">الإدارة والناظر</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-color: #0284c7;">
+            <div class="stat-icon">🏫</div>
+            <div class="stat-info">
+                <div class="num" id="statStages">5</div>
+                <div class="txt">المراحل الدراسية</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-color: #8b5cf6;">
+            <div class="stat-icon">📋</div>
+            <div class="stat-info">
+                <div class="num" id="statSec">0</div>
+                <div class="txt">السكرتارية</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-color: #059669;">
+            <div class="stat-icon">✝️</div>
+            <div class="stat-info">
+                <div class="num" id="statServants">0</div>
+                <div class="txt">الخدام والمدرسين</div>
+            </div>
+        </div>
+        <div class="stat-card" style="border-color: #dc2626;">
+            <div class="stat-icon">🎓</div>
+            <div class="stat-info">
+                <div class="num" id="statStudents">0</div>
+                <div class="txt">إجمالي الطلاب</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab('tabOrgChart')">🌳 المخطط الهيكلي التنظيمي</button>
+        <button class="tab-btn" onclick="switchTab('tabAssignments')">📋 سجل الخدام والتكليفات</button>
+        <button class="tab-btn" onclick="switchTab('tabStagesOverview')">🏫 تفاصيل المراحل والفصول</button>
+    </div>
+
+    <!-- TAB 1: Visual Org Chart -->
+    <div id="tabOrgChart" class="tab-pane active">
+        <!-- Level 1: Board & Principal -->
+        <div class="org-level">
+            <div class="level-title">👑 المستوى الأول: مجلس إدارة المدرسة والناظر (العضو المنتدب)</div>
+            <div class="board-container" id="boardList">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- Level 2: Stages & Trustees -->
+        <div class="org-level">
+            <div class="level-title">🏫 المستوى الثاني: أمناء ومسؤولو المراحل الدراسية الخمس</div>
+            <div class="stages-grid" id="stagesGrid">
+                <div class="spinner"></div>
+            </div>
+        </div>
+
+        <!-- Level 3: Secretariat -->
+        <div class="org-level">
+            <div class="level-title">📋 المستوى الثالث: السكرتارية (عصب النظام - متابعة التسجيلات والغياب والدرجات)</div>
+            <div class="secretariat-grid" id="secretariatList">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: Servants & Subject Assignments -->
+    <div id="tabAssignments" class="tab-pane">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label>🔍 بحث بالخادم:</label>
+                <input type="text" id="filterServantName" placeholder="اكتب اسم الخادم..." oninput="filterAssignmentsTable()">
+            </div>
+            <div class="filter-group">
+                <label>🏫 المرحلة:</label>
+                <select id="filterStage" onchange="filterAssignmentsTable()">
+                    <option value="">كل المراحل</option>
+                    <option value="حضانة">حضانة</option>
+                    <option value="ابتدائي أ">ابتدائي أ</option>
+                    <option value="ابتدائي ب">ابتدائي ب</option>
+                    <option value="إعدادي">إعدادي</option>
+                    <option value="كبار">كبار</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>📖 المادة:</label>
+                <select id="filterSubject" onchange="filterAssignmentsTable()">
+                    <option value="">كل المواد السبع</option>
+                    <option value="أجبية">أجبية</option>
+                    <option value="لغة قبطية">لغة قبطية</option>
+                    <option value="ألحان">ألحان</option>
+                    <option value="طقس">طقس</option>
+                    <option value="كتاب مقدس">كتاب مقدس</option>
+                    <option value="عقيدة">عقيدة</option>
+                    <option value="تاريخ كنيسة">تاريخ كنيسة</option>
+                </select>
+            </div>
+            <div>
+                <button class="btn-action btn-green" onclick="openModal('addServantModal')">➕ إضافة خادم جديد</button>
+                <button class="btn-action btn-amber" onclick="openModal('assignServantModal')">🔗 تسكين خادم</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>اسم الخادم</th>
+                        <th>المسمى الإداري</th>
+                        <th>المرحلة</th>
+                        <th>الفصل</th>
+                        <th>المادة المسندة</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="assignmentsTableBody">
+                    <tr><td colspan="7" style="text-align:center; padding:30px;"><div class="spinner"></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TAB 3: Stages & Classes Details -->
+    <div id="tabStagesOverview" class="tab-pane">
+        <div class="stages-grid" id="stagesDetailGrid">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <!-- MODAL 1: Add New Servant -->
+    <div id="addServantModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ إضافة خادم جديد وتكليفه فوراً</h3>
+                <button class="modal-close" onclick="closeModal('addServantModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>اسم المستخدم (لتسجيل الدخول) *</label>
+                    <input type="text" id="newServantUsername" placeholder="مثال: fady.servant">
+                </div>
+                <div class="form-row">
+                    <label>كلمة المرور (الافتراضية: 123456)</label>
+                    <input type="text" id="newServantPassword" value="123456">
+                </div>
+                <div class="form-row">
+                    <label>المسمى / الصفة</label>
+                    <input type="text" id="newServantTitle" value="خادم" placeholder="مثال: خادم ألحان وطقس">
+                </div>
+                <div class="form-row">
+                    <label>الفصل الأولي للتكليف (اختياري)</label>
+                    <select id="newServantClass"></select>
+                </div>
+                <div class="form-row">
+                    <label>المادة للتكليف</label>
+                    <select id="newServantSubject">
+                        <option value="">-- اختر مادة --</option>
+                        <option value="أجبية">أجبية</option>
+                        <option value="لغة قبطية">لغة قبطية</option>
+                        <option value="ألحان">ألحان</option>
+                        <option value="طقس">طقس</option>
+                        <option value="كتاب مقدس">كتاب مقدس</option>
+                        <option value="عقيدة">عقيدة</option>
+                        <option value="تاريخ كنيسة">تاريخ كنيسة</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action btn-gray" onclick="closeModal('addServantModal')">إلغاء</button>
+                <button class="btn-action btn-green" onclick="submitAddServant()">حفظ وإنشاء الحساب</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Assign Existing Servant -->
+    <div id="assignServantModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔗 تسكين خادم مسجل على فصل ومادة</h3>
+                <button class="modal-close" onclick="closeModal('assignServantModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>اختر الخادم *</label>
+                    <select id="assignUserSelect"></select>
+                </div>
+                <div class="form-row">
+                    <label>اختر الفصل *</label>
+                    <select id="assignClassSelect"></select>
+                </div>
+                <div class="form-row">
+                    <label>اختر المادة (من المواد السبع المعتمدة) *</label>
+                    <select id="assignSubjectSelect">
+                        <option value="">-- اختر مادة --</option>
+                        <option value="أجبية">أجبية</option>
+                        <option value="لغة قبطية">لغة قبطية</option>
+                        <option value="ألحان">ألحان</option>
+                        <option value="طقس">طقس</option>
+                        <option value="كتاب مقدس">كتاب مقدس</option>
+                        <option value="عقيدة">عقيدة</option>
+                        <option value="تاريخ كنيسة">تاريخ كنيسة</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action btn-gray" onclick="closeModal('assignServantModal')">إلغاء</button>
+                <button class="btn-action btn-amber" onclick="submitAssignServant()">تسكين الخادم</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Assign Trustee (Admin only) -->
+    <div id="trusteeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🛡️ تعيين أمين مرحلة</h3>
+                <button class="modal-close" onclick="closeModal('trusteeModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label>المستخدم *</label>
+                    <select id="trusteeUserSelect"></select>
+                </div>
+                <div class="form-row">
+                    <label>المرحلة المسندة إليه *</label>
+                    <select id="trusteeStageSelect">
+                        <option value="حضانة">حضانة</option>
+                        <option value="ابتدائي أ">ابتدائي أ</option>
+                        <option value="ابتدائي ب">ابتدائي ب</option>
+                        <option value="إعدادي">إعدادي</option>
+                        <option value="كبار">كبار</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>المسمى الإداري (اختياري)</label>
+                    <input type="text" id="trusteeTitle" placeholder="مثال: أمين مرحلة حضانة">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action btn-gray" onclick="closeModal('trusteeModal')">إلغاء</button>
+                <button class="btn-action btn-primary" onclick="submitAssignTrustee()">تعيين كأمين مرحلة</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js?v=3"></script>
+    <script src="/js/layout.js?v=2"></script>
+    <script>
+        let hierarchyData = null;
+        let currentUserRole = "";
+
+        window.onload = async () => {
+            if (!requireRole('Admin', 'StageSupervisor')) return;
+            
+            const token = localStorage.getItem('appToken');
+            if (token) {
+                try {
+                    const payload = parseJwtToken(token);
+                    currentUserRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "Secretary";
+                    if (currentUserRole === "Admin") {
+                        document.getElementById('btnAdminActions').style.display = 'inline-flex';
+                    }
+                } catch(e) {}
+            }
+
+            await loadHierarchy();
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            
+            event.currentTarget.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function getSubjectClass(subject) {
+            return 'sub-' + (subject || '').trim().replace(/\s+/g, '_');
+        }
+
+        async function loadHierarchy() {
+            const res = await fetchApi('/hierarchy/overview');
+            if (!res || !res.success) {
+                showStatus('statusBar', 'error', 'فشل تحميل بيانات الهيكل الإداري');
+                return;
+            }
+
+            hierarchyData = res;
+            renderStats(res);
+            renderBoard(res.board || []);
+            renderStages(res.stages || []);
+            renderSecretariat(res.secretariat || []);
+            renderAssignmentsTable(res.servants || []);
+            renderStagesDetail(res.stages || []);
+            populateDropdowns(res);
+        }
+
+        function renderStats(data) {
+            document.getElementById('statBoard').textContent = (data.board || []).length;
+            document.getElementById('statStages').textContent = (data.stages || []).length;
+            document.getElementById('statSec').textContent = (data.secretariat || []).length;
+            document.getElementById('statServants').textContent = (data.servants || []).length;
+            
+            const totalStudents = (data.stages || []).reduce((acc, s) => acc + (s.studentsCount || 0), 0);
+            document.getElementById('statStudents').textContent = totalStudents;
+        }
+
+        function renderBoard(board) {
+            const container = document.getElementById('boardList');
+            if (!board.length) {
+                container.innerHTML = '<div style="color:#64748b; padding:15px;">لا يوجد أعضاء مسجلين للمجلس حالياً</div>';
+                return;
+            }
+
+            let html = '';
+            board.forEach(member => {
+                const isPrincipal = member.isPrincipal;
+                html += `
+                    <div class="board-card ${isPrincipal ? 'principal' : ''}">
+                        ${isPrincipal ? '<div class="principal-badge">⭐ الناظر (العضو المنتدب المفوض بالإدارة)</div>' : '<div style="font-size:11px; font-weight:bold; color:#64748b; margin-bottom:5px;">عضو مجلس إدارة</div>'}
+                        <div style="font-size: 16px; font-weight: 800; color: #1e293b;">${member.username}</div>
+                        <div style="font-size: 12px; color: #64748b; margin-top: 4px;">${member.title || 'إدارة المدرسة'}</div>
+                        <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">الصلاحية: كامل النظام والتقارير</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderStages(stages) {
+            const container = document.getElementById('stagesGrid');
+            if (!stages.length) {
+                container.innerHTML = '<div style="color:#64748b;">لا توجد مراحل مسجلة</div>';
+                return;
+            }
+
+            let html = '';
+            stages.forEach(st => {
+                const trusteesHtml = st.trustees && st.trustees.length > 0 
+                    ? st.trustees.map(t => `<span class="trustee-tag">👤 ${t.username} (${t.title})</span>`).join('') 
+                    : '<span style="color:#94a3b8; font-size:11px;">لم يتم تعيين أمين مرحلة بعد</span>';
+
+                const classesHtml = st.classes && st.classes.length > 0
+                    ? st.classes.map(c => `<span class="class-pill">🏫 ${c.name} (${c.studentCount} طالب)</span>`).join('')
+                    : '<span style="color:#94a3b8; font-size:11px;">لا توجد فصول مضافة</span>';
+
+                html += `
+                    <div class="stage-box">
+                        <div class="stage-box-header">
+                            <h3>🏷️ مرحلة ${st.stageName}</h3>
+                            <span style="font-size:12px; font-weight:bold; color:#0284c7; background:#e0f2fe; padding:2px 8px; border-radius:12px;">
+                                ${st.studentsCount || 0} طالب
+                            </span>
+                        </div>
+                        <div class="trustees-list">
+                            <div style="font-weight:bold; margin-bottom:5px; color:#334155;">🛡️ أمناء المرحلة:</div>
+                            ${trusteesHtml}
+                        </div>
+                        <div>
+                            <div style="font-size:11px; font-weight:bold; color:#64748b; margin-bottom:5px;">فصول المرحلة (${st.classesCount || 0}):</div>
+                            <div class="classes-pills">${classesHtml}</div>
+                        </div>
+                        <div style="font-size:11px; color:#64748b; border-top:1px solid #f1f5f9; padding-top:8px; display:flex; justify-content:space-between;">
+                            <span>الخدام الموزعين: <strong>${st.servantsCount || 0}</strong></span>
+                            <span>الفصول: <strong>${st.classesCount || 0}</strong></span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderSecretariat(secList) {
+            const container = document.getElementById('secretariatList');
+            if (!secList.length) {
+                container.innerHTML = '<div style="color:#64748b;">لا يوجد مسؤولو سكرتارية مسجلين</div>';
+                return;
+            }
+
+            let html = '';
+            secList.forEach(s => {
+                html += `
+                    <div class="sec-card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <strong style="font-size:14px; color:#1e293b;">💼 ${s.username}</strong>
+                            <span style="font-size:10px; background:#f3e8ff; color:#7c3aed; padding:2px 6px; border-radius:4px; font-weight:bold;">سكرتارية</span>
+                        </div>
+                        <div style="font-size:12px; color:#64748b;">${s.title || 'مسؤولة سكرتارية'}</div>
+                        <div style="font-size:11px; color:#059669; margin-top:8px; font-weight:600;">
+                            ${s.className ? 'فصل: ' + s.className : 'متابعة شاملة لكل الفصول'}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderAssignmentsTable(servants) {
+            const tbody = document.getElementById('assignmentsTableBody');
+            let rows = [];
+
+            servants.forEach(servant => {
+                if (servant.assignments && servant.assignments.length > 0) {
+                    servant.assignments.forEach(assign => {
+                        rows.push({
+                            assignmentId: assign.id,
+                            servantId: servant.id,
+                            servantName: servant.username,
+                            title: servant.title || 'خادم',
+                            stage: assign.stage || '-',
+                            className: assign.className || '-',
+                            subjectName: assign.subjectName || '-'
+                        });
+                    });
+                } else {
+                    rows.push({
+                        assignmentId: null,
+                        servantId: servant.id,
+                        servantName: servant.username,
+                        title: servant.title || 'خادم',
+                        stage: '-',
+                        className: 'لم يُسكّن بعد',
+                        subjectName: '-'
+                    });
+                }
+            });
+
+            if (rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:25px; color:#94a3b8;">لا يوجد خدام مسجلين حالياً</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rows.map((r, idx) => `
+                <tr data-servant="${r.servantName.toLowerCase()}" data-stage="${r.stage}" data-subject="${r.subjectName}">
+                    <td>${idx + 1}</td>
+                    <td><strong>${r.servantName}</strong></td>
+                    <td><span style="font-size:11px; color:#64748b;">${r.title}</span></td>
+                    <td><span class="class-pill">${r.stage}</span></td>
+                    <td><strong>${r.className}</strong></td>
+                    <td><span class="subject-badge ${getSubjectClass(r.subjectName)}">${r.subjectName}</span></td>
+                    <td>
+                        ${r.assignmentId ? `<button class="btn-danger-sm" onclick="removeAssignment(${r.assignmentId})">🗑️ حذف التكليف</button>` : `<button class="btn-action btn-amber" style="padding:4px 8px; font-size:11px;" onclick="prefillAssign(${r.servantId})">🔗 تسكين</button>`}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function filterAssignmentsTable() {
+            const search = document.getElementById('filterServantName').value.toLowerCase().trim();
+            const stage = document.getElementById('filterStage').value;
+            const subject = document.getElementById('filterSubject').value;
+
+            const trs = document.querySelectorAll('#assignmentsTableBody tr');
+            trs.forEach(tr => {
+                const trServant = tr.getAttribute('data-servant') || '';
+                const trStage = tr.getAttribute('data-stage') || '';
+                const trSubject = tr.getAttribute('data-subject') || '';
+
+                const matchName = !search || trServant.includes(search);
+                const matchStage = !stage || trStage === stage;
+                const matchSubject = !subject || trSubject === subject;
+
+                tr.style.display = (matchName && matchStage && matchSubject) ? '' : 'none';
+            });
+        }
+
+        function renderStagesDetail(stages) {
+            const container = document.getElementById('stagesDetailGrid');
+            let html = '';
+            stages.forEach(st => {
+                html += `
+                    <div class="stage-box" style="border-top-color:#1e3a8a;">
+                        <h3 style="margin:0; font-size:16px;">المرحلة: ${st.stageName}</h3>
+                        <div style="font-size:13px; color:#475569;">
+                            عدد الطلاب الإجمالي: <strong>${st.studentsCount || 0}</strong>
+                        </div>
+                        <div class="table-container" style="box-shadow:none; border:1px solid #f1f5f9; margin-top:8px;">
+                            <table>
+                                <thead>
+                                    <tr><th>الفصل</th><th>عدد الطلاب</th></tr>
+                                </thead>
+                                <tbody>
+                                    ${(st.classes || []).map(c => `<tr><td>${c.name}</td><td><strong>${c.studentCount}</strong></td></tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function populateDropdowns(data) {
+            const classSelects = [document.getElementById('newServantClass'), document.getElementById('assignClassSelect')];
+            classSelects.forEach(select => {
+                if (!select) return;
+                select.innerHTML = '<option value="">-- اختر الفصل --</option>';
+                (data.allClasses || []).forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = `${c.name} (${c.stage})`;
+                    select.appendChild(opt);
+                });
+            });
+
+            // Assign User Select
+            const userSelect = document.getElementById('assignUserSelect');
+            if (userSelect) {
+                userSelect.innerHTML = '<option value="">-- اختر مستخدم --</option>';
+                (data.allUsers || []).forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = `${u.username} (${u.title || u.role})`;
+                    userSelect.appendChild(opt);
+                });
+            }
+
+            // Trustee User Select
+            const trusteeSelect = document.getElementById('trusteeUserSelect');
+            if (trusteeSelect) {
+                trusteeSelect.innerHTML = '<option value="">-- اختر مستخدم لتعيينه أمين مرحلة --</option>';
+                (data.allUsers || []).forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = `${u.username} (${u.title || u.role})`;
+                    trusteeSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function prefillAssign(servantId) {
+            document.getElementById('assignUserSelect').value = servantId;
+            openModal('assignServantModal');
+        }
+
+        async function submitAddServant() {
+            const username = document.getElementById('newServantUsername').value.trim();
+            const password = document.getElementById('newServantPassword').value.trim();
+            const title = document.getElementById('newServantTitle').value.trim();
+            const classIdVal = document.getElementById('newServantClass').value;
+            const subjectVal = document.getElementById('newServantSubject').value;
+
+            if (!username) {
+                showStatus('statusBar', 'error', 'يجب إدخال اسم المستخدم للخادم');
+                return;
+            }
+
+            const body = {
+                username: username,
+                password: password,
+                title: title,
+                classRoomId: classIdVal ? parseInt(classIdVal) : null,
+                subjectName: subjectVal || null
+            };
+
+            const res = await fetchApi('/hierarchy/add-servant', 'POST', body);
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message || 'تمت إضافة الخادم بنجاح');
+                closeModal('addServantModal');
+                document.getElementById('newServantUsername').value = '';
+                await loadHierarchy();
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'حدث خطأ أثناء إضافة الخادم');
+            }
+        }
+
+        async function submitAssignServant() {
+            const userId = document.getElementById('assignUserSelect').value;
+            const classId = document.getElementById('assignClassSelect').value;
+            const subject = document.getElementById('assignSubjectSelect').value;
+
+            if (!userId || !classId || !subject) {
+                showStatus('statusBar', 'error', 'برجاء اختيار الخادم والفصل والمادة');
+                return;
+            }
+
+            const body = {
+                userId: parseInt(userId),
+                classRoomId: parseInt(classId),
+                subjectName: subject
+            };
+
+            const res = await fetchApi('/hierarchy/assign-servant', 'POST', body);
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message || 'تم تسكين الخادم بنجاح');
+                closeModal('assignServantModal');
+                await loadHierarchy();
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'فشل تسكين الخادم');
+            }
+        }
+
+        async function removeAssignment(id) {
+            if (!confirm('هل أنت متأكد من حذف هذا التكليف؟')) return;
+
+            const res = await fetchApi(`/hierarchy/assignment/${id}`, 'DELETE');
+            if (res && res.success) {
+                showStatus('statusBar', 'success', 'تم حذف التكليف بنجاح');
+                await loadHierarchy();
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'فشل حذف التكليف');
+            }
+        }
+
+        async function submitAssignTrustee() {
+            const userId = document.getElementById('trusteeUserSelect').value;
+            const stage = document.getElementById('trusteeStageSelect').value;
+            const title = document.getElementById('trusteeTitle').value.trim();
+
+            if (!userId || !stage) {
+                showStatus('statusBar', 'error', 'برجاء اختيار المستخدم والمرحلة');
+                return;
+            }
+
+            const body = {
+                userId: parseInt(userId),
+                stage: stage,
+                title: title
+            };
+
+            const res = await fetchApi('/hierarchy/assign-trustee', 'POST', body);
+            if (res && res.success) {
+                showStatus('statusBar', 'success', res.message || 'تم تعيين أمين المرحلة بنجاح');
+                closeModal('trusteeModal');
+                await loadHierarchy();
+            } else {
+                showStatus('statusBar', 'error', res?.message || 'فشل تعيين أمين المرحلة');
+            }
+        }
+    </script>
+</body>
+</html>

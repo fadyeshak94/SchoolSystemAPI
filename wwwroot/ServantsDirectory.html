@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📖 دليل الخدام</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .header {
+            background: linear-gradient(135deg, #166534, #14532d);
+            color: white;
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(20, 83, 45, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { margin: 0; font-size: 22px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .header p { margin: 5px 0 0; font-size: 13px; color: #bbf7d0; }
+        
+        .servants-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+        
+        .servant-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border-top: 5px solid #166534;
+            transition: transform 0.2s;
+        }
+        .servant-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .s-name { font-size: 18px; font-weight: 800; color: #1e293b; margin-bottom: 5px; }
+        .s-title { font-size: 13px; color: #64748b; font-weight: bold; margin-bottom: 15px; }
+        
+        .s-details {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        .s-details-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #f1f5f9;
+            padding-bottom: 8px;
+        }
+        .s-details-row:last-child { margin-bottom: 0; border-bottom: none; padding-bottom: 0; }
+        .s-label { color: #64748b; font-weight: bold; }
+        .s-val { color: #0f172a; font-weight: bold; }
+        
+        .s-assignments {
+            border-top: 2px dashed #e2e8f0;
+            padding-top: 15px;
+        }
+        .s-assign-title {
+            font-size: 13px; font-weight: bold; color: #475569; margin-bottom: 10px;
+        }
+        .s-tag {
+            display: inline-block;
+            background: #dcfce7;
+            color: #166534;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 5px;
+            margin-bottom: 5px;
+        }
+        .s-tag-empty {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .filters {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            align-items: center;
+        }
+        .filter-input {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            width: 250px;
+        }
+        .filter-input:focus { border-color: #166534; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div>
+            <h1>📖 دليل الخدام</h1>
+            <p>عرض بيانات الخدام الشخصية والخدمية</p>
+        </div>
+    </div>
+
+    <div class="filters">
+        <input type="text" id="searchInput" class="filter-input" placeholder="🔍 بحث باسم الخادم..." onkeyup="filterServants()">
+    </div>
+
+    <div id="servantsContainer" class="servants-grid">
+        <div style="padding: 20px; text-align: center; width: 100%; color: #666;">جاري التحميل...</div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => {
+            requireRole('Admin', 'StageSupervisor');
+            loadDirectory();
+        }
+
+        let allServants = [];
+
+        async function loadDirectory() {
+            try {
+                const res = await fetchApi('/hierarchy/overview');
+                if (res && res.success) {
+                    // دمج الخدام مع السكرتارية
+                    let combined = [];
+                    if (res.servants) combined = combined.concat(res.servants);
+                    if (res.secretariat) combined = combined.concat(res.secretariat);
+                    
+                    // إزالة التكرار إن وجد بناءً على اسم المستخدم
+                    const unique = [];
+                    const map = new Map();
+                    for (const item of combined) {
+                        if(!map.has(item.username)){
+                            map.set(item.username, true);
+                            unique.push(item);
+                        }
+                    }
+
+                    allServants = unique;
+                    renderServants(allServants);
+                } else {
+                    document.getElementById('servantsContainer').innerHTML = '<div style="color:red; width:100%; text-align:center;">❌ حدث خطأ أثناء تحميل البيانات</div>';
+                }
+            } catch (err) {
+                document.getElementById('servantsContainer').innerHTML = '<div style="color:red; width:100%; text-align:center;">❌ ' + err.message + '</div>';
+            }
+        }
+
+        function filterServants() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            if (!query) {
+                renderServants(allServants);
+                return;
+            }
+            
+            const filtered = allServants.filter(s => s.username.toLowerCase().includes(query));
+            renderServants(filtered);
+        }
+
+        function renderServants(servants) {
+            const container = document.getElementById('servantsContainer');
+            if (servants.length === 0) {
+                container.innerHTML = '<div style="width:100%; text-align:center; color:#999; padding:40px;">📭 لا يوجد خدام</div>';
+                return;
+            }
+
+            let html = '';
+            servants.forEach(s => {
+                
+                let assignHtml = '';
+                if (s.assignments && s.assignments.length > 0) {
+                    s.assignments.forEach(a => {
+                        assignHtml += `<span class="s-tag">${a.subjectName} (${a.className})</span>`;
+                    });
+                } else {
+                    assignHtml = `<span class="s-tag s-tag-empty">بدون تكليفات</span>`;
+                }
+                
+                let dobStr = '-';
+                if (s.dateOfBirth) {
+                    const d = new Date(s.dateOfBirth);
+                    dobStr = d.toLocaleDateString('ar-EG');
+                }
+
+                html += `
+                <div class="servant-card">
+                    <div class="s-name">${s.username}</div>
+                    <div class="s-title">${s.title}</div>
+                    
+                    <div class="s-details" id="details-${s.username}">
+                        <div class="s-details-row">
+                            <span class="s-label">📞 تليفون:</span>
+                            <span class="s-val">${s.phoneNumber || '-'}</span>
+                        </div>
+                        <div class="s-details-row">
+                            <span class="s-label">⛪ أب الاعتراف:</span>
+                            <span class="s-val">${s.confessionFather || '-'}</span>
+                        </div>
+                        <div class="s-details-row">
+                            <span class="s-label">🎂 تاريخ الميلاد:</span>
+                            <span class="s-val">${dobStr}</span>
+                        </div>
+                        <button onclick="editServant('${s.username}')" style="margin-top:10px; width:100%; padding:5px; border-radius:8px; border:1px solid #cbd5e1; background:white; cursor:pointer; font-weight:bold; color:#475569;">✏️ تعديل البيانات</button>
+                    </div>
+
+                    <div class="s-details" id="edit-${s.username}" style="display:none; background:#fff8f1; border:1px solid #fed7aa;">
+                        <input type="text" id="phone-${s.username}" value="${s.phoneNumber || ''}" placeholder="رقم التليفون" style="width:100%; margin-bottom:5px; padding:6px; border:1px solid #fdba74; border-radius:5px;">
+                        <input type="text" id="cf-${s.username}" value="${s.confessionFather || ''}" placeholder="أب الاعتراف" style="width:100%; margin-bottom:5px; padding:6px; border:1px solid #fdba74; border-radius:5px;">
+                        <input type="date" id="dob-${s.username}" value="${s.dateOfBirth ? s.dateOfBirth.split('T')[0] : ''}" style="width:100%; margin-bottom:10px; padding:6px; border:1px solid #fdba74; border-radius:5px;">
+                        
+                        <div style="display:flex; gap:5px;">
+                            <button onclick="saveServant('${s.username}')" style="flex:1; padding:6px; border-radius:5px; border:none; background:#166534; color:white; font-weight:bold; cursor:pointer;">💾 حفظ</button>
+                            <button onclick="cancelEdit('${s.username}')" style="flex:1; padding:6px; border-radius:5px; border:none; background:#ef4444; color:white; font-weight:bold; cursor:pointer;">❌ إلغاء</button>
+                        </div>
+                    </div>
+                    
+                    <div class="s-assignments">
+                        <div class="s-assign-title">التكليفات:</div>
+                        ${assignHtml}
+                    </div>
+                </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function editServant(username) {
+            document.getElementById(`details-${username}`).style.display = 'none';
+            document.getElementById(`edit-${username}`).style.display = 'block';
+        }
+
+        function cancelEdit(username) {
+            document.getElementById(`details-${username}`).style.display = 'block';
+            document.getElementById(`edit-${username}`).style.display = 'none';
+        }
+
+        async function saveServant(username) {
+            const phone = document.getElementById(`phone-${username}`).value.trim();
+            const cf = document.getElementById(`cf-${username}`).value.trim();
+            const dob = document.getElementById(`dob-${username}`).value || null;
+
+            try {
+                const res = await fetchApi(`/users/${username}/personal`, 'PUT', {
+                    phoneNumber: phone,
+                    confessionFather: cf,
+                    dateOfBirth: dob
+                });
+                
+                if (res && res.success) {
+                    // Update local array
+                    const servant = allServants.find(s => s.username === username);
+                    if (servant) {
+                        servant.phoneNumber = phone;
+                        servant.confessionFather = cf;
+                        if(dob) servant.dateOfBirth = dob + "T00:00:00";
+                        else servant.dateOfBirth = null;
+                    }
+                    alert('✅ تم حفظ البيانات بنجاح');
+                    filterServants(); // re-render
+                } else {
+                    alert('❌ خطأ: ' + (res?.message || 'حدث خطأ'));
+                }
+            } catch (err) {
+                alert('❌ خطأ: ' + err.message);
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

@@ -16,8 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const token = localStorage.getItem("appToken");
     if (token) {
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "User";
+            const payload = parseJwtToken(token);
+            let rawRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "User";
+            userRole = Array.isArray(rawRole) ? rawRole[0] : rawRole;
         } catch (e) {}
     }
 
@@ -41,10 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
         {
             title: "الحضور والأعذار",
             links: [
-                { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" },
+                (userRole !== "Servant") ? { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" } : null,
                 { path: "/AttendanceTrack.html", icon: "📅", text: "متابعة الحضور" },
-                { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" }
-            ]
+                (userRole !== "Servant") ? { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" } : null
+            ].filter(l => l !== null)
         },
         {
             title: "الشؤون الأكاديمية",
@@ -57,28 +58,33 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
-    if (userRole === "Admin") {
+    if (userRole === "Admin" || userRole === "admin" || userRole === "Secretary" || userRole === "StageSupervisor") {
         menuGroups.push({
-            title: "الإدارة والتقارير",
+            title: "الإدارة والهيكل",
             links: [
-                { path: "/ManageRegistrations.html", icon: "📝", text: "إدارة التسجيلات" },
-                { path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" },
+                (userRole !== "Secretary") ? { path: "/SchoolHierarchy.html", icon: "🏢", text: "الهيكل الإداري والمدرسي" } : null,
+                { path: "/ServantsDirectory.html", icon: "📖", text: "دليل الخدام" },
+                { path: "/ManageRegistrations.html", icon: "📋", text: "إدارة التسجيلات" },
+                (userRole !== "Secretary") ? { path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" } : null,
                 { path: "/Siblings.html", icon: "👨‍👩‍👧‍👦", text: "إدارة الإخوة" },
                 { path: "/StudentsStatus.html", icon: "📊", text: "حالة الطلاب" },
                 { path: "/ClassesPerformance.html", icon: "📈", text: "أداء الفصول" },
                 { path: "/AttendanceReport.html", icon: "📅", text: "تقرير الغياب" },
                 { path: "/Statistics.html", icon: "📈", text: "الإحصائيات" }
-            ]
+            ].filter(l => l !== null)
         });
-        menuGroups.push({
-            title: "النظام والأرشيف",
-            links: [
-                { path: "/Archive.html", icon: "📦", text: "الأرشيف" },
-                { path: "/Permissions.html", icon: "🛡️", text: "الصلاحيات" },
-                { path: "/AuditLogs.html", icon: "📜", text: "سجل العمليات" },
-                { path: "/Settings.html", icon: "⚙️", text: "الإعدادات" }
-            ]
-        });
+
+        if (userRole === "Admin" || userRole === "admin") {
+            menuGroups.push({
+                title: "النظام والأرشيف",
+                links: [
+                    { path: "/Archive.html", icon: "📦", text: "الأرشيف" },
+                    { path: "/Permissions.html", icon: "🛡️", text: "الصلاحيات" },
+                    { path: "/AuditLogs.html", icon: "📜", text: "سجل العمليات" },
+                    { path: "/Settings.html", icon: "⚙️", text: "الإعدادات" }
+                ]
+            });
+        }
     } else {
         menuGroups.push({
             title: "النظام",
@@ -182,22 +188,45 @@ document.addEventListener("DOMContentLoaded", () => {
     const tokenData = localStorage.getItem("appToken");
     if (tokenData) {
         try {
-            const claims = JSON.parse(atob(tokenData.split('.')[1]));
+            const claims = parseJwtToken(tokenData);
             const name = claims["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || claims.unique_name || claims.name || "مستخدم";
-            const role = claims["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || claims.role || claims.Role || "User";
-            const roleName = role === "Admin" ? "أدمن" : "مستخدم";
+            let rawRole = claims["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || claims.role || claims.Role || "Secretary";
+            const role = Array.isArray(rawRole) ? rawRole[0] : rawRole;
+            const title = claims["Title"] || claims.title || "";
+            
+            let roleName = "السكرتارية";
+            let roleColor = "#1e293b";
+            let roleBg = "#e2e8f0";
+            if (role === "Admin" || role === "admin") {
+                roleName = "الناظر / إدارة";
+                roleColor = "#991b1b";
+                roleBg = "#fee2e2";
+            } else if (role === "StageSupervisor") {
+                roleName = "أمين مرحلة";
+                roleColor = "#075985";
+                roleBg = "#e0f2fe";
+            } else if (role === "Servant") {
+                roleName = "خادم";
+                roleColor = "#166534";
+                roleBg = "#dcfce7";
+            } else if (role === "Secretary" || role === "User") {
+                roleName = "السكرتارية";
+                roleColor = "#6b21a8";
+                roleBg = "#f3e8ff";
+            }
             
             const displaySpan = document.getElementById("userNameDisplay");
+            const titleBadge = title ? `<span style="font-size: 11px; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 6px; margin-right: 5px; font-weight: bold;">${title}</span>` : "";
             
             // Initial basic info
-            displaySpan.innerHTML = `مرحباً، <strong>${name}</strong> <span style="font-size: 12px; background: #e2e8f0; color: #1e293b; padding: 2px 8px; border-radius: 6px; margin-right: 5px;">${roleName}</span>`;
+            displaySpan.innerHTML = `مرحباً، <strong>${name}</strong> <span style="font-size: 12px; background: ${roleBg}; color: ${roleColor}; padding: 2px 8px; border-radius: 6px; margin-right: 5px; font-weight: bold;">${roleName}</span> ${titleBadge}`;
             
             // Fetch classes to show what they are responsible for
             if (typeof fetchApi === 'function') {
                 fetchApi('/users/me/classes').then(res => {
                     if (res && res.classes && res.classes.length > 0) {
                         let respText = "";
-                        if (role === "Admin") {
+                        if (role === "Admin" || role === "admin") {
                             respText = "كل الفصول والمراحل";
                         } else {
                             // If they have many classes, maybe they are stage managers

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -41,7 +41,7 @@
         const token = localStorage.getItem('appToken');
         if (!token) window.location.href = '/Login.html';
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
+            const payload = parseJwtToken(token);
             const role = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role;
             if (role !== 'Admin') {
                 document.body.innerHTML = '<div style="text-align:center; padding:50px; color:white;"><h2>ليس لديك صلاحية!</h2></div>';

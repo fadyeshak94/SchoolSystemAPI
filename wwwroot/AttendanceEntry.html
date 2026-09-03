@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -56,13 +56,19 @@
         async function loadAttendance() {
             const classId = document.getElementById('classSelect').value;
             const dateStr = document.getElementById('dateInput').value;
-            if (!classId || !dateStr) return showStatus('statusBar', 'error', 'اختر الفصل والتاريخ');
+            if (!classId || !dateStr) return showStatus('statusBar', 'error', 'يرجى اختيار الفصل والتاريخ');
 
             document.getElementById('content').innerHTML = '<div class="spinner"></div>';
             document.getElementById('saveBtn').style.display = 'none';
 
             const res = await fetchApi(`/attendance/entry?classId=${classId}&date=${dateStr}`);
             if (!res || !res.students) return;
+
+            const token = localStorage.getItem('appToken');
+            const payload = parseJwtToken(token);
+            let rawRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "User";
+            const userRole = Array.isArray(rawRole) ? rawRole[0] : rawRole;
+            const isServant = (userRole === "Servant");
 
             if(res.alreadyRecorded) showStatus('statusBar', 'info', 'الغياب مسجل مسبقاً، أي تعديل سيحدث السجل.');
 
@@ -72,15 +78,17 @@
                     <td style="text-align:right;"><strong>${s.name}</strong></td>
                     <td>
                         <div class="status-toggle">
-                            <button class="present ${s.status === 'Present' ? 'active' : ''}" onclick="setStatus(this, 'Present')">حاضر</button>
-                            <button class="absent ${s.status === 'Absent' ? 'active' : ''}" onclick="setStatus(this, 'Absent')">غائب</button>
+                            <button ${isServant ? 'disabled' : ''} class="present ${s.status === 'Present' ? 'active' : ''}" onclick="setStatus(this, 'Present')">حاضر</button>
+                            <button ${isServant ? 'disabled' : ''} class="absent ${s.status === 'Absent' ? 'active' : ''}" onclick="setStatus(this, 'Absent')">غائب</button>
                         </div>
                     </td>
                 </tr>`;
             });
             html += '</tbody></table>';
             document.getElementById('content').innerHTML = html;
-            if (res.students.length > 0) document.getElementById('saveBtn').style.display = 'inline-flex';
+            if (res.students.length > 0 && !isServant) {
+                document.getElementById('saveBtn').style.display = 'inline-flex';
+            }
         }
 
         function setStatus(btn, status) {

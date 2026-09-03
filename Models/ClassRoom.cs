@@ -9,4 +9,6 @@ public class ClassRoom
     
     public ICollection<Student> Students { get; set; } = new List<Student>();
     public ICollection<AppUser> SupervisedByUsers { get; set; } = new List<AppUser>();
+    public ICollection<ServantAssignment> ServantAssignments { get; set; } = new List<ServantAssignment>();
 }
+

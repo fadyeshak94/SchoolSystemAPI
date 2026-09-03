@@ -53,8 +53,11 @@
         <div><label>نوع الصلاحية</label><select id="newAccessType" onchange="toggleNewAccessType()"><option value="class">فصل واحد</option><option value="stage">مرحلة كاملة</option></select></div>
         <div id="newClassWrap"><label>الفصل</label><select id="newClass"></select></div>
         <div id="newStageWrap" style="display:none;"><label>المرحلة</label><select id="newStage"></select></div>
-        <div><label>الدور</label><select id="newRole"><option value="User">مستخدم</option><option value="Admin">أدمن</option></select></div>
+        <div><label>الدور والمسمى</label><select id="newRole"><option value="Admin|الناظر (العضو المنتدب)">الناظر (العضو المنتدب)</option><option value="Admin|عضو مجلس إدارة">عضو مجلس إدارة</option><option value="StageSupervisor|أمين مرحلة">أمين مرحلة</option><option value="Secretary|مسؤولة سكرتارية">مسؤولة سكرتارية</option><option value="Servant|خادم">خادم</option><option value="User|مستخدم">مستخدم</option></select></div>
         <div><label>كلمة المرور</label><input type="text" id="newPassword" placeholder="اختياري الآن"></div>
+        <div><label>رقم التليفون</label><input type="text" id="newPhone"></div>
+        <div><label>أب الاعتراف</label><input type="text" id="newConfessionFather"></div>
+        <div><label>تاريخ الميلاد</label><input type="date" id="newDob"></div>
         <div><button class="btn btn-primary" onclick="addUser()">إضافة</button></div>
       </div>
     </div>
@@ -130,7 +133,7 @@
         }
 
         var html = '<div class="table-container"><table><thead><tr>';
-        html += '<th>Username</th><th>الإيميل</th><th>نوع الصلاحية</th><th>الفصل / المرحلة</th><th>الدور</th><th>الحالة</th><th>كلمة مرور جديدة</th><th></th>';
+        html += '<th>Username</th><th>الإيميل</th><th>نوع الصلاحية</th><th>الفصل / المرحلة</th><th>الدور والمسمى</th><th>بيانات شخصية</th><th>الحالة / الباسورد</th><th></th>';
         html += '</tr></thead><tbody>';
 
         users.forEach(function(u) {
@@ -146,15 +149,30 @@
           html += '<select class="class-select" data-username="' + u.username + '" style="' + (isStage ? 'display:none;' : '') + '"></select>';
           html += '<select class="stage-select" data-username="' + u.username + '" style="' + (isStage ? '' : 'display:none;') + '"></select>';
           html += '</td>';
+          var roleTitle = u.role + '|' + (u.title || '');
           html += '<td><select class="role-select" data-username="' + u.username + '">';
-          html += '<option value="User"' + (u.role !== 'Admin' ? ' selected' : '') + '>مستخدم</option>';
-          html += '<option value="Admin"' + (u.role === 'Admin' ? ' selected' : '') + '>أدمن</option>';
+          html += '<option value="Admin|الناظر (العضو المنتدب)"' + (roleTitle === 'Admin|الناظر (العضو المنتدب)' ? ' selected' : '') + '>الناظر (العضو المنتدب)</option>';
+          html += '<option value="Admin|عضو مجلس إدارة"' + (roleTitle === 'Admin|عضو مجلس إدارة' ? ' selected' : '') + '>عضو مجلس إدارة</option>';
+          html += '<option value="StageSupervisor|أمين مرحلة"' + (roleTitle === 'StageSupervisor|أمين مرحلة' || u.role === 'StageSupervisor' ? ' selected' : '') + '>أمين مرحلة</option>';
+          html += '<option value="Secretary|مسؤولة سكرتارية"' + (roleTitle === 'Secretary|مسؤولة سكرتارية' || u.role === 'Secretary' ? ' selected' : '') + '>مسؤولة سكرتارية</option>';
+          html += '<option value="Servant|خادم"' + (roleTitle === 'Servant|خادم' || u.role === 'Servant' ? ' selected' : '') + '>خادم</option>';
+          html += '<option value="User|مستخدم"' + (roleTitle === 'User|مستخدم' || u.role === 'User' ? ' selected' : '') + '>مستخدم</option>';
           html += '</select></td>';
-          html += '<td>' + (u.hasPassword ? '✅ عنده باسورد' : '⚠️ من غير باسورد') + '</td>';
-          html += '<td><input type="text" class="pw-input" placeholder="كلمة مرور جديدة"></td>';
+          
+          html += '<td>';
+          html += '<input type="text" class="phone-input" placeholder="التليفون" value="' + (u.phoneNumber || '') + '" style="width:100px; padding:4px; font-size:11px; margin-bottom:4px; display:block;">';
+          html += '<input type="text" class="cfather-input" placeholder="أب الاعتراف" value="' + (u.confessionFather || '') + '" style="width:100px; padding:4px; font-size:11px; margin-bottom:4px; display:block;">';
+          html += '<input type="date" class="dob-input" value="' + (u.dateOfBirth ? u.dateOfBirth.split('T')[0] : '') + '" style="width:100px; padding:4px; font-size:11px; display:block;">';
+          html += '</td>';
+
+          html += '<td>';
+          html += '<div style="font-size:11px; margin-bottom:5px;">' + (u.hasPassword ? '✅ باسورد' : '⚠️ لا يوجد') + '</div>';
+          html += '<input type="text" class="pw-input" placeholder="جديدة" style="width:70px; padding:4px; font-size:11px; margin-bottom:4px; display:block;">';
+          html += '<button class="btn btn-small btn-key" onclick="setPassword(this)" style="padding:4px 8px; width:70px;">🔑 تعيين</button>';
+          html += '</td>';
+
           html += '<td>';
           html += '<button class="btn btn-small btn-save-row" onclick="saveUserRow(this)">💾 حفظ</button> ';
-          html += '<button class="btn btn-small btn-key" onclick="setPassword(this)">🔑 تعيين</button>';
           html += '</td>';
           html += '</tr>';
         });
@@ -188,13 +206,22 @@
         var accessType = row.querySelector('.access-type-select').value;
         var classId = accessType === 'class' ? row.querySelector('.class-select').value : '';
         var stageAccess = accessType === 'stage' ? row.querySelector('.stage-select').value : '';
-        var role = row.querySelector('.role-select').value;
+        var roleValue = row.querySelector('.role-select').value.split('|');
+        var role = roleValue[0];
+        var title = roleValue.length > 1 ? roleValue[1] : '';
+        var phoneNumber = row.querySelector('.phone-input').value.trim();
+        var confessionFather = row.querySelector('.cfather-input').value.trim();
+        var dateOfBirth = row.querySelector('.dob-input').value || null;
 
         try {
             const res = await fetchApi(`/users/${username}`, 'PUT', {
                 classId: classId ? parseInt(classId) : null,
                 stageAccess: stageAccess,
-                role: role
+                role: role,
+                title: title,
+                phoneNumber: phoneNumber,
+                confessionFather: confessionFather,
+                dateOfBirth: dateOfBirth
             });
             if(res && res.success) {
                 showStatus('success', res.message);
@@ -234,13 +261,18 @@
 
       async function addUser() {
         var accessType = document.getElementById('newAccessType').value;
+        var roleValue = document.getElementById('newRole').value.split('|');
         var payload = {
           username: document.getElementById('newUsername').value.trim(),
           email: document.getElementById('newEmail').value.trim(),
           classId: accessType === 'class' ? parseInt(document.getElementById('newClass').value) : null,
           stageAccess: accessType === 'stage' ? document.getElementById('newStage').value : '',
-          role: document.getElementById('newRole').value,
-          password: document.getElementById('newPassword').value.trim()
+          role: roleValue[0],
+          title: roleValue.length > 1 ? roleValue[1] : '',
+          password: document.getElementById('newPassword').value.trim(),
+          phoneNumber: document.getElementById('newPhone').value.trim(),
+          confessionFather: document.getElementById('newConfessionFather').value.trim(),
+          dateOfBirth: document.getElementById('newDob').value || null
         };
 
         if (!payload.username || (!payload.classId && !payload.stageAccess)) {
@@ -255,6 +287,9 @@
                 document.getElementById('newUsername').value = '';
                 document.getElementById('newEmail').value = '';
                 document.getElementById('newPassword').value = '';
+                document.getElementById('newPhone').value = '';
+                document.getElementById('newConfessionFather').value = '';
+                document.getElementById('newDob').value = '';
                 loadUsers();
             } else {
                 showStatus('error', res?.message || 'حدث خطأ');
