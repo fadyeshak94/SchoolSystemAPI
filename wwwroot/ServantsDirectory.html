@@ -115,12 +115,16 @@
 
     <div class="filters">
         <input type="text" id="searchInput" class="filter-input" placeholder="🔍 بحث باسم الخادم..." onkeyup="filterServants()">
+        <button onclick="exportToPDF()" style="padding: 10px 15px; border: none; background: #166534; color: white; border-radius: 8px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+            📄 استخراج PDF (جدول)
+        </button>
     </div>
 
     <div id="servantsContainer" class="servants-grid">
         <div style="padding: 20px; text-align: center; width: 100%; color: #666;">جاري التحميل...</div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="/js/app.js"></script>
     <script>
         window.onload = () => {
@@ -278,10 +282,94 @@
                 } else {
                     alert('❌ خطأ: ' + (res?.message || 'حدث خطأ'));
                 }
-            } catch (err) {
-                alert('❌ خطأ: ' + err.message);
+            } catch (e) {
+                alert('❌ تعذر الاتصال بالخادم');
             }
         }
+
+        function exportToPDF() {
+            // Use currently filtered servants
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const servantsToExport = query ? allServants.filter(s => s.username.toLowerCase().includes(query)) : allServants;
+
+            if (servantsToExport.length === 0) {
+                alert('لا يوجد بيانات لتصديرها');
+                return;
+            }
+
+            let tableRows = '';
+            servantsToExport.forEach(s => {
+                let assignText = '';
+                if (s.assignments && s.assignments.length > 0) {
+                    assignText = s.assignments.map(a => `${a.subjectName} (${a.className})`).join('<br>');
+                } else {
+                    assignText = 'بدون تكليفات';
+                }
+
+                let dobStr = '-';
+                if (s.dateOfBirth) {
+                    const d = new Date(s.dateOfBirth);
+                    dobStr = d.toLocaleDateString('ar-EG');
+                }
+
+                tableRows += `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">${s.nameAR || s.username}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">${s.title || '-'}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1; white-space: nowrap;">${assignText}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">${s.phoneNumber || '-'}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">${dobStr}</td>
+                        <td style="padding: 8px; border: 1px solid #cbd5e1;">${s.confessionFather || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            const printHtml = `
+                <div style="font-family: 'Segoe UI', Tahoma, sans-serif; direction: rtl; text-align: right; padding: 20px; background: white;">
+                    <h2 style="color: #166534; margin-bottom: 20px; text-align: center; border-bottom: 2px solid #166534; padding-bottom: 10px;">بيانات خدام مدرسة القديس ديديموس</h2>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr style="background: #f1f5f9; color: #334155;">
+                                <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">الاسم</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">الكينونة</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">التكليفات (المادة والفصل)</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">التليفون</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">تاريخ الميلاد</th>
+                                <th style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">أب الاعتراف</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            const container = document.createElement('div');
+            container.innerHTML = printHtml;
+            document.body.appendChild(container);
+
+            // Temporarily show loading text on button
+            const btn = document.querySelector('button[onclick="exportToPDF()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ جاري استخراج PDF...';
+            btn.disabled = true;
+
+            const opt = {
+                margin:       10,
+                filename:     'Servants_Directory.pdf',
+                image:        { type: 'jpeg', quality: 1.0 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().set(opt).from(container).save().then(() => {
+                document.body.removeChild(container);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
     </script>
     <script src="/js/layout.js"></script>
 </body>

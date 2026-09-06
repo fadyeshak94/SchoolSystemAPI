@@ -167,12 +167,22 @@
                         
                         html += `
                             <div class="student-upload-card" id="student_card_${student.id}">
-                                <div style="margin-bottom: 5px;">
-                                    <input type="text" id="rank_input_${student.id}" value="${stuObj.rankName}" style="text-align: center; font-weight: bold; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; width: 90%; background-color: ${stuObj.color}; color: white; font-size: 12px;">
+                                <div style="margin-bottom: 5px; display:flex; gap: 5px;">
+                                    <input type="text" id="rank_input_${student.id}" value="${stuObj.rankName}" style="text-align: center; font-weight: bold; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; width: 60%; font-size: 12px;" title="اسم المركز">
+                                    <select id="color_input_${student.id}" style="padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; width: 40%; font-size: 12px; font-weight:bold;">
+                                        <option value="#f59e0b" ${index === 0 ? 'selected' : ''}>ذهبي</option>
+                                        <option value="#94a3b8" ${index === 1 ? 'selected' : ''}>فضي</option>
+                                        <option value="#b45309" ${index === 2 ? 'selected' : ''}>برونزي</option>
+                                        <option value="#0ea5e9" ${index === 3 ? 'selected' : ''}>أزرق</option>
+                                        <option value="#8b5cf6" ${index === 4 ? 'selected' : ''}>بنفسجي</option>
+                                        <option value="#ec4899" ${index === 5 ? 'selected' : ''}>وردي</option>
+                                    </select>
                                 </div>
                                 <img src="/images/default_avatar.png" class="image-preview" id="preview_${student.id}">
                                 <h4>${student.name}</h4>
-                                <p>النسبة: ${student.percentage.toFixed(1)}% | الدرجة: ${student.total}</p>
+                                <div style="margin-bottom: 10px;">
+                                    <input type="text" id="percent_input_${student.id}" value="${student.percentage.toFixed(1)}%" style="text-align: center; font-weight: bold; padding: 4px; border: 1px solid #cbd5e1; border-radius: 5px; width: 80%; font-size: 12px; color: #7a1f1f;" title="النسبة المئوية">
+                                </div>
                                 <input type="file" accept="image/*" onchange="handleImageUpload(this, ${student.id})" style="font-size: 12px; max-width: 100%; margin-bottom: 10px;">
                                 <button type="button" onclick="document.getElementById('student_card_${student.id}').remove()" style="background: #ef4444; color: white; border: none; border-radius: 5px; padding: 4px 10px; cursor: pointer; width: 100%; font-size: 12px;">❌ استبعاد من البوستر</button>
                             </div>
@@ -230,8 +240,9 @@
                 topStudentsData.forEach(s => {
                     const card = document.getElementById('student_card_' + s.student.id);
                     if (card) {
-                        const newRankName = document.getElementById('rank_input_' + s.student.id).value;
-                        s.rankName = newRankName;
+                        s.rankName = document.getElementById('rank_input_' + s.student.id).value;
+                        s.color = document.getElementById('color_input_' + s.student.id).value;
+                        s.displayPercent = document.getElementById('percent_input_' + s.student.id).value;
                         activeStudents.push(s);
                     }
                 });
@@ -256,7 +267,7 @@
                             <div style="background: ${s.color}; color: white; border-radius: 20px; padding: 6px 15px; font-weight: bold; font-size: 18px; margin-bottom: 15px; display: inline-block;">${s.rankName}</div>
                             <img src="${s.imageSrc}" style="width: ${picSize}; height: ${picSize}; border-radius: 50%; object-fit: cover; border: 4px solid #fdf8ec; display: block; margin: 0 auto 15px auto;">
                             <div style="font-family: 'Aref Ruqaa', serif; font-size: ${nameSize}; color: #1a2744; font-weight: bold; line-height: 1.3; min-height: 50px;">${s.student.name}</div>
-                            <div style="margin-top: 10px; font-size: 20px; color: #7a1f1f; font-weight: bold;">${s.student.percentage.toFixed(1)}%</div>
+                            <div style="margin-top: 10px; font-size: 20px; color: #7a1f1f; font-weight: bold;">${s.displayPercent}</div>
                         </div>
                     `;
                 });
