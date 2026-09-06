@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
-    if (userRole === "Admin" || userRole === "admin" || userRole === "Secretary" || userRole === "StageSupervisor") {
+    if (userRole === "Admin" || userRole === "admin" || userRole === "HeadSecretary" || userRole === "Secretary" || userRole === "StageSupervisor") {
         menuGroups.push({
             title: "الإدارة والهيكل",
             links: [
@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ].filter(l => l !== null)
         });
 
-        if (userRole === "Admin" || userRole === "admin") {
+        if (userRole === "Admin" || userRole === "admin" || userRole === "HeadSecretary") {
             menuGroups.push({
                 title: "النظام والأرشيف",
                 links: [

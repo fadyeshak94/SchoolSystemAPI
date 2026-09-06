@@ -26,7 +26,7 @@ public class StudentsController : ControllerBase
         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
         var userClassId = User.FindFirst("ClassRoomId")?.Value;
 
-        if (userRole != "Admin" && userClassId != classId.ToString())
+        if (userRole != "Admin" && userRole != "HeadSecretary" && userClassId != classId.ToString())
         {
             return Forbid("ليس لديك صلاحية الوصول لهذا الفصل");
         }

@@ -58,7 +58,7 @@ public class RegistrationsController : ControllerBase
     }
 
     [HttpGet("pending")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> GetPendingRegistrations()
     {
         var pendingList = await _uow.PendingRegistrations.FindAsync(p => p.Status == "Pending" || p.Status == "Waitlisted");
@@ -118,7 +118,7 @@ public class RegistrationsController : ControllerBase
     }
 
     [HttpPost("{id}/approve")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> ApproveRegistration(int id, [FromBody] ApproveRequestDto dto)
     {
         var pending = await _uow.PendingRegistrations.GetByIdAsync(id);
@@ -218,7 +218,7 @@ public class RegistrationsController : ControllerBase
     }
 
     [HttpPost("{id}/reject")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> RejectRegistration(int id)
     {
         var pending = await _uow.PendingRegistrations.GetByIdAsync(id);
@@ -234,7 +234,7 @@ public class RegistrationsController : ControllerBase
     }
 
     [HttpPost("approve-bulk")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> ApproveBulkRegistrations([FromBody] BulkApproveRequestDto dto)
     {
         if (dto.Ids == null || !dto.Ids.Any())

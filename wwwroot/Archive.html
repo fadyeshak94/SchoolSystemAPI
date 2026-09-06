@@ -104,7 +104,7 @@
     <script src="/js/app.js"></script>
     <script>
       window.onload = async () => {
-          requireRole('Admin');
+          requireRole('Admin', 'HeadSecretary');
           await loadArchivedYears();
       };
 

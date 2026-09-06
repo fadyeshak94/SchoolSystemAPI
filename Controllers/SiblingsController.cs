@@ -8,7 +8,7 @@ namespace SchoolSystemAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,HeadSecretary")]
 public class SiblingsController : ControllerBase
 {
     private readonly IUnitOfWork _uow;

@@ -20,7 +20,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin")] // للأدمن فقط
+    [Authorize(Roles = "Admin,HeadSecretary")] // للأدمن وأمين السكرتارية
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _uow.Users.FindAsync(u => true);
@@ -53,7 +53,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> AddUser([FromBody] AddUserDto dto)
     {
         var existingUser = await _uow.Users.FindAsync(u => u.Username.ToLower() == dto.Username.ToLower());
@@ -87,7 +87,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{username}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> UpdateUser(string username, [FromBody] UpdateUserDto dto)
     {
         var users = await _uow.Users.FindAsync(u => u.Username.ToLower() == username.ToLower());
@@ -145,7 +145,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{username}/password")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> SetPassword(string username, [FromBody] SetPasswordDto dto)
     {
         var users = await _uow.Users.FindAsync(u => u.Username.ToLower() == username.ToLower());
@@ -187,7 +187,12 @@ public class UsersController : ControllerBase
         var allClassRooms = await _uow.ClassRooms.FindAsync(c => true);
 
         // الأدمن لديه الرؤية الشاملة لكامل النظام
-        if (role == "Admin" || role == "User")
+        if (role == "Admin" || role == "HeadSecretary")
+        {
+            return Ok(new { success = true, classes = allClassRooms.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
+        }
+
+        if (role == "User")
         {
             if (!string.IsNullOrEmpty(classIdStr) && int.TryParse(classIdStr, out int directClassId))
             {
@@ -197,7 +202,6 @@ public class UsersController : ControllerBase
                     return Ok(new { success = true, classes = filtered.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
                 }
             }
-
             return Ok(new { success = true, classes = allClassRooms.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
         }
 

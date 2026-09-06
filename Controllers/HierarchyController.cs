@@ -319,7 +319,7 @@ public class HierarchyController : ControllerBase
     }
 
     [HttpPost("assign-trustee")]
-    [Authorize(Roles = "Admin")] // للأدمن / مجلس الإدارة فقط
+    [Authorize(Roles = "Admin,HeadSecretary")] // للأدمن / مجلس الإدارة فقط
     public async Task<IActionResult> AssignTrustee([FromBody] AssignTrusteeDto dto)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.UserId);
@@ -339,7 +339,7 @@ public class HierarchyController : ControllerBase
     }
 
     [HttpPost("set-title")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> SetUserTitle([FromBody] SetTitleDto dto)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.UserId);

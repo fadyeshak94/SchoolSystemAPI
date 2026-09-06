@@ -79,7 +79,7 @@
         let pendingRequests = [];
 
         window.onload = async () => {
-            requireRole('Admin');
+            requireRole('Admin', 'HeadSecretary');
             
             try {
                 // Fetch classes for the dropdown

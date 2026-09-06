@@ -7,7 +7,7 @@ namespace SchoolSystemAPI.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Admin,HeadSecretary")]
 public class ReportsController : ControllerBase
 {
     private readonly IUnitOfWork _uow;
