@@ -9,6 +9,7 @@ public class Student
     public string GovGrade { get; set; } = string.Empty; // السنة الحكومية
     public string PhonesJson { get; set; } = "[]"; // الهواتف كـ JSON
     public decimal AmountPaid { get; set; } // المصروفات المدفوعة
+    public bool HasHalfDiscount { get; set; } // خصم 50%
     
     public int ClassRoomId { get; set; } 
     public ClassRoom ClassRoom { get; set; } = null!;

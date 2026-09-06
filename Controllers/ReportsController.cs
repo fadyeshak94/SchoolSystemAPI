@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 
@@ -139,5 +140,36 @@ public class ReportsController : ControllerBase
         });
 
         return Ok(new { success = true, reports = result });
+    }
+
+    [HttpGet("daily-revenue")]
+    public async Task<IActionResult> GetDailyRevenue([FromQuery] string? from, [FromQuery] string? to)
+    {
+        var query = _uow.SubscriptionPayments.GetQueryable();
+        
+        if (!string.IsNullOrEmpty(from) && DateTime.TryParse(from, out DateTime fromDate))
+        {
+            query = query.Where(p => p.PaymentDate >= fromDate.Date);
+        }
+        
+        if (!string.IsNullOrEmpty(to) && DateTime.TryParse(to, out DateTime toDate))
+        {
+            var endOfDay = toDate.Date.AddDays(1).AddTicks(-1);
+            query = query.Where(p => p.PaymentDate <= endOfDay);
+        }
+
+        var payments = await query.ToListAsync();
+
+        var dailyTotals = payments
+            .GroupBy(p => p.PaymentDate.Date)
+            .Select(g => new
+            {
+                Date = g.Key.ToString("yyyy-MM-dd"),
+                TotalAmount = g.Sum(p => p.Amount)
+            })
+            .OrderByDescending(r => r.Date)
+            .ToList();
+
+        return Ok(new { success = true, data = dailyTotals });
     }
 }

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>💰 المحاسبة المالية</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .table-container { width: 100%; overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #eee; margin-top: 20px; box-shadow: var(--box-shadow); }
+        table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f8fafc; color: #334155; font-weight: bold; }
+        tr:hover { background: #f1f5f9; }
+        
+        .badge { display: inline-block; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; }
+        .badge-approved { background: #dcfce7; color: #166534; }
+        .badge-pending { background: #fef9c3; color: #854d0e; }
+        .badge-waitlist { background: #fee2e2; color: #991b1b; }
+        
+        .action-btn { padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 12px; transition: opacity 0.2s; }
+        .action-btn:hover { opacity: 0.9; }
+        .btn-toggle { background: var(--primary); }
+        .btn-untoggle { background: #64748b; }
+        
+        .search-box { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .search-box input, .search-box select { padding: 10px; border: 1px solid #ccc; border-radius: 8px; flex: 1; min-width: 150px; font-family: inherit; }
+        .btn-search { padding: 10px 20px; background: #3b82f6; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; }
+        
+        .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .summary-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #eee; box-shadow: var(--box-shadow); text-align: center; }
+        .summary-card h4 { margin: 0 0 10px 0; color: #64748b; font-size: 14px; }
+        .summary-card .value { font-size: 24px; font-weight: bold; }
+        .val-success { color: var(--success); }
+        .val-danger { color: var(--danger); }
+        .val-warning { color: #f59e0b; }
+        
+        .empty-state { text-align: center; padding: 40px; color: #64748b; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="card" style="padding: 25px;">
+        <h3 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px;">💰</span> المحاسبة المالية
+        </h3>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            تتبع مدفوعات الطلاب (مقبولين ومعلقين)، وإمكانية تطبيق خصم 50% على المصروفات المطلوبة للمرحلة.
+        </p>
+
+        <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
+
+        <div class="search-box">
+            <input type="text" id="filterName" placeholder="الاسم" oninput="filterData()">
+            <select id="filterStatus" onchange="filterData()">
+                <option value="">جميع الحالات</option>
+                <option value="Approved">مقبول</option>
+                <option value="Pending">معلق</option>
+                <option value="Waitlisted">قائمة انتظار</option>
+            </select>
+            <select id="filterClass" onchange="filterData()">
+                <option value="">جميع الفصول</option>
+            </select>
+            <button class="btn-search" onclick="loadFinancialData()">🔄 تحديث البيانات</button>
+        </div>
+
+        <div class="summary-cards" id="summaryCards" style="display:none;">
+            <div class="summary-card">
+                <h4>إجمالي المُحصَّل (المدفوع)</h4>
+                <div class="value val-success" id="sumCollected">0 ج.م</div>
+            </div>
+            <div class="summary-card">
+                <h4>إجمالي المتبقي</h4>
+                <div class="value val-danger" id="sumRemaining">0 ج.م</div>
+            </div>
+            <div class="summary-card">
+                <h4>إجمالي قيمة الخصومات</h4>
+                <div class="value val-warning" id="sumDiscounts">0 ج.م</div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>المرحلة / الفصل</th>
+                        <th>حالة الطلب</th>
+                        <th>المصاريف المطلوبة</th>
+                        <th>خصم 50%</th>
+                        <th>المصاريف بعد الخصم</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th style="text-align:center;">إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="9" class="empty-state">جاري التحميل...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let financialData = [];
+        let filteredData = [];
+
+        window.onload = () => {
+            requireRole('Admin', 'StageSupervisor', 'Secretary', 'HeadSecretary');
+            loadFinancialData();
+        };
+
+        async function loadFinancialData() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '<tr><td colspan="9" class="empty-state">جاري التحميل...</td></tr>';
+            
+            try {
+                const res = await fetchApi('/financial');
+                if (res && res.success) {
+                    financialData = res.data;
+                    populateClassDropdown();
+                    filterData();
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color:var(--danger);">❌ خطأ في تحميل البيانات</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="9" class="empty-state" style="color:var(--danger);">❌ خطأ في الاتصال بالخادم</td></tr>`;
+            }
+        }
+
+        function populateClassDropdown() {
+            const classSelect = document.getElementById('filterClass');
+            // Keep the first option
+            classSelect.innerHTML = '<option value="">جميع الفصول</option>';
+            
+            const uniqueClasses = [...new Set(financialData.map(item => item.className).filter(Boolean))].sort();
+            uniqueClasses.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                classSelect.appendChild(opt);
+            });
+        }
+
+        function filterData() {
+            const nameFilter = document.getElementById('filterName').value.toLowerCase();
+            const statusFilter = document.getElementById('filterStatus').value;
+            const classFilter = document.getElementById('filterClass').value;
+
+            filteredData = financialData.filter(item => {
+                let match = true;
+                
+                if (nameFilter && !item.name.toLowerCase().includes(nameFilter)) match = false;
+                
+                if (statusFilter) {
+                    if (statusFilter === "Approved" && item.type !== "Approved") match = false;
+                    if (statusFilter === "Pending" && (item.type !== "Pending" || item.status !== "معلق")) match = false;
+                    if (statusFilter === "Waitlisted" && item.status !== "قائمة انتظار") match = false;
+                }
+
+                if (classFilter && item.className !== classFilter) match = false;
+
+                return match;
+            });
+
+            renderData();
+            renderSummary();
+        }
+
+        function renderSummary() {
+            let collected = 0;
+            let remaining = 0;
+            let discounts = 0;
+
+            filteredData.forEach(item => {
+                // فقط للمعلق والموافق عليه (تجاهل قائمة الانتظار)
+                if (item.status === "قائمة انتظار") return;
+                
+                collected += parseFloat(item.amountPaid || 0);
+                remaining += parseFloat(item.remaining || 0);
+                
+                // قيمة الخصم هي الفرق بين المصاريف المطلوبة الأصلية والمصاريف بعد الخصم
+                discounts += (parseFloat(item.requiredFee || 0) - parseFloat(item.finalRequiredFee || 0));
+            });
+
+            document.getElementById('sumCollected').textContent = collected.toLocaleString('en-US') + ' ج.م';
+            document.getElementById('sumRemaining').textContent = remaining.toLocaleString('en-US') + ' ج.م';
+            document.getElementById('sumDiscounts').textContent = discounts.toLocaleString('en-US') + ' ج.م';
+            document.getElementById('summaryCards').style.display = 'grid';
+        }
+
+        function renderData() {
+            const tbody = document.getElementById('tableBody');
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state">لا توجد بيانات تطابق بحثك</td></tr>';
+                return;
+            }
+
+            let html = '';
+            filteredData.forEach(item => {
+                let statusBadge = '';
+                if (item.type === "Approved") {
+                    statusBadge = `<span class="badge badge-approved">مقبول</span>`;
+                } else {
+                    if (item.status === "قائمة انتظار") {
+                        statusBadge = `<span class="badge badge-waitlist">قائمة انتظار</span>`;
+                    } else {
+                        statusBadge = `<span class="badge badge-pending">معلق</span>`;
+                    }
+                }
+
+                const discountBadge = item.hasHalfDiscount 
+                    ? `<span style="color:var(--success); font-weight:bold;">نعم</span>` 
+                    : `<span style="color:var(--text-muted);">لا</span>`;
+
+                let remainingStyle = item.remaining > 0 ? 'color:var(--danger); font-weight:bold;' : 'color:var(--success); font-weight:bold;';
+
+                html += `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${item.name}</td>
+                        <td>${item.stage} <br> <small style="color:var(--text-muted);">${item.className}</small></td>
+                        <td>${statusBadge}</td>
+                        <td style="font-weight:bold;">${item.requiredFee} ج.م</td>
+                        <td>${discountBadge}</td>
+                        <td style="color:var(--primary); font-weight:bold;">${item.finalRequiredFee} ج.م</td>
+                        <td style="color:var(--success); font-weight:bold;">${item.amountPaid} ج.م</td>
+                        <td style="${remainingStyle}">${item.remaining} ج.م</td>
+                        <td style="text-align:center;">
+                            <button class="action-btn ${item.hasHalfDiscount ? 'btn-untoggle' : 'btn-toggle'}" onclick="toggleDiscount('${item.type}', ${item.id})">
+                                ${item.hasHalfDiscount ? '❌ إلغاء الخصم' : '✔️ تطبيق خصم 50%'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        async function toggleDiscount(type, id) {
+            if (!confirm('هل أنت متأكد من تغيير حالة الخصم لهذا الطالب؟')) return;
+
+            try {
+                const res = await fetchApi(`/financial/${type}/${id}/discount`, 'POST');
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', `✅ ${res.message}`);
+                    loadFinancialData();
+                } else {
+                    showStatus('statusBar', 'error', `❌ ${res?.message || 'فشل التعديل'}`);
+                }
+            } catch (e) {
+                showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

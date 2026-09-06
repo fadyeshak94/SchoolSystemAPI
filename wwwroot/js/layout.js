@@ -53,7 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 { path: "/SubjectGrades.html", icon: "✏️", text: "رصد الدرجات" },
                 { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
                 { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
-                { path: "/Certificates.html", icon: "🎓", text: "الشهادات" }
+                { path: "/Certificates.html", icon: "🎓", text: "الشهادات" },
+                { path: "/TopStudentsPoster.html", icon: "🖼️", text: "بوستر الأوائل" }
             ]
         }
     ];
@@ -65,6 +66,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 (userRole !== "Secretary") ? { path: "/SchoolHierarchy.html", icon: "🏢", text: "الهيكل الإداري والمدرسي" } : null,
                 { path: "/ServantsDirectory.html", icon: "📖", text: "دليل الخدام" },
                 { path: "/ManageRegistrations.html", icon: "📋", text: "إدارة التسجيلات" },
+                { path: "/Financial.html", icon: "💰", text: "المحاسبة المالية" },
+                { path: "/DailyRevenue.html", icon: "📊", text: "تقرير التحصيل اليومي" },
                 (userRole !== "Secretary") ? { path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" } : null,
                 { path: "/Siblings.html", icon: "👨‍👩‍👧‍👦", text: "إدارة الإخوة" },
                 { path: "/StudentsStatus.html", icon: "📊", text: "حالة الطلاب" },

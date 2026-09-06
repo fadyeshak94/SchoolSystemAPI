@@ -161,9 +161,10 @@
                             </select>
                             <input type="hidden" id="class-text-${req.id}" value="${classText}">
                         </td>
-                        <td style="text-align:center; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width: 200px;">
+                        <td style="text-align:center; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width: 250px;">
                             <button class="action-btn btn-approve" onclick="approveRequest(${req.id})">✔️ موافقة</button>
                             <button class="action-btn btn-reject" onclick="rejectRequest(${req.id})">❌ رفض</button>
+                            <button class="action-btn" style="background:#f59e0b; color:white;" onclick="openEditModal(${req.id})">✏️ تعديل</button>
                             ${phoneNum ? `<button class="action-btn btn-whatsapp" onclick="sendWhatsapp('${phoneNum}', '${req.name}', ${req.id}, '${waStatus}')">💬 واتساب</button>` : ''}
                         </td>
                     </tr>
@@ -237,10 +238,10 @@
             
             try {
                 const res = await fetchApi(`/registrations/${id}/approve`, 'POST', { classId: classId });
+                fetchApi(`/registrations/pending/${id}/whatsapp`, 'POST').then(() => {}).catch(() => {});
                 if (res && res.success) {
                     showStatus('statusBar', 'success', `✅ ${res.message}`);
                     document.getElementById(`req-row-${id}`).style.display = 'none';
-                    // Optional: remove from array
                     pendingRequests = pendingRequests.filter(r => r.id !== id);
                 } else {
                     showStatus('statusBar', 'error', `❌ خطأ: ${res?.message || 'فشل الموافقة على الطلب'}`);
@@ -266,7 +267,91 @@
                 showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
             }
         }
+        let editingId = null;
+        function openEditModal(id) {
+            const req = pendingRequests.find(r => r.id === id);
+            if (!req) return;
+            editingId = id;
+            document.getElementById('editName').value = req.name;
+            document.getElementById('editGender').value = req.gender;
+            document.getElementById('editGovGrade').value = req.govGrade || '';
+            document.getElementById('editAmountPaid').value = req.amountPaid;
+            
+            let phone = '';
+            if (req.phonesJson) {
+                try {
+                    const pArr = JSON.parse(req.phonesJson);
+                    if (pArr.length > 0) phone = pArr[0];
+                } catch(e) {}
+            }
+            document.getElementById('editPhone').value = phone;
+
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            editingId = null;
+        }
+
+        async function saveEditRequest() {
+            if (!editingId) return;
+            const payload = {
+                Name: document.getElementById('editName').value,
+                Gender: document.getElementById('editGender').value,
+                GovGrade: document.getElementById('editGovGrade').value,
+                AmountPaid: parseFloat(document.getElementById('editAmountPaid').value || '0'),
+                Phone1: document.getElementById('editPhone').value
+            };
+            
+            try {
+                const res = await fetchApi(`/registrations/pending/${editingId}`, 'PUT', payload);
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', '✅ ' + res.message);
+                    closeEditModal();
+                    loadPendingRequests();
+                } else {
+                    showStatus('statusBar', 'error', '❌ ' + (res?.message || 'حدث خطأ أثناء التعديل'));
+                }
+            } catch (err) {
+                showStatus('statusBar', 'error', '❌ خطأ في الاتصال');
+            }
+        }
     </script>
     <script src="/js/layout.js"></script>
+
+    <!-- Modal for Edit -->
+    <div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+        <div style="background:white; padding:20px; border-radius:15px; width:400px; max-width:90%;">
+            <h3>✏️ تعديل بيانات الطلب</h3>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label>الاسم:</label>
+                <input type="text" id="editName" class="class-select" style="width:100%; padding:8px;">
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label>النوع:</label>
+                <select id="editGender" class="class-select" style="width:100%; padding:8px;">
+                    <option value="Male">ذكر</option>
+                    <option value="Female">أنثى</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label>السنة الحكومية:</label>
+                <input type="text" id="editGovGrade" class="class-select" style="width:100%; padding:8px;">
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label>التليفون:</label>
+                <input type="text" id="editPhone" class="class-select" style="width:100%; padding:8px;">
+            </div>
+            <div class="form-group" style="margin-bottom:10px;">
+                <label>المبلغ المدفوع:</label>
+                <input type="number" id="editAmountPaid" class="class-select" style="width:100%; padding:8px;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-primary" style="flex:1" onclick="saveEditRequest()">💾 حفظ</button>
+                <button class="btn btn-reject" style="flex:1; background: #64748b;" onclick="closeEditModal()">❌ إلغاء</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

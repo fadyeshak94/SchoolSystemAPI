@@ -96,19 +96,23 @@ public class StudentsController : ControllerBase
         if (phonesList.Any()) 
             student.PhonesJson = System.Text.Json.JsonSerializer.Serialize(phonesList);
         
+        decimal amountDifference = 0;
         if (dto.AmountPaid.HasValue)
+        {
+            amountDifference = dto.AmountPaid.Value - student.AmountPaid;
             student.AmountPaid = dto.AmountPaid.Value;
+        }
 
         if (dto.ClassId.HasValue)
             student.ClassRoomId = dto.ClassId.Value;
 
         _uow.Students.Update(student);
-        if (dto.AmountPaid.HasValue && dto.AmountPaid.Value > 0)
+        if (amountDifference > 0)
         {
             await _uow.SubscriptionPayments.AddAsync(new SubscriptionPayment {
                 StudentId = student.Id,
                 IsNewStudent = false,
-                Amount = dto.AmountPaid.Value,
+                Amount = amountDifference,
                 PaymentDate = DateTime.UtcNow
             });
         }

@@ -72,12 +72,14 @@
 
         async function loadFees() {
             const fees = await fetchApi('/settings/fees');
-            // List of default stages to show if the DB is empty
-            const defaultStages = ["ابتدائي أ", "ابتدائي ب", "ابتدائي ج", "اعدادي", "ثانوي"];
+            // List of default stages to show
+            const defaultStages = ["حضانة", "ابتدائي أ", "ابتدائي ب", "ابتدائي ج", "اعدادي", "ثانوي"];
             let html = '';
             
             let stageKeys = fees ? Object.keys(fees) : [];
-            if(stageKeys.length === 0) stageKeys = defaultStages;
+            defaultStages.forEach(ds => {
+                if (!stageKeys.includes(ds)) stageKeys.push(ds);
+            });
 
             stageKeys.forEach(stage => {
                 let amount = fees && fees[stage] ? fees[stage] : 0;

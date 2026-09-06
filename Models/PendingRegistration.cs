@@ -28,6 +28,8 @@ public class PendingRegistration
 
     public decimal AmountPaid { get; set; }
 
+    public bool HasHalfDiscount { get; set; }
+
     public bool IsRenewal { get; set; }
 
     [MaxLength(50)]

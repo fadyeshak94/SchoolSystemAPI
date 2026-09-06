@@ -10,6 +10,8 @@ public interface IRepository<T> where T : class
     Task AddAsync(T entity);
     void Update(T entity);
     void Remove(T entity);
+    IQueryable<T> GetQueryable();
+    Task<IEnumerable<T>> GetAllAsync();
 }
 
 public class Repository<T> : IRepository<T> where T : class
@@ -46,5 +48,15 @@ public class Repository<T> : IRepository<T> where T : class
     public void Remove(T entity)
     {
         _dbSet.Remove(entity);
+    }
+
+    public IQueryable<T> GetQueryable()
+    {
+        return _dbSet.AsQueryable();
+    }
+
+    public async Task<IEnumerable<T>> GetAllAsync()
+    {
+        return await _dbSet.ToListAsync();
     }
 }

@@ -160,6 +160,7 @@ public class RegistrationsController : ControllerBase
                 student.PhonesJson = pending.PhonesJson;
 
             student.AmountPaid = pending.AmountPaid;
+            student.HasHalfDiscount = pending.HasHalfDiscount;
 
             _uow.Students.Update(student);
         }
@@ -192,7 +193,8 @@ public class RegistrationsController : ControllerBase
                 GovGrade = pending.GovGrade,
                 ClassRoomId = pending.ClassId,
                 PhonesJson = pending.PhonesJson,
-                AmountPaid = pending.AmountPaid
+                AmountPaid = pending.AmountPaid,
+                HasHalfDiscount = pending.HasHalfDiscount
             };
 
             await _uow.Students.AddAsync(student);
@@ -231,6 +233,35 @@ public class RegistrationsController : ControllerBase
         await _uow.CompleteAsync();
 
         return Ok(new { success = true, message = "تم رفض الطلب بنجاح" });
+    }
+
+    [HttpPut("pending/{id}")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
+    public async Task<IActionResult> UpdatePendingRegistration(int id, [FromBody] UpdatePendingDto dto)
+    {
+        var pending = await _uow.PendingRegistrations.GetByIdAsync(id);
+        if (pending == null)
+            return NotFound(new { success = false, message = "الطلب غير موجود" });
+
+        pending.Name = dto.Name ?? pending.Name;
+        pending.Gender = dto.Gender ?? pending.Gender;
+        pending.GovGrade = dto.GovGrade ?? pending.GovGrade;
+        if (dto.ClassId.HasValue) pending.ClassId = dto.ClassId.Value;
+        if (dto.AmountPaid.HasValue) pending.AmountPaid = dto.AmountPaid.Value;
+        if (dto.IsDeacon.HasValue) pending.IsDeacon = dto.IsDeacon.Value;
+        
+        if (!string.IsNullOrWhiteSpace(dto.Phone1) || !string.IsNullOrWhiteSpace(dto.Phone2))
+        {
+            var phonesList = new List<PhoneObj>();
+            if (!string.IsNullOrWhiteSpace(dto.Phone1)) phonesList.Add(new PhoneObj { number = dto.Phone1, whatsapp = true });
+            if (!string.IsNullOrWhiteSpace(dto.Phone2)) phonesList.Add(new PhoneObj { number = dto.Phone2, whatsapp = true });
+            pending.PhonesJson = System.Text.Json.JsonSerializer.Serialize(phonesList);
+        }
+
+        _uow.PendingRegistrations.Update(pending);
+        await _uow.CompleteAsync();
+
+        return Ok(new { success = true, message = "تم تعديل الطلب بنجاح" });
     }
 
     [HttpPost("approve-bulk")]
@@ -351,6 +382,18 @@ public class RegistrationRequestDto
 public class ApproveRequestDto
 {
     public int? ClassId { get; set; }
+}
+
+public class UpdatePendingDto
+{
+    public string? Name { get; set; }
+    public string? Gender { get; set; }
+    public string? GovGrade { get; set; }
+    public int? ClassId { get; set; }
+    public decimal? AmountPaid { get; set; }
+    public bool? IsDeacon { get; set; }
+    public string? Phone1 { get; set; }
+    public string? Phone2 { get; set; }
 }
 
 public class BulkApproveRequestDto
