@@ -139,6 +139,9 @@
                 <select id="classSelect" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:250px;">
                     <option value="">جاري التحميل...</option>
                 </select>
+                <select id="academicYearSelect" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:150px;">
+                    <option value="">السنة (الافتراضية)</option>
+                </select>
             </div>
             <div style="display:flex; align-items:flex-end;">
                 <button class="btn btn-search" onclick="loadClass()">📂 عرض كارنيهات الفصل</button>
@@ -195,6 +198,7 @@
                         select.lastChild.appendChild(opt);
                     });
                 }
+                loadAcademicYearsDropdown('academicYearSelect');
             } catch (e) { console.error(e); }
         };
 
@@ -262,6 +266,7 @@
 
         async function loadClass() {
             const classId = document.getElementById('classSelect').value;
+            const academicYear = document.getElementById('academicYearSelect').value;
             const status = document.getElementById('status');
             const container = document.getElementById('cardsContainer');
             const btn = document.getElementById('printBtn');
@@ -277,7 +282,10 @@
             btn.style.display = 'none';
 
             try {
-                const res = await fetchApi(`/students/class/${classId}`);
+                let url = `/students/class/${classId}`;
+                if (academicYear) url += `?academicYear=${encodeURIComponent(academicYear)}`;
+                
+                const res = await fetchApi(url);
                 if (res && res.students && res.students.length > 0) {
                     let html = '';
                     res.students.forEach(s => {

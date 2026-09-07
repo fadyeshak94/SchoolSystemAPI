@@ -37,6 +37,7 @@
         </p>
 
         <div class="filter-container">
+            <select id="academicYearSelect" class="filter-select" onchange="loadReport()"></select>
             <select id="stageFilter" class="filter-select" onchange="filterClasses()">
                 <option value="">-- كل المراحل --</option>
             </select>
@@ -75,6 +76,7 @@
 
         window.onload = async () => {
             requireRole('Admin');
+            loadAcademicYearsDropdown('academicYearSelect');
             
             try {
                 const classRes = await fetchApi('/users/me/classes');
@@ -122,6 +124,10 @@
             let url = '/students/status-report';
             if (classId) {
                 url += `?classId=${classId}`;
+            }
+            const academicYear = document.getElementById('academicYearSelect')?.value || '';
+            if (academicYear) {
+                url += (url.includes('?') ? '&' : '?') + `academicYear=${encodeURIComponent(academicYear)}`;
             }
 
             try {

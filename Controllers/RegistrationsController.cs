@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 
@@ -66,7 +67,7 @@ public class RegistrationsController : ControllerBase
         var classMap = classRooms.ToDictionary(c => c.Id, c => c.Name);
         
         var studentIds = pendingList.Where(p => p.StudentId.HasValue).Select(p => p.StudentId.Value).ToList();
-        var students = await _uow.Students.FindAsync(s => studentIds.Contains(s.Id));
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).Where(s => studentIds.Contains(s.Id)).ToListAsync();
         
         var studentsArchive = await _uow.StudentArchives.FindAsync(sa => studentIds.Contains(sa.OriginalStudentId));
         
@@ -91,7 +92,8 @@ public class RegistrationsController : ControllerBase
                     if (student != null)
                     {
                         prevYear = currentYear;
-                        prevClass = classMap.ContainsKey(student.ClassRoomId) ? classMap[student.ClassRoomId] : "-";
+                        var cId = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0;
+                        prevClass = classMap.ContainsKey(cId) ? classMap[cId] : "-";
                     }
                 }
             }
@@ -132,7 +134,7 @@ public class RegistrationsController : ControllerBase
         }
 
         // Check capacity
-        var studentsInClass = await _uow.Students.FindAsync(s => s.ClassRoomId == pending.ClassId);
+        var studentsInClass = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == pending.ClassId)).ToListAsync();
         if (studentsInClass.Count() >= 35)
         {
             pending.Status = "Waitlisted";
@@ -141,11 +143,14 @@ public class RegistrationsController : ControllerBase
             return BadRequest(new { success = false, message = "الفصل مكتمل العدد (35 طالب أو أكثر). تم تحويل الطلب إلى قائمة الانتظار (Waitlist)." });
         }
 
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var currentYear = appSettings?.AcademicYear ?? "2024/2025";
+
         Student student;
 
         if (pending.IsRenewal && pending.StudentId.HasValue)
         {
-            student = await _uow.Students.GetByIdAsync(pending.StudentId.Value);
+            student = await _uow.Students.GetQueryable().Include(s => s.Enrollments).FirstOrDefaultAsync(s => s.Id == pending.StudentId.Value);
             if (student == null)
             {
                 return BadRequest(new { success = false, message = "الطالب الأصلي غير موجود" });
@@ -155,7 +160,16 @@ public class RegistrationsController : ControllerBase
             student.Gender = pending.Gender;
             student.IsDeacon = pending.IsDeacon;
             student.GovGrade = pending.GovGrade;
-            student.ClassRoomId = pending.ClassId;
+            var enrollment = student.Enrollments?.FirstOrDefault(e => e.AcademicYear == currentYear);
+            if (enrollment != null) 
+            {
+                enrollment.ClassRoomId = pending.ClassId;
+            }
+            else 
+            {
+                if (student.Enrollments == null) student.Enrollments = new List<StudentEnrollment>();
+                student.Enrollments.Add(new StudentEnrollment { ClassRoomId = pending.ClassId, AcademicYear = currentYear });
+            }
             if (!string.IsNullOrWhiteSpace(pending.PhonesJson) && pending.PhonesJson != "[]")
                 student.PhonesJson = pending.PhonesJson;
 
@@ -191,7 +205,7 @@ public class RegistrationsController : ControllerBase
                 Gender = pending.Gender,
                 IsDeacon = pending.IsDeacon,
                 GovGrade = pending.GovGrade,
-                ClassRoomId = pending.ClassId,
+                Enrollments = new List<StudentEnrollment> { new StudentEnrollment { ClassRoomId = pending.ClassId, AcademicYear = currentYear } },
                 PhonesJson = pending.PhonesJson,
                 AmountPaid = pending.AmountPaid,
                 HasHalfDiscount = pending.HasHalfDiscount
@@ -274,6 +288,9 @@ public class RegistrationsController : ControllerBase
         int approvedCount = 0;
         int waitlistedCount = 0;
 
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var currentYear = appSettings?.AcademicYear ?? "2024/2025";
+
         foreach (var id in dto.Ids)
         {
             // Call the same logic, but we must do it manually here to avoid HTTP overhead
@@ -282,7 +299,7 @@ public class RegistrationsController : ControllerBase
             if (pending == null || (pending.Status != "Pending" && pending.Status != "Waitlisted"))
                 continue;
 
-            var studentsInClass = await _uow.Students.FindAsync(s => s.ClassRoomId == pending.ClassId);
+            var studentsInClass = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == pending.ClassId)).ToListAsync();
             if (studentsInClass.Count() >= 35)
             {
                 pending.Status = "Waitlisted";
@@ -294,14 +311,20 @@ public class RegistrationsController : ControllerBase
             Student student;
             if (pending.IsRenewal && pending.StudentId.HasValue)
             {
-                student = await _uow.Students.GetByIdAsync(pending.StudentId.Value);
+                student = await _uow.Students.GetQueryable().Include(s => s.Enrollments).FirstOrDefaultAsync(s => s.Id == pending.StudentId.Value);
                 if (student != null)
                 {
                     student.Name = pending.Name;
                     student.Gender = pending.Gender;
                     student.IsDeacon = pending.IsDeacon;
                     student.GovGrade = pending.GovGrade;
-                    student.ClassRoomId = pending.ClassId;
+                    var enrollment = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault();
+                    if (enrollment != null) enrollment.ClassRoomId = pending.ClassId;
+                    else 
+                    {
+                        if (student.Enrollments == null) student.Enrollments = new List<StudentEnrollment>();
+                        student.Enrollments.Add(new StudentEnrollment { ClassRoomId = pending.ClassId, AcademicYear = currentYear });
+                    }
                     if (!string.IsNullOrWhiteSpace(pending.PhonesJson) && pending.PhonesJson != "[]")
                         student.PhonesJson = pending.PhonesJson;
                     student.AmountPaid = pending.AmountPaid;
@@ -336,7 +359,7 @@ public class RegistrationsController : ControllerBase
                     Gender = pending.Gender,
                     IsDeacon = pending.IsDeacon,
                     GovGrade = pending.GovGrade,
-                    ClassRoomId = pending.ClassId,
+                    Enrollments = new List<StudentEnrollment> { new StudentEnrollment { ClassRoomId = pending.ClassId, AcademicYear = currentYear } },
                     PhonesJson = pending.PhonesJson,
                     AmountPaid = pending.AmountPaid
                 };

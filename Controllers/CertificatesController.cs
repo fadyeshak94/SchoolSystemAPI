@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Services;
 
@@ -22,12 +23,12 @@ public class CertificatesController : ControllerBase
     }
 
     [HttpGet("class/{classId}/generate")]
-    public async Task<IActionResult> GenerateClassCertificates(int classId)
+    public async Task<IActionResult> GenerateClassCertificates(int classId, [FromQuery] string? academicYear)
     {
         var classRoom = await _uow.ClassRooms.GetByIdAsync(classId);
         if (classRoom == null) return NotFound(new { success = false, message = "الفصل غير موجود" });
 
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var students = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear))).ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
         var allGrades = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
@@ -76,11 +77,12 @@ public class CertificatesController : ControllerBase
     [HttpGet("student/{studentId}/idcard")]
     public async Task<IActionResult> GenerateStudentIdCard(int studentId)
     {
-        var student = await _uow.Students.GetByIdAsync(studentId);
+        var student = await _uow.Students.GetQueryable().Include(s => s.Enrollments).FirstOrDefaultAsync(s => s.Id == studentId);
         if (student == null) return NotFound(new { success = false, message = "الطالب غير موجود" });
 
-        var classRoom = await _uow.ClassRooms.GetByIdAsync(student.ClassRoomId);
-        student.ClassRoom = classRoom; // Ensure navigation property is populated for the service
+        var cId = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0;
+        var classRoom = await _uow.ClassRooms.GetByIdAsync(cId);
+        // student.ClassRoom = classRoom; // Removed because ClassRoom property no longer exists
 
         var settings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
         string academicYear = settings?.AcademicYear ?? "2026-2027";
@@ -99,21 +101,21 @@ public class CertificatesController : ControllerBase
     }
 
     [HttpGet("class/{classId}/idcards")]
-    public async Task<IActionResult> GenerateClassIdCards(int classId)
+    public async Task<IActionResult> GenerateClassIdCards(int classId, [FromQuery] string? academicYear)
     {
         var classRoom = await _uow.ClassRooms.GetByIdAsync(classId);
         if (classRoom == null) return NotFound(new { success = false, message = "الفصل غير موجود" });
 
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var students = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear))).ToListAsync();
         if (!students.Any()) return BadRequest(new { success = false, message = "لا يوجد طلاب في هذا الفصل" });
 
-        foreach (var s in students) s.ClassRoom = classRoom;
+        // foreach (var s in students) s.ClassRoom = classRoom;
 
         var settings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
-        string academicYear = settings?.AcademicYear ?? "2026-2027";
+        string resolvedAcademicYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (settings?.AcademicYear ?? "2026-2027");
 
         var documentService = HttpContext.RequestServices.GetRequiredService<IDocumentService>();
-        var zipBytes = documentService.GenerateClassIdCardsZip(students, academicYear);
+        var zipBytes = documentService.GenerateClassIdCardsZip(students, resolvedAcademicYear);
         var base64 = Convert.ToBase64String(zipBytes);
 
         return Ok(new 

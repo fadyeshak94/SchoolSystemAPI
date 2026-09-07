@@ -19,13 +19,16 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetDashboardStats()
+    public async Task<IActionResult> GetDashboardStats([FromQuery] string? academicYear)
     {
         var role = User.FindFirst(ClaimTypes.Role)?.Value;
         var classIdStr = User.FindFirst("ClassRoomId")?.Value;
         var stageAccess = User.FindFirst("StageAccess")?.Value;
 
-        var allStudents = await _uow.Students.FindAsync(s => true);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var allStudents = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
         var allClasses = await _uow.ClassRooms.FindAsync(c => true);
 
         IEnumerable<Models.Student> students = allStudents;
@@ -37,13 +40,17 @@ public class DashboardController : ControllerBase
             {
                 classes = classes.Where(c => c.Stage == stageAccess);
                 var classIds = classes.Select(c => c.Id).ToList();
-                students = students.Where(s => classIds.Contains(s.ClassRoomId));
+                students = students.Where(s => s.Enrollments != null && s.Enrollments.Any(e => classIds.Contains(e.ClassRoomId) && e.AcademicYear == resolvedYear));
             }
             else if (!string.IsNullOrEmpty(classIdStr) && int.TryParse(classIdStr, out int classId))
             {
                 classes = classes.Where(c => c.Id == classId);
-                students = students.Where(s => s.ClassRoomId == classId);
+                students = students.Where(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear));
             }
+        }
+        else
+        {
+            students = students.Where(s => s.Enrollments != null && s.Enrollments.Any(e => e.AcademicYear == resolvedYear));
         }
 
         return Ok(new
@@ -58,21 +65,29 @@ public class DashboardController : ControllerBase
             {
                 name = c.Name,
                 stage = c.Stage,
-                total = students.Count(s => s.ClassRoomId == c.Id),
-                male = students.Count(s => s.ClassRoomId == c.Id && s.Gender == "ذكر"),
-                female = students.Count(s => s.ClassRoomId == c.Id && s.Gender == "أنثى"),
-                deacon = students.Count(s => s.ClassRoomId == c.Id && s.IsDeacon)
+                total = students.Count(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && e.AcademicYear == resolvedYear)),
+                male = students.Count(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && e.AcademicYear == resolvedYear) && s.Gender == "ذكر"),
+                female = students.Count(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && e.AcademicYear == resolvedYear) && s.Gender == "أنثى"),
+                deacon = students.Count(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && e.AcademicYear == resolvedYear) && s.IsDeacon)
             }).ToList()
         });
     }
 
     [HttpGet("statistics")]
-    public async Task<IActionResult> GetStatistics([FromQuery] int? classId)
+    public async Task<IActionResult> GetStatistics([FromQuery] int? classId, [FromQuery] string? academicYear)
     {
-        var allStudents = await _uow.Students.FindAsync(s => true);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var allStudentsQuery = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
+        var allStudents = allStudentsQuery.AsEnumerable();
         if (classId.HasValue)
         {
-            allStudents = allStudents.Where(s => s.ClassRoomId == classId.Value);
+            allStudents = allStudents.Where(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == classId.Value && e.AcademicYear == resolvedYear));
+        }
+        else
+        {
+            allStudents = allStudents.Where(s => s.Enrollments != null && s.Enrollments.Any(e => e.AcademicYear == resolvedYear));
         }
 
         var studentIds = allStudents.Select(s => s.Id).ToList();
@@ -113,10 +128,13 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("renewals")]
-    public async Task<IActionResult> GetRenewals()
+    public async Task<IActionResult> GetRenewals([FromQuery] string? academicYear)
     {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
         // For demonstration, implementing simple response. Real logic filters passed students.
-        var allStudents = await _uow.Students.FindAsync(s => true);
+        var allStudents = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
         var allClasses = await _uow.ClassRooms.FindAsync(c => true);
 
         var classes = allClasses.Select(c => new
@@ -124,9 +142,9 @@ public class DashboardController : ControllerBase
             className = c.Name,
             stage = c.Stage,
             year = c.Year,
-            totalStudents = allStudents.Count(s => s.ClassRoomId == c.Id),
-            withPhone = allStudents.Count(s => s.ClassRoomId == c.Id && !string.IsNullOrEmpty(s.PhonesJson) && s.PhonesJson != "[]"),
-            students = allStudents.Where(s => s.ClassRoomId == c.Id).Select(s => new {
+            totalStudents = allStudents.Count(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && e.AcademicYear == resolvedYear)),
+            withPhone = allStudents.Count(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && e.AcademicYear == resolvedYear) && !string.IsNullOrEmpty(s.PhonesJson) && s.PhonesJson != "[]"),
+            students = allStudents.Where(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && e.AcademicYear == resolvedYear)).Select(s => new {
                 id = s.Id,
                 name = s.Name,
                 phone = s.PhonesJson

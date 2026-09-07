@@ -11,8 +11,7 @@ public class Student
     public decimal AmountPaid { get; set; } // المصروفات المدفوعة
     public bool HasHalfDiscount { get; set; } // خصم 50%
     
-    public int ClassRoomId { get; set; } 
-    public ClassRoom ClassRoom { get; set; } = null!;
+    public ICollection<StudentEnrollment> Enrollments { get; set; } = new List<StudentEnrollment>();
     
     public string? FamilyId { get; set; } // لمعرفة الأخوة
     public Family? Family { get; set; }

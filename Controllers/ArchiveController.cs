@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 
@@ -23,7 +24,7 @@ public class ArchiveController : ControllerBase
         if (string.IsNullOrWhiteSpace(year))
             return BadRequest(new { success = false, message = "العام الدراسي مطلوب" });
 
-        var students = await _uow.Students.FindAsync(s => true);
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
         var classes = await _uow.ClassRooms.FindAsync(c => true);
         var classMap = classes.ToDictionary(c => c.Id, c => c);
 
@@ -34,7 +35,8 @@ public class ArchiveController : ControllerBase
             var className = "غير معروف";
             var stageName = "";
             
-            if (classMap.TryGetValue(student.ClassRoomId, out var classRoom))
+            var cId = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0;
+            if (classMap.TryGetValue(cId, out var classRoom))
             {
                 className = classRoom.Name;
                 stageName = classRoom.Stage;

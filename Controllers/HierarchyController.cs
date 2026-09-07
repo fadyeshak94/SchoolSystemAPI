@@ -47,7 +47,7 @@ public class HierarchyController : ControllerBase
     }
 
     [HttpGet("overview")]
-    public async Task<IActionResult> GetHierarchyOverview()
+    public async Task<IActionResult> GetHierarchyOverview([FromQuery] string? academicYear)
     {
         var users = await _context.Users
             .Include(u => u.ClassRoom)
@@ -57,7 +57,7 @@ public class HierarchyController : ControllerBase
             .ToListAsync();
 
         var classes = await _context.ClassRooms
-            .Include(c => c.Students)
+            .Include(c => c.Enrollments)
             .AsNoTracking()
             .ToListAsync();
 
@@ -106,7 +106,7 @@ public class HierarchyController : ControllerBase
                     title = string.IsNullOrEmpty(u.Title) ? $"أمين مرحلة {stageName}" : u.Title
                 }).ToList();
 
-            var stageStudentsCount = stageClasses.Sum(c => c.Students.Count);
+            var stageStudentsCount = stageClasses.Sum(c => c.Enrollments.Where(e => string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear).Select(e => e.StudentId).Distinct().Count());
             
             // الخدام الموزعين على فصول هذه المرحلة
             var stageServantIds = users.Where(u => u.ServantAssignments.Any(sa => stageClassIds.Contains(sa.ClassRoomId)))
@@ -124,7 +124,7 @@ public class HierarchyController : ControllerBase
                     id = c.Id,
                     name = c.Name,
                     year = c.Year,
-                    studentCount = c.Students.Count
+                    studentCount = c.Enrollments.Where(e => string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear).Select(e => e.StudentId).Distinct().Count()
                 }).ToList()
             };
         }).ToList();
@@ -178,7 +178,7 @@ public class HierarchyController : ControllerBase
                     stage = sa.ClassRoom?.Stage ?? "",
                     subjectName = sa.SubjectName,
                     academicYear = sa.AcademicYear
-                }).Where(a => currentRole != "StageSupervisor" || string.IsNullOrEmpty(currentStageAccess) || a.stage == currentStageAccess).ToList()
+                }).Where(a => (currentRole != "StageSupervisor" || string.IsNullOrEmpty(currentStageAccess) || a.stage == currentStageAccess) && (string.IsNullOrEmpty(academicYear) || a.academicYear == academicYear)).ToList()
             }).ToList();
 
         var allClasses = classes.AsEnumerable();

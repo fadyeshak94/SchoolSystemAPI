@@ -43,6 +43,7 @@
         <input type="number" id="searchId" placeholder="رقم الطالب (ID)">
         <input type="text" id="searchName" placeholder="جزء من اسم الطالب">
         <select id="searchClass"><option value="">اختر الفصل (اختياري)</option></select>
+        <select id="academicYearSelect"><option value="">السنة الدراسية (الكل)</option></select>
         <button class="btn btn-search" onclick="searchStudent()">🔍 بحث</button>
       </div>
       
@@ -102,6 +103,7 @@
       ];
 
       window.onload = async () => {
+        loadAcademicYearsDropdown('academicYearSelect');
         const govSelect = document.getElementById('govGrade');
         GOV_GRADES.forEach(g => {
             const opt = document.createElement('option');
@@ -154,7 +156,10 @@
         let query = '?';
         if(id) query += `id=${id}&`;
         if(name) query += `name=${encodeURIComponent(name)}&`;
-        if(classId) query += `classId=${classId}`;
+        if(classId) query += `classId=${classId}&`;
+        
+        const academicYear = document.getElementById('academicYearSelect').value;
+        if(academicYear) query += `academicYear=${encodeURIComponent(academicYear)}`;
 
         try {
             const result = await fetchApi(`/students/search${query}`);

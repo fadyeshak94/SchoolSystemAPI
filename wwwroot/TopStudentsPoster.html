@@ -42,9 +42,12 @@
             اختر الفصل لجلب الأوائل (أول 3 مراكز مع المكررين). ثم قم بإرفاق صورهم لاستخراج البوستر.
         </p>
 
-        <div class="form-group">
-            <select id="classSelect" onchange="loadTopStudents()">
+        <div class="form-group" style="display:flex; gap:10px;">
+            <select id="classSelect" onchange="loadTopStudents()" style="flex:1;">
                 <option value="">جاري التحميل...</option>
+            </select>
+            <select id="academicYearSelect" style="flex:1;" onchange="loadTopStudents()">
+                <option value="">السنة (الافتراضية)</option>
             </select>
         </div>
 
@@ -102,10 +105,12 @@
                 console.error(e);
                 document.getElementById('classSelect').innerHTML = '<option value="">خطأ في التحميل</option>';
             }
+            loadAcademicYearsDropdown('academicYearSelect');
         };
 
         async function loadTopStudents() {
             const classId = document.getElementById('classSelect').value;
+            const academicYear = document.getElementById('academicYearSelect').value;
             const container = document.getElementById('studentsContainer');
             const grid = document.getElementById('studentsGrid');
             const statusBox = document.getElementById('statusBox');
@@ -124,7 +129,10 @@
             statusBox.textContent = '⏳ جاري جلب النتيجة وتحديد الأوائل...';
 
             try {
-                const response = await fetchApi(`/results/class/${classId}?term=all&subject=all`);
+                let url = `/results/class/${classId}?term=all&subject=all`;
+                if(academicYear) url += `&academicYear=${encodeURIComponent(academicYear)}`;
+
+                const response = await fetchApi(url);
                 if (!response || !response.success || !response.students || response.students.length === 0) {
                     throw new Error('لا يوجد نتائج لهذا الفصل.');
                 }

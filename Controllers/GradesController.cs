@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 using SchoolSystemAPI.Services;
@@ -24,7 +25,7 @@ public class GradesController : ControllerBase
     public async Task<IActionResult> GetAllowedSubjects([FromQuery] int classId)
     {
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Secretary";
-        var allSubjects = new[] { "عقيدة", "طقس", "كتاب", "تاريخ", "حفظ_ومحفوظات", "سلوك", "حضور" };
+        var allSubjects = new[] { "ألحان", "قبطي", "أجبية", "مواد_متغيرة", "طقس" };
         
         if (role == "Admin" || role == "Secretary" || role == "StageSupervisor" || role == "User")
         {
@@ -47,14 +48,19 @@ public class GradesController : ControllerBase
 
     // 1. جلب درجات مادة معينة لتيرم معين (لصفحة GridView)
     [HttpGet("grid")]
-    public async Task<IActionResult> GetGridData([FromQuery] int classId, [FromQuery] string term, [FromQuery] string subject)
+    public async Task<IActionResult> GetGridData([FromQuery] int classId, [FromQuery] string term, [FromQuery] string subject, [FromQuery] string? academicYear)
     {
         if (!await IsUserAuthorizedForClassAndSubject(classId, subject))
         {
             return Forbid();
         }
 
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var students = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear))
+            .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
         var grades = await _uow.StudentGrades
@@ -82,7 +88,12 @@ public class GradesController : ControllerBase
             return StatusCode(403, new { success = false, message = "غير مصرح لك برصد درجات هذا الفصل والمادة" });
         }
 
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == request.ClassId);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(request.AcademicYear) ? request.AcademicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var students = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == request.ClassId && e.AcademicYear == resolvedYear))
+            .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
         var existingGrades = await _uow.StudentGrades
@@ -120,9 +131,14 @@ public class GradesController : ControllerBase
     }
 
     [HttpGet("class/{classId}/full")]
-    public async Task<IActionResult> GetFullClassGrades(int classId, [FromQuery] string? term)
+    public async Task<IActionResult> GetFullClassGrades(int classId, [FromQuery] string? term, [FromQuery] string? academicYear)
     {
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var students = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear))
+            .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
         var grades = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
 
@@ -171,7 +187,9 @@ public class GradesController : ControllerBase
     [HttpPost("saveAll")]
     public async Task<IActionResult> SaveAllGrades([FromBody] SaveAllGradesDto request)
     {
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == request.ClassId);
+        var students = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == request.ClassId && (string.IsNullOrEmpty(request.AcademicYear) || e.AcademicYear == request.AcademicYear)))
+            .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
         var grades = (await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId))).ToList();
 
@@ -241,6 +259,7 @@ public class SaveGridDto
     public int ClassId { get; set; }
     public string Term { get; set; } = string.Empty;
     public string Subject { get; set; } = string.Empty;
+    public string? AcademicYear { get; set; }
     public List<GradeUpdateDto> Updates { get; set; } = new();
 }
 
@@ -254,6 +273,7 @@ public class SaveAllGradesDto
 {
     public int ClassId { get; set; }
     public string Term { get; set; } = string.Empty;
+    public string? AcademicYear { get; set; }
     public Dictionary<int, Dictionary<string, decimal>> Updates { get; set; } = new();
 }
 

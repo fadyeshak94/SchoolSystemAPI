@@ -29,6 +29,9 @@
         <select id="classSelect" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:250px;" onchange="loadClassRenewals()">
             <option value="">اختر الفصل لفتح سجل الاشتراكات...</option>
         </select>
+        <select id="academicYearSelect" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:150px;">
+            <option value="">السنة (الافتراضية)</option>
+        </select>
         <button class="btn btn-primary" onclick="loadClassRenewals()">📂 عرض السجل</button>
     </div>
 
@@ -107,16 +110,21 @@
                 // Load classes for dropdown using app.js method
                 await loadClassesDropdown('classSelect', true);
                 document.getElementById('classSelect').options[0].text = 'اختر الفصل لفتح سجل الاشتراكات...';
+                loadAcademicYearsDropdown('academicYearSelect');
             } catch (e) { console.error(e); }
         };
 
         async function loadClassRenewals() {
             const classId = document.getElementById('classSelect').value;
+            const academicYear = document.getElementById('academicYearSelect').value;
             if (!classId) return;
 
             document.getElementById('content').innerHTML = '<div class="spinner"></div>';
             
-            const res = await fetchApi(`/students/class/${classId}`);
+            let url = `/students/class/${classId}`;
+            if(academicYear) url += `?academicYear=${encodeURIComponent(academicYear)}`;
+            
+            const res = await fetchApi(url);
             if (!res || !res.students) return document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ خطأ في التحميل</div>';
 
             if (res.students.length === 0) {
@@ -239,7 +247,10 @@
             statusBar.textContent = '⏳ جاري تحضير النتيجة كصورة...';
 
             try {
-                const res = await fetchApi(`/results/class/${classId}?term=all&subject=all`);
+                const academicYear = document.getElementById('academicYearSelect').value;
+                let resUrl = `/results/class/${classId}?term=all&subject=all`;
+                if (academicYear) resUrl += `&academicYear=${encodeURIComponent(academicYear)}`;
+                const res = await fetchApi(resUrl);
                 if (!res || !res.students) throw new Error('فشل في تحميل النتائج. تأكد من وجود درجات للفصل.');
                 
                 const studentResult = res.students.find(s => s.id === studentId);

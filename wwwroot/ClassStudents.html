@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,6 +12,7 @@
 </head>
 <body>    <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <select id="classSelect"></select>
+        <select id="academicYearSelect" style="padding: 5px; border-radius: 5px;"></select>
         <button class="btn btn-search" onclick="loadStudents()" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px;">🔍 عرض الطلبة</button>
         
         <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة عادية</button>
@@ -26,7 +27,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="/js/app.js"></script>
     <script>
-        window.onload = () => loadClassesDropdown('classSelect', false);
+        window.onload = () => {
+            loadClassesDropdown('classSelect', false);
+            loadAcademicYearsDropdown('academicYearSelect');
+        };
 
         async function loadStudents() {
             const classId = document.getElementById('classSelect').value;
@@ -34,7 +38,8 @@
 
             document.getElementById('content').innerHTML = '<div class="spinner"></div>';
             
-            const res = await fetchApi(`/students/class/${classId}`);
+            const academicYear = document.getElementById('academicYearSelect').value;
+            const res = await fetchApi(`/students/class/${classId}?academicYear=${encodeURIComponent(academicYear)}`);
             if (!res || !res.students) {
                 document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ حدث خطأ (تأكد من اختيار فصل صحيح)</div>';
                 return;

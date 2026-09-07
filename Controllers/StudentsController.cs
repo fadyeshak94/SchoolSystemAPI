@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 using System.Security.Claims;
@@ -20,7 +21,7 @@ public class StudentsController : ControllerBase
 
     // 1. جلب طلاب فصل معين
     [HttpGet("class/{classId}")]
-    public async Task<IActionResult> GetStudentsByClass(int classId)
+    public async Task<IActionResult> GetStudentsByClass(int classId, [FromQuery] string? academicYear)
     {
         // التحقق من الصلاحيات (هل اليوزر أدمن أو له صلاحية على الفصل ده؟)
         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
@@ -31,7 +32,12 @@ public class StudentsController : ControllerBase
             return Forbid("ليس لديك صلاحية الوصول لهذا الفصل");
         }
 
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var students = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear))
+            .ToListAsync();
         
         var result = students.Select(s => new
         {
@@ -62,7 +68,7 @@ public class StudentsController : ControllerBase
         {
             Id = dto.Id,
             Name = dto.Name,
-            ClassRoomId = dto.ClassId,
+            Enrollments = new List<StudentEnrollment> { new StudentEnrollment { ClassRoomId = dto.ClassId, AcademicYear = "2024/2025" } },
             Gender = dto.Gender,
             IsDeacon = dto.IsDeacon,
             PhonesJson = dto.PhonesJson,
@@ -80,7 +86,9 @@ public class StudentsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateStudent(int id, [FromBody] UpdateStudentDto dto)
     {
-        var student = await _uow.Students.GetByIdAsync(id);
+        var student = await _uow.Students.GetQueryable()
+            .Include(s => s.Enrollments)
+            .FirstOrDefaultAsync(s => s.Id == id);
         if (student == null)
             return NotFound(new { success = false, message = "الطالب غير موجود" });
 
@@ -104,7 +112,15 @@ public class StudentsController : ControllerBase
         }
 
         if (dto.ClassId.HasValue)
-            student.ClassRoomId = dto.ClassId.Value;
+        {
+            var enrollment = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault();
+            if (enrollment != null) enrollment.ClassRoomId = dto.ClassId.Value;
+            else 
+            {
+                if (student.Enrollments == null) student.Enrollments = new List<StudentEnrollment>();
+                student.Enrollments.Add(new StudentEnrollment { ClassRoomId = dto.ClassId.Value, AcademicYear = "2024/2025" });
+            }
+        }
 
         _uow.Students.Update(student);
         if (amountDifference > 0)
@@ -123,35 +139,41 @@ public class StudentsController : ControllerBase
 
     // 4. البحث المتقدم عن طالب
     [HttpGet("search")]
-    public async Task<IActionResult> SearchStudents([FromQuery] int? id, [FromQuery] string? name, [FromQuery] int? classId)
+    public async Task<IActionResult> SearchStudents([FromQuery] int? id, [FromQuery] string? name, [FromQuery] int? classId, [FromQuery] string? academicYear)
     {
-        var studentsQuery = await _uow.Students.FindAsync(s => true);
+        var studentsQuery = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
+        var filteredStudents = studentsQuery.AsEnumerable();
 
         if (id.HasValue)
-            studentsQuery = studentsQuery.Where(s => s.Id == id.Value);
+            filteredStudents = filteredStudents.Where(s => s.Id == id.Value);
         
         if (!string.IsNullOrWhiteSpace(name))
         {
             var normalizedQuery = NormalizeArabic(name);
-            studentsQuery = studentsQuery.Where(s => NormalizeArabic(s.Name).Contains(normalizedQuery));
+            filteredStudents = filteredStudents.Where(s => NormalizeArabic(s.Name).Contains(normalizedQuery));
         }
             
         if (classId.HasValue)
-            studentsQuery = studentsQuery.Where(s => s.ClassRoomId == classId.Value);
+            filteredStudents = filteredStudents.Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId.Value && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear)));
 
         var classes = await _uow.ClassRooms.FindAsync(c => true);
         var classMap = classes.ToDictionary(c => c.Id, c => c);
 
-        var result = studentsQuery.Select(s => new
-        {
-            id = s.Id,
-            name = s.Name,
-            className = classMap.ContainsKey(s.ClassRoomId) ? classMap[s.ClassRoomId].Name : "غير مسجل",
-            stage = classMap.ContainsKey(s.ClassRoomId) ? classMap[s.ClassRoomId].Stage : "",
-            phone = s.PhonesJson,
-            govGrade = s.GovGrade,
-            gender = s.Gender,
-            isDeacon = s.IsDeacon
+        var result = filteredStudents.Select(s => {
+            var cId = string.IsNullOrEmpty(academicYear) 
+                ? (s.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0)
+                : (s.Enrollments?.FirstOrDefault(e => e.AcademicYear == academicYear)?.ClassRoomId ?? 0);
+            return new
+            {
+                id = s.Id,
+                name = s.Name,
+                className = classMap.ContainsKey(cId) ? classMap[cId].Name : "غير مسجل",
+                stage = classMap.ContainsKey(cId) ? classMap[cId].Stage : "",
+                phone = s.PhonesJson,
+                govGrade = s.GovGrade,
+                gender = s.Gender,
+                isDeacon = s.IsDeacon
+            };
         }).ToList();
 
         return Ok(new { success = true, students = result });
@@ -169,7 +191,9 @@ public class StudentsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetStudentById(int id)
     {
-        var student = await _uow.Students.GetByIdAsync(id);
+        var student = await _uow.Students.GetQueryable()
+            .Include(s => s.Enrollments)
+            .FirstOrDefaultAsync(s => s.Id == id);
         if (student == null) return NotFound(new { success = false, message = "الطالب غير موجود" });
 
         // Parse PhonesJson safely
@@ -196,7 +220,7 @@ public class StudentsController : ControllerBase
         {
             id = student.Id,
             name = student.Name,
-            classRoomId = student.ClassRoomId,
+            classRoomId = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0,
             gender = student.Gender,
             isDeacon = student.IsDeacon,
             govGrade = student.GovGrade,
@@ -270,12 +294,13 @@ public class StudentsController : ControllerBase
     }
 
     [HttpGet("status-report")]
-    public async Task<IActionResult> GetStudentsStatusReport([FromQuery] int? classId = null)
+    public async Task<IActionResult> GetStudentsStatusReport([FromQuery] int? classId = null, [FromQuery] string? academicYear = null)
     {
-        var studentsQuery = await _uow.Students.FindAsync(s => true);
+        var studentsQuery = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
+        var filteredStudents = studentsQuery.AsEnumerable();
         if (classId.HasValue)
         {
-            studentsQuery = studentsQuery.Where(s => s.ClassRoomId == classId.Value);
+            filteredStudents = filteredStudents.Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId.Value && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear)));
         }
 
         var classes = await _uow.ClassRooms.FindAsync(c => true);
@@ -284,9 +309,12 @@ public class StudentsController : ControllerBase
         var pendingRegistrations = await _uow.PendingRegistrations.FindAsync(p => true);
         var grades = await _uow.StudentGrades.FindAsync(g => true);
 
-        var result = studentsQuery.Select(s =>
+        var result = filteredStudents.Select(s =>
         {
-            var cRoom = classMap.ContainsKey(s.ClassRoomId) ? classMap[s.ClassRoomId] : null;
+            var cId = string.IsNullOrEmpty(academicYear) 
+                ? (s.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0)
+                : (s.Enrollments?.FirstOrDefault(e => e.AcademicYear == academicYear)?.ClassRoomId ?? 0);
+            var cRoom = classMap.ContainsKey(cId) ? classMap[cId] : null;
             var stage = cRoom?.Stage ?? "ابتدائي";
             
             var studentGrades = grades.Where(g => g.StudentId == s.Id).ToList();
@@ -304,7 +332,7 @@ public class StudentsController : ControllerBase
                 id = s.Id,
                 name = s.Name,
                 className = cRoom?.Name ?? "غير مسجل",
-                classId = s.ClassRoomId,
+                classId = cId,
                 stage = stage,
                 isPassed = isPassed,
                 percentage = percentage,

@@ -86,6 +86,24 @@ async function loadClassesDropdown(selectElementId, includeAllOption = true) {
     }
 }
 
+// تحميل السنوات الدراسية للـ Dropdown
+function loadAcademicYearsDropdown(selectElementId) {
+    const select = document.getElementById(selectElementId);
+    if (!select) return;
+    
+    const years = ["2023/2024", "2024/2025", "2025/2026", "2026/2027"];
+    const currentYear = "2024/2025";
+    
+    select.innerHTML = '<option value="">-- السنة الدراسية --</option>';
+    years.forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        if (y === currentYear) opt.selected = true;
+        select.appendChild(opt);
+    });
+}
+
 function parseJwtToken(token) {
     if (!token) return null;
     try {

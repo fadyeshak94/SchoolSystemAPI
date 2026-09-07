@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 using SchoolSystemAPI.Services;
@@ -22,9 +23,14 @@ public class ResultsController : ControllerBase
     }
 
     [HttpGet("class/{classId}")]
-    public async Task<IActionResult> GetClassResults(int classId, [FromQuery] string term, [FromQuery] string subject)
+    public async Task<IActionResult> GetClassResults(int classId, [FromQuery] string term, [FromQuery] string subject, [FromQuery] string? academicYear)
     {
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var students = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear))
+            .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
         var gradesQuery = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
@@ -111,13 +117,16 @@ public class ResultsController : ControllerBase
     }
 
     [HttpGet("student/{studentId}")]
-    public async Task<IActionResult> GetStudentResult(int studentId)
+    public async Task<IActionResult> GetStudentResult(int studentId, [FromQuery] string? academicYear = null)
     {
-        var student = await _uow.Students.GetByIdAsync(studentId);
+        var student = await _uow.Students.GetQueryable().Include(s => s.Enrollments).FirstOrDefaultAsync(s => s.Id == studentId);
         if (student == null) return NotFound(new { success = false, message = "الطالب غير موجود" });
 
         var grades = await _uow.StudentGrades.FindAsync(g => g.StudentId == studentId);
-        var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == student.ClassRoomId)).FirstOrDefault();
+        var cId = string.IsNullOrEmpty(academicYear) 
+            ? (student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0)
+            : (student.Enrollments?.FirstOrDefault(e => e.AcademicYear == academicYear)?.ClassRoomId ?? 0);
+        var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == cId)).FirstOrDefault();
         string stage = classRoom?.Stage ?? "ابتدائي";
 
         decimal total = 0;

@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AppUser> Users { get; set; }
     public DbSet<ClassRoom> ClassRooms { get; set; }
     public DbSet<Student> Students { get; set; }
+    public DbSet<StudentEnrollment> StudentEnrollments { get; set; }
     public DbSet<StudentGrade> StudentGrades { get; set; }
     public DbSet<AttendanceRecord> AttendanceRecords { get; set; }
     public DbSet<SubjectConfiguration> SubjectConfigurations { get; set; }
@@ -77,17 +78,33 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.GovGrade).HasMaxLength(50);
             entity.Property(e => e.AmountPaid).HasColumnType("decimal(18,2)").HasDefaultValue(0);
 
-            // Relation with ClassRoom
-            entity.HasOne(e => e.ClassRoom)
-                  .WithMany(c => c.Students)
-                  .HasForeignKey(e => e.ClassRoomId)
-                  .OnDelete(DeleteBehavior.Restrict); // Ù†Ù…Ù†Ø¹ Ù…Ø³Ø­ Ø§Ù„Ù ØµÙ„ Ù„Ùˆ Ø¬ÙˆØ§Ù‡ Ø·Ù„Ø§Ø¨
-
             // Relation with Family
+
             entity.HasOne(e => e.Family)
                   .WithMany(f => f.Siblings)
                   .HasForeignKey(e => e.FamilyId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ==========================================
+        // 3.1 StudentEnrollment Configuration
+        // ==========================================
+        modelBuilder.Entity<StudentEnrollment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            // Prevent duplicate enrollment for the same student, class, and year
+            entity.HasIndex(e => new { e.StudentId, e.ClassRoomId, e.AcademicYear }).IsUnique();
+            
+            entity.HasOne(e => e.Student)
+                  .WithMany(s => s.Enrollments)
+                  .HasForeignKey(e => e.StudentId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.ClassRoom)
+                  .WithMany(c => c.Enrollments)
+                  .HasForeignKey(e => e.ClassRoomId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ==========================================

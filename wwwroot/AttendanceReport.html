@@ -32,6 +32,11 @@
             يعرض هذا التقرير تجميعاً لسجلات الحضور والغياب في كل يوم جمعة مقسمة حسب السنة الدراسية.
         </p>
 
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+            <select id="academicYearSelect" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc;"></select>
+            <button onclick="loadReport()" style="background: #3b82f6; color: white; padding: 8px 15px; border-radius: 5px; cursor:pointer;">تحديث التقرير</button>
+        </div>
+
         <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
 
         <div class="table-container">
@@ -59,13 +64,15 @@
     <script>
         window.onload = async () => {
             requireRole('Admin');
+            loadAcademicYearsDropdown('academicYearSelect');
             await loadReport();
         };
 
         async function loadReport() {
             const tbody = document.getElementById('reportTableBody');
             try {
-                const res = await fetchApi('/reports/attendance');
+                const academicYear = document.getElementById('academicYearSelect')?.value || '';
+                const res = await fetchApi(`/reports/attendance?academicYear=${encodeURIComponent(academicYear)}`);
                 if (res && res.success) {
                     renderReport(res.reports);
                 } else {

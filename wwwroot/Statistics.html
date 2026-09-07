@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,8 +19,11 @@
     
     
 
-    <div class="controls">
-        <select id="classSelect" onchange="loadStats()"></select>
+    <div class="controls" style="display:flex; gap:10px;">
+        <select id="classSelect" style="flex:1;" onchange="loadStats()"></select>
+        <select id="academicYearSelect" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:150px;" onchange="loadStats()">
+            <option value="">السنة (الافتراضية)</option>
+        </select>
     </div>
 
     <div id="content">
@@ -31,15 +34,22 @@
     <script>
         let passChart = null, attChart = null;
 
-        window.onload = () => loadClassesDropdown('classSelect');
+        window.onload = () => {
+            loadClassesDropdown('classSelect');
+            loadAcademicYearsDropdown('academicYearSelect');
+        };
 
         async function loadStats() {
             const classId = document.getElementById('classSelect').value;
+            const academicYear = document.getElementById('academicYearSelect').value;
             if (!classId) return;
 
             document.getElementById('content').innerHTML = '<div class="spinner"></div>';
             
-            const res = await fetchApi(`/dashboard/statistics?classId=${classId}`);
+            let url = `/dashboard/statistics?classId=${classId}`;
+            if(academicYear) url += `&academicYear=${encodeURIComponent(academicYear)}`;
+            
+            const res = await fetchApi(url);
             if (!res || !res.subjects) {
                 document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ لا توجد بيانات كافية</div>';
                 return;

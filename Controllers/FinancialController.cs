@@ -20,12 +20,12 @@ public class FinancialController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetFinancialData()
+    public async Task<IActionResult> GetFinancialData([FromQuery] string? academicYear)
     {
         // Get all required stage fees
         var stageFees = await _context.StageFees.ToDictionaryAsync(s => s.StageName, s => s.FeeAmount);
 
-        var students = await _context.Students.Include(s => s.ClassRoom).ToListAsync();
+        var students = await _context.Students.Include(s => s.Enrollments).ToListAsync();
         var pendingRegs = await _context.PendingRegistrations.Where(p => p.Status == "Pending" || p.Status == "Waitlisted").ToListAsync();
         
         var classRooms = await _context.ClassRooms.ToDictionaryAsync(c => c.Id, c => c);
@@ -35,7 +35,10 @@ public class FinancialController : ControllerBase
         // 1. Process Approved Students
         foreach (var s in students)
         {
-            var stageName = s.ClassRoom?.Stage ?? "";
+            var cId = string.IsNullOrEmpty(academicYear) 
+                ? (s.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0)
+                : (s.Enrollments?.FirstOrDefault(e => e.AcademicYear == academicYear)?.ClassRoomId ?? 0);
+            var stageName = classRooms.ContainsKey(cId) ? classRooms[cId].Stage : "";
             decimal requiredFee = stageFees.ContainsKey(stageName) ? stageFees[stageName] : 0;
             decimal finalRequiredFee = s.HasHalfDiscount ? (requiredFee / 2) : requiredFee;
             decimal remaining = finalRequiredFee - s.AmountPaid;
@@ -46,7 +49,7 @@ public class FinancialController : ControllerBase
                 Id = s.Id,
                 Name = s.Name,
                 Stage = stageName,
-                ClassName = s.ClassRoom?.Name ?? "",
+                ClassName = classRooms.ContainsKey(cId) ? classRooms[cId].Name : "",
                 Status = "مقبول",
                 RequiredFee = requiredFee,
                 HasHalfDiscount = s.HasHalfDiscount,

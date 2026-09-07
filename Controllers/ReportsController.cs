@@ -19,16 +19,16 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("classes-performance")]
-    public async Task<IActionResult> GetClassesPerformance()
+    public async Task<IActionResult> GetClassesPerformance([FromQuery] string? academicYear)
     {
         var classes = await _uow.ClassRooms.FindAsync(c => true);
-        var students = await _uow.Students.FindAsync(s => true);
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
 
         var grades = await _uow.StudentGrades.FindAsync(g => true);
 
         var reportList = classes.Select(cls =>
         {
-            var classStudents = students.Where(s => s.ClassRoomId == cls.Id).ToList();
+            var classStudents = students.Where(s => s.Enrollments.Any(e => e.ClassRoomId == cls.Id && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear))).ToList();
             int totalStudents = classStudents.Count;
             int passedCount = 0;
             int failedCount = 0;
@@ -87,18 +87,18 @@ public class ReportsController : ControllerBase
     }
 
     [HttpGet("attendance")]
-    public async Task<IActionResult> GetAttendanceReport()
+    public async Task<IActionResult> GetAttendanceReport([FromQuery] string? academicYear)
     {
         // تحديد الطلاب اللي جايبين أقل من 5% لاستبعادهم
         var classes = await _uow.ClassRooms.FindAsync(c => true);
-        var students = await _uow.Students.FindAsync(s => true);
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
         var grades = await _uow.StudentGrades.FindAsync(g => true);
         
         var excludedStudentIds = new HashSet<int>();
         foreach (var cls in classes)
         {
             decimal maxScore = cls.Stage.Contains("ابتدائي") ? 400m : 500m;
-            var classStudents = students.Where(s => s.ClassRoomId == cls.Id);
+            var classStudents = students.Where(s => s.Enrollments.Any(e => e.ClassRoomId == cls.Id && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear)));
             foreach (var student in classStudents)
             {
                 decimal totalScore = grades.Where(g => g.StudentId == student.Id).Sum(g => g.ExamScore + g.AttendanceScore);
@@ -110,7 +110,7 @@ public class ReportsController : ControllerBase
             }
         }
 
-        var allRecords = await _uow.AttendanceRecords.FindAsync(a => true);
+        var allRecords = await _uow.AttendanceRecords.FindAsync(a => string.IsNullOrEmpty(academicYear) || a.AcademicYear == academicYear);
         
         // تصفية السجلات لاستبعاد هؤلاء الطلاب
         var records = allRecords.Where(a => !excludedStudentIds.Contains(a.StudentId)).ToList();

@@ -7,7 +7,7 @@ public class ClassRoom
     public string Stage { get; set; } = string.Empty; 
     public string Year { get; set; } = string.Empty; 
     
-    public ICollection<Student> Students { get; set; } = new List<Student>();
+    public ICollection<StudentEnrollment> Enrollments { get; set; } = new List<StudentEnrollment>();
     public ICollection<AppUser> SupervisedByUsers { get; set; } = new List<AppUser>();
     public ICollection<ServantAssignment> ServantAssignments { get; set; } = new List<ServantAssignment>();
 }

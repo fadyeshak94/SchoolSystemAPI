@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 
@@ -19,9 +20,12 @@ public class AttendanceController : ControllerBase
 
     // 1. جلب حالة الطلاب لتاريخ معين (عشان صفحة تسجيل الغياب)
     [HttpGet("entry")]
-    public async Task<IActionResult> GetAttendanceEntryData([FromQuery] int classId, [FromQuery] DateTime date)
+    public async Task<IActionResult> GetAttendanceEntryData([FromQuery] int classId, [FromQuery] DateTime date, [FromQuery] string? academicYear)
     {
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var students = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear)).ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
         var existingRecords = await _uow.AttendanceRecords
@@ -139,13 +143,16 @@ public class AttendanceController : ControllerBase
 
     // 4. تقرير غياب الفصل بالكامل لتيرم معين
     [HttpGet("class/{classId}/term/{term}")]
-    public async Task<IActionResult> GetAttendanceData(int classId, string term)
+    public async Task<IActionResult> GetAttendanceData(int classId, string term, [FromQuery] string? academicYear)
     {
-        var students = await _uow.Students.FindAsync(s => s.ClassRoomId == classId);
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var students = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear)).ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
         var records = await _uow.AttendanceRecords
-            .FindAsync(a => studentIds.Contains(a.StudentId) && a.Term == term);
+            .FindAsync(a => studentIds.Contains(a.StudentId) && a.Term == term && a.AcademicYear == resolvedYear);
 
         var dateSet = records.Select(r => r.Date.ToString("yyyy-MM-dd")).Distinct().OrderBy(d => d).ToList();
         

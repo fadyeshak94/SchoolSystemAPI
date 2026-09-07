@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar">
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,6 +19,9 @@
 
     <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <select id="classSelect"></select>
+        <select id="academicYearSelect" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:150px;">
+            <option value="">السنة (الافتراضية)</option>
+        </select>
         <select id="termSelect">
             <option value="all">الكل (التيرمين)</option>
             <option value="ت1">التيرم الأول</option>
@@ -44,17 +47,24 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="/js/app.js"></script>
     <script>
-        window.onload = () => loadClassesDropdown('classSelect');
+        window.onload = () => {
+            loadClassesDropdown('classSelect');
+            loadAcademicYearsDropdown('academicYearSelect');
+        };
 
         async function loadResults() {
             const classId = document.getElementById('classSelect').value;
             const term = document.getElementById('termSelect').value;
             const subject = document.getElementById('subjectSelect').value;
+            const academicYear = document.getElementById('academicYearSelect').value;
             if (!classId) return;
 
             document.getElementById('content').innerHTML = '<div class="spinner"></div>';
             
-            const res = await fetchApi(`/results/class/${classId}?term=${term}&subject=${subject}`);
+            let url = `/results/class/${classId}?term=${term}&subject=${subject}`;
+            if(academicYear) url += `&academicYear=${encodeURIComponent(academicYear)}`;
+            
+            const res = await fetchApi(url);
             if (!res || !res.students) {
                 document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ حدث خطأ (تأكد من اختيار فصل صحيح)</div>';
                 return;
