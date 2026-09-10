@@ -187,6 +187,36 @@ public class StudentsController : ControllerBase
                    .Trim();
     }
 
+    // 5. الطلاب غير المسجلين في العام الجديد
+    [HttpGet("unregistered")]
+    public async Task<IActionResult> GetUnregisteredStudents([FromQuery] string? targetYear)
+    {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(targetYear) ? targetYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var allStudents = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
+        var allClasses = await _uow.ClassRooms.FindAsync(c => true);
+        var classMap = allClasses.ToDictionary(c => c.Id, c => c);
+
+        var unregistered = allStudents
+            .Where(s => s.Enrollments != null && s.Enrollments.Any() && !s.Enrollments.Any(e => e.AcademicYear == resolvedYear))
+            .Select(s => {
+                var lastEnrollment = s.Enrollments.OrderByDescending(e => e.AcademicYear).First();
+                return new {
+                    id = s.Id,
+                    name = s.Name,
+                    phone = s.PhonesJson,
+                    lastYear = lastEnrollment.AcademicYear,
+                    lastClassName = classMap.ContainsKey(lastEnrollment.ClassRoomId) ? classMap[lastEnrollment.ClassRoomId].Name : "غير مسجل",
+                    lastStage = classMap.ContainsKey(lastEnrollment.ClassRoomId) ? classMap[lastEnrollment.ClassRoomId].Stage : ""
+                };
+            })
+            .OrderBy(s => s.lastStage).ThenBy(s => s.lastClassName).ThenBy(s => s.name)
+            .ToList();
+
+        return Ok(new { success = true, targetYear = resolvedYear, students = unregistered });
+    }
+
     // جلب بيانات طالب واحد بالكامل
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetStudentById(int id)

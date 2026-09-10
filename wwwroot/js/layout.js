@@ -36,7 +36,8 @@ document.addEventListener("DOMContentLoaded", () => {
             links: [
                 { path: "/StudentManage.html", icon: "✏️", text: "الطلاب" },
                 { path: "/ClassStudents.html", icon: "📋", text: "قوائم الفصول" },
-                { path: "/IDCard.html", icon: "🪪", text: "الكارنيهات" }
+                { path: "/IDCard.html", icon: "🪪", text: "الكارنيهات" },
+                { path: "/UnregisteredStudents.html", icon: "📋", text: "الطلاب غير المسجلين" }
             ]
         },
         {
@@ -53,6 +54,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 { path: "/SubjectGrades.html", icon: "✏️", text: "رصد الدرجات" },
                 { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
                 { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
+                { path: "/AllResultsPrint.html", icon: "🖨️", text: "طباعة كل النتائج" },
                 { path: "/Certificates.html", icon: "🎓", text: "الشهادات" },
                 { path: "/TopStudentsPoster.html", icon: "🖼️", text: "بوستر الأوائل" }
             ]

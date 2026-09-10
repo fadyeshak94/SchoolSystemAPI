@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📋 الطلاب غير المسجلين</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .search-box {
+            display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+        }
+        .search-box input, .search-box select {
+            padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;
+        }
+        .search-box input { flex: 1; min-width: 200px; }
+        
+        .whatsapp-btn {
+            background: #25D366; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-decoration: none; font-size: 12px; font-weight: bold;
+        }
+        .whatsapp-btn:hover { background: #1ebd5a; }
+        
+        .call-btn {
+            background: #3b82f6; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; text-decoration: none; font-size: 12px; font-weight: bold; margin-right: 5px;
+        }
+        .call-btn:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="ابحث بالاسم..." onkeyup="filterTable()">
+        <select id="stageFilter" onchange="filterTable()">
+            <option value="">كل المراحل</option>
+        </select>
+        <select id="academicYearSelect" onchange="loadUnregisteredStudents()" style="min-width: 150px;">
+            <option value="">السنة (الافتراضية)</option>
+        </select>
+        <button class="btn btn-search" onclick="loadUnregisteredStudents()" style="background: #10b981; color: white; border:none; padding:10px 20px; border-radius:8px;">🔄 تحديث</button>
+    </div>
+
+    <div class="table-container" style="background: white; padding: 15px; border-radius: 10px;">
+        <div style="margin-bottom: 10px; font-weight: bold; color: var(--text-light);">
+            عدد الطلاب غير المسجلين: <span id="studentCount">0</span>
+        </div>
+        <table id="unregisteredTable">
+            <thead>
+                <tr>
+                    <th>الكود</th>
+                    <th>الاسم</th>
+                    <th>آخر سنة تسجيل</th>
+                    <th>المرحلة السابقة</th>
+                    <th>الفصل السابق</th>
+                    <th>أرقام الهواتف</th>
+                    <th>تواصل</th>
+                </tr>
+            </thead>
+            <tbody id="unregisteredBody">
+                <tr><td colspan="7" style="text-align:center;">جاري التحميل...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let allUnregistered = [];
+        
+        window.onload = async () => {
+            requireRole('Admin', 'HeadSecretary', 'Secretary', 'User');
+            loadAcademicYearsDropdown('academicYearSelect');
+            await loadUnregisteredStudents();
+        };
+
+        async function loadUnregisteredStudents() {
+            const academicYear = document.getElementById('academicYearSelect').value;
+            let url = `/students/unregistered`;
+            if(academicYear) url += `?targetYear=${encodeURIComponent(academicYear)}`;
+            
+            document.getElementById('unregisteredBody').innerHTML = '<tr><td colspan="7" style="text-align:center;"><div class="spinner"></div></td></tr>';
+            
+            const res = await fetchApi(url);
+            if (!res || !res.success) {
+                showStatus('statusBar', 'error', 'حدث خطأ في تحميل البيانات');
+                document.getElementById('unregisteredBody').innerHTML = '<tr><td colspan="7" style="text-align:center;">حدث خطأ في تحميل البيانات</td></tr>';
+                return;
+            }
+            
+            allUnregistered = res.students;
+            
+            // Populate Stage filter
+            const stages = [...new Set(allUnregistered.map(s => s.lastStage).filter(s => s))].sort();
+            const stageSelect = document.getElementById('stageFilter');
+            stageSelect.innerHTML = '<option value="">كل المراحل</option>';
+            stages.forEach(stage => {
+                stageSelect.innerHTML += `<option value="${stage}">${stage}</option>`;
+            });
+
+            renderTable(allUnregistered);
+        }
+        
+        function filterTable() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            const stage = document.getElementById('stageFilter').value;
+            
+            const filtered = allUnregistered.filter(s => {
+                const matchName = (s.name || '').toLowerCase().includes(term);
+                const matchStage = stage ? s.lastStage === stage : true;
+                return matchName && matchStage;
+            });
+            
+            renderTable(filtered);
+        }
+        
+        function renderTable(data) {
+            const tbody = document.getElementById('unregisteredBody');
+            document.getElementById('studentCount').innerText = data.length;
+            
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">لا يوجد طلاب غير مسجلين</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            data.forEach(s => {
+                let phonesObj = {};
+                try { phonesObj = JSON.parse(s.phone || '{}'); } catch(e){}
+                
+                let phonesList = [];
+                let actionButtons = '';
+                
+                Object.entries(phonesObj).forEach(([label, num]) => {
+                    let strNum = String(num || '');
+                    if(strNum.trim() !== '') {
+                        phonesList.push(`<div><strong>${label}:</strong> <span dir="ltr">${strNum}</span></div>`);
+                        
+                        // Basic cleanup for whatsapp
+                        let cleanNum = strNum.replace(/\D/g, '');
+                        if(cleanNum.startsWith('01')) cleanNum = '2' + cleanNum;
+                        
+                        actionButtons += `<a href="tel:${strNum}" class="call-btn">📞 ${label}</a>`;
+                        actionButtons += `<a href="https://wa.me/${cleanNum}" target="_blank" class="whatsapp-btn">💬 ${label}</a> `;
+                    }
+                });
+                
+                if (phonesList.length === 0) phonesList.push('لا يوجد');
+                
+                html += `<tr>
+                    <td><strong>${s.id}</strong></td>
+                    <td style="text-align:right;">${s.name}</td>
+                    <td>${s.lastYear || 'غير محدد'}</td>
+                    <td>${s.lastStage || 'غير محدد'}</td>
+                    <td>${s.lastClassName || 'غير محدد'}</td>
+                    <td style="font-size:13px; text-align:right;">${phonesList.join('')}</td>
+                    <td><div style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center;">${actionButtons}</div></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

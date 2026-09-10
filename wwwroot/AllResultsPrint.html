@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>🖨️ طباعة كل النتائج</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .controls { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; flex-wrap: wrap; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .controls select { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; min-width: 200px; }
+        .controls button { padding: 10px 25px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; }
+        
+        .print-btn { background: #107c41; color: white; display: none; }
+        .generate-btn { background: #3b82f6; color: white; }
+        
+        /* Print Styles */
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { position: absolute; left: 0; top: 0; width: 100%; }
+            .page-break { page-break-after: always; break-after: page; }
+            .controls, .top-header, .sidebar, #sidebarOverlay { display: none !important; }
+            
+            /* Flexbox layout for the tables to replace buggy CSS columns */
+            .flex-container {
+                display: flex;
+                gap: 20px;
+                width: 100%;
+                align-items: flex-start;
+            }
+            .flex-container table {
+                width: 50%;
+                margin-bottom: 20px;
+                border-collapse: collapse;
+            }
+            
+            /* Smaller text for printing to fit more */
+            .flex-container th, .flex-container td {
+                padding: 4px;
+                font-size: 11px;
+                border: 1px solid #ccc;
+            }
+            
+            .class-title {
+                text-align: center;
+                margin-bottom: 10px;
+                font-size: 16px; /* خط أصغر بناء على طلب المستخدم */
+                border-bottom: 2px solid #000;
+                padding-bottom: 5px;
+                page-break-after: avoid; /* منع الصفحة من الانقسام بعد العنوان مباشرة */
+                break-after: avoid;
+            }
+            
+            .student-failed {
+                background-color: yellow !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        /* Screen Styles for the preview */
+        #printArea { background: white; padding: 20px; border-radius: 10px; min-height: 200px; }
+        .flex-container { display: flex; gap: 20px; width: 100%; align-items: flex-start; }
+        .flex-container table { width: 50%; margin-bottom: 20px; border-collapse: collapse; }
+        .flex-container th, .flex-container td { padding: 4px; font-size: 11px; border: 1px solid #ccc; }
+        .class-title { text-align: center; margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #ccc; padding-bottom: 10px; page-break-after: avoid; break-after: avoid; }
+        .student-failed { background-color: #fff3cd; }
+        .page-break { margin-bottom: 50px; border-bottom: 5px dashed #ccc; padding-bottom: 20px; }
+    </style>
+</head>
+<body>
+    
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="controls">
+        <select id="academicYearSelect">
+            <option value="">السنة (الافتراضية)</option>
+        </select>
+        <select id="termSelect">
+            <option value="all">الكل (التيرمين)</option>
+            <option value="ت1">التيرم الأول</option>
+            <option value="ت2">التيرم الثاني</option>
+        </select>
+        <button class="generate-btn" onclick="generateAllResults()" id="genBtn">⚙️ إعداد التقرير الشامل</button>
+        <button class="print-btn" onclick="window.print()" id="printBtn">🖨️ طباعة / حفظ PDF</button>
+    </div>
+
+    <div id="printArea">
+        <div style="text-align:center; color: var(--text-muted); margin-top: 50px;">
+            اضغط على "إعداد التقرير الشامل" للبدء بجمع بيانات جميع الفصول.<br><br>
+            <small>(قد تستغرق هذه العملية بضع ثوانٍ)</small>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => {
+            requireRole('Admin', 'HeadSecretary', 'Secretary', 'StageSupervisor');
+            loadAcademicYearsDropdown('academicYearSelect');
+        };
+
+        async function generateAllResults() {
+            const academicYear = document.getElementById('academicYearSelect').value;
+            const term = document.getElementById('termSelect').value;
+            const printArea = document.getElementById('printArea');
+            const genBtn = document.getElementById('genBtn');
+            const printBtn = document.getElementById('printBtn');
+
+            genBtn.disabled = true;
+            genBtn.innerHTML = '⏳ جاري جلب الفصول...';
+            printBtn.style.display = 'none';
+            printArea.innerHTML = '<div class="spinner"></div><div style="text-align:center; margin-top:10px;">جاري جلب الفصول...</div>';
+
+            try {
+                // 1. Fetch all classes the user has access to
+                const classesRes = await fetchApi('/users/me/classes');
+                if (!classesRes || !classesRes.classes || classesRes.classes.length === 0) {
+                    printArea.innerHTML = '<div class="status-bar error" style="display:block;">❌ لا يوجد فصول متاحة لك.</div>';
+                    genBtn.disabled = false;
+                    genBtn.innerHTML = '⚙️ إعداد التقرير الشامل';
+                    return;
+                }
+
+                let allClasses = classesRes.classes;
+                let finalHtml = '';
+
+                // 2. Process each class sequentially
+                for (let i = 0; i < allClasses.length; i++) {
+                    const cls = allClasses[i];
+                    genBtn.innerHTML = `⏳ جاري معالجة ${cls.name} (${i+1}/${allClasses.length})...`;
+                    
+                    let url = `/results/class/${cls.id}?term=${term}&subject=all`;
+                    if (academicYear) url += `&academicYear=${encodeURIComponent(academicYear)}`;
+
+                    const res = await fetchApi(url);
+                    if (res && res.success && res.students && res.students.length > 0) {
+                        
+                        let classHtml = `<div class="page-break">`;
+                        classHtml += `<h2 class="class-title">نتائج ${cls.name} - ${academicYear || 'السنة الافتراضية'}</h2>`;
+                        classHtml += `<div class="flex-container">`;
+                        
+                        // Split students into two arrays for the two tables
+                        const half = Math.ceil(res.students.length / 2);
+                        const leftStudents = res.students.slice(0, half);
+                        const rightStudents = res.students.slice(half);
+
+                        const buildTable = (studentsList) => {
+                            let tHtml = `<table>
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:40px;"># ID</th>
+                                                    <th>الاسم</th>
+                                                    <th style="width:50px;">المجموع</th>
+                                                    <th style="width:50px;">النسبة</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>`;
+                            studentsList.forEach(s => {
+                                const isFailed = s.percentage < 50;
+                                const rowClass = isFailed ? 'student-failed' : '';
+                                
+                                tHtml += `<tr class="${rowClass}">
+                                    <td><strong>${s.id}</strong></td>
+                                    <td style="text-align:right;">${s.name}</td>
+                                    <td style="text-align:center; font-weight:bold;">${s.total}</td>
+                                    <td style="text-align:center; font-weight:bold; color: ${isFailed ? '#d32f2f' : '#2e7d32'};">${s.percentage.toFixed(1)}%</td>
+                                </tr>`;
+                            });
+                            tHtml += `</tbody></table>`;
+                            return tHtml;
+                        };
+
+                        classHtml += buildTable(leftStudents);
+                        classHtml += buildTable(rightStudents);
+
+                        classHtml += `</div></div>`;
+                        finalHtml += classHtml;
+                    }
+                }
+
+                if (finalHtml === '') {
+                    printArea.innerHTML = '<div class="status-bar error" style="display:block;">❌ لا توجد بيانات لأي فصل في هذه السنة.</div>';
+                } else {
+                    printArea.innerHTML = finalHtml;
+                    printBtn.style.display = 'inline-block';
+                }
+
+            } catch (err) {
+                console.error(err);
+                printArea.innerHTML = '<div class="status-bar error" style="display:block;">❌ حدث خطأ غير متوقع.</div>';
+            }
+
+            genBtn.disabled = false;
+            genBtn.innerHTML = '⚙️ إعداد التقرير الشامل';
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>
