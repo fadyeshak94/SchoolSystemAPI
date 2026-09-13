@@ -56,7 +56,7 @@
                         <th>رقم الطلب</th>
                         <th>اسم الطالب</th>
                         <th>نوع الطلب</th>
-                        <th>السنة السابقة</th>
+                        <th>السنة السابقة<br>(الحالة/النسبة)</th>
                         <th>الفصل السابق</th>
                         <th>السن (المرحلة/الحكومي)</th>
                         <th>المبلغ المدفوع</th>
@@ -151,7 +151,11 @@
                         <td style="color:#64748b; font-size:12px;">#${req.id}<br>${dateStr}</td>
                         <td style="font-weight:bold; color:var(--primary);">${req.name}${waitlistWarning}</td>
                         <td>${typeBadge}</td>
-                        <td>${req.prevYear || '-'}</td>
+                        <td style="text-align:center;">
+                            ${req.prevYear || '-'}<br>
+                            ${req.isPrevPassed !== null ? (req.isPrevPassed ? '<span style="color:green; font-size:12px; font-weight:bold;">✅ ناجح</span>' : '<span style="color:red; font-size:12px; font-weight:bold;">❌ راسب</span>') : ''}
+                            ${req.prevPercentage !== null ? `<br><span style="font-size:12px; color:#64748b;">(${req.prevPercentage}%)</span>` : ''}
+                        </td>
                         <td>${req.prevClass || '-'}</td>
                         <td>${req.govGrade || '-'}</td>
                         <td style="font-weight:bold; color:var(--success);">${req.amountPaid} ج.م</td>

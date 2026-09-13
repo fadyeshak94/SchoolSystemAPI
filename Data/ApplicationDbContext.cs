@@ -31,6 +31,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<PendingRegistration> PendingRegistrations { get; set; }
     public DbSet<Family> Families { get; set; }
     public DbSet<ServantAssignment> ServantAssignments { get; set; }
+    public DbSet<FinancialTransaction> FinancialTransactions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -206,6 +207,19 @@ public class ApplicationDbContext : DbContext
                   .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.UserId, e.ClassRoomId, e.SubjectName }).IsUnique();
+        });
+
+        // ==========================================
+        // 9. FinancialTransaction Configuration
+        // ==========================================
+        modelBuilder.Entity<FinancialTransaction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.AppUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.AppUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
     }
 

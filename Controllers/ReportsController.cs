@@ -145,31 +145,55 @@ public class ReportsController : ControllerBase
     [HttpGet("daily-revenue")]
     public async Task<IActionResult> GetDailyRevenue([FromQuery] string? from, [FromQuery] string? to)
     {
-        var query = _uow.SubscriptionPayments.GetQueryable();
+        var paymentsQuery = _uow.SubscriptionPayments.GetQueryable();
+        var pendingQuery = _uow.PendingRegistrations.GetQueryable().Where(p => p.Status == "Pending" || p.Status == "Waitlisted");
+        var financeQuery = _uow.FinancialTransactions.GetQueryable();
         
         if (!string.IsNullOrEmpty(from) && DateTime.TryParse(from, out DateTime fromDate))
         {
-            query = query.Where(p => p.PaymentDate >= fromDate.Date);
+            paymentsQuery = paymentsQuery.Where(p => p.PaymentDate >= fromDate.Date);
+            pendingQuery = pendingQuery.Where(p => p.RequestDate >= fromDate.Date);
+            financeQuery = financeQuery.Where(f => f.TransactionDate >= fromDate.Date);
         }
         
         if (!string.IsNullOrEmpty(to) && DateTime.TryParse(to, out DateTime toDate))
         {
             var endOfDay = toDate.Date.AddDays(1).AddTicks(-1);
-            query = query.Where(p => p.PaymentDate <= endOfDay);
+            paymentsQuery = paymentsQuery.Where(p => p.PaymentDate <= endOfDay);
+            pendingQuery = pendingQuery.Where(p => p.RequestDate <= endOfDay);
+            financeQuery = financeQuery.Where(f => f.TransactionDate <= endOfDay);
         }
 
-        var payments = await query.ToListAsync();
+        var payments = await paymentsQuery.ToListAsync();
+        var pendings = await pendingQuery.ToListAsync();
+        var finances = await financeQuery.ToListAsync();
 
-        var dailyTotals = payments
-            .GroupBy(p => p.PaymentDate.Date)
-            .Select(g => new
-            {
-                Date = g.Key.ToString("yyyy-MM-dd"),
-                TotalAmount = g.Sum(p => p.Amount)
-            })
-            .OrderByDescending(r => r.Date)
-            .ToList();
+        var allTransactions = new List<object>();
 
-        return Ok(new { success = true, data = dailyTotals });
+        allTransactions.AddRange(payments.Select(p => new {
+            Date = p.PaymentDate.ToString("yyyy-MM-dd"),
+            Amount = p.Amount,
+            Description = "اشتراكات",
+            Type = "Revenue"
+        }));
+
+        allTransactions.AddRange(pendings.Select(p => new {
+            Date = p.RequestDate.ToString("yyyy-MM-dd"),
+            Amount = p.AmountPaid,
+            Description = "اشتراكات",
+            Type = "Revenue"
+        }));
+
+        allTransactions.AddRange(finances.Select(f => new {
+            Date = f.TransactionDate.ToString("yyyy-MM-dd"),
+            Amount = f.Amount,
+            Description = f.Description,
+            Type = f.Type
+        }));
+
+        // Sort all by date descending
+        var sorted = allTransactions.OrderByDescending(t => (string)((dynamic)t).Date).ToList();
+
+        return Ok(new { success = true, data = sorted });
     }
 }

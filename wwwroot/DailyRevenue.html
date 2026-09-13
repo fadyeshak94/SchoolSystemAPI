@@ -24,6 +24,17 @@
         .summary-card .value { font-size: 24px; font-weight: bold; color: var(--success); }
         
         .empty-state { text-align: center; padding: 40px; color: #64748b; font-size: 16px; }
+
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background-color: #fff; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; position: relative; }
+        .close-btn { position: absolute; left: 20px; top: 15px; font-size: 24px; cursor: pointer; color: #aaa; }
+        .close-btn:hover { color: #333; }
+        .form-group { margin-bottom: 15px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .btn-submit { width: 100%; padding: 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-submit:hover { background: #059669; }
     </style>
 </head>
 <body>
@@ -47,12 +58,21 @@
                 <input type="date" id="toDate">
             </div>
             <button class="btn-search" onclick="loadRevenue()">🔄 بحث وتحديث</button>
+            <button class="btn-search" style="background:#10b981; margin-right:auto;" onclick="openModal()">➕ إضافة حركة مالية</button>
         </div>
 
         <div class="summary-cards" id="summaryCards" style="display:none;">
             <div class="summary-card">
-                <h4>إجمالي التحصيل للفترة المحددة</h4>
-                <div class="value" id="totalCollected">0 ج.م</div>
+                <h4>إجمالي الإيرادات (+)</h4>
+                <div class="value" id="totalRevenue">0 ج.م</div>
+            </div>
+            <div class="summary-card">
+                <h4>إجمالي المصروفات (-)</h4>
+                <div class="value" id="totalExpense" style="color:var(--danger);">0 ج.م</div>
+            </div>
+            <div class="summary-card">
+                <h4>صافي التحصيل</h4>
+                <div class="value" id="netTotal">0 ج.م</div>
             </div>
         </div>
 
@@ -60,14 +80,42 @@
             <table>
                 <thead>
                     <tr>
-                        <th>اليوم / التاريخ</th>
-                        <th>إجمالي المبلغ المحصل</th>
+                        <th>التاريخ</th>
+                        <th>البيان</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
                     <tr><td colspan="2" class="empty-state">جاري التحميل...</td></tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Modal for adding financial transaction -->
+    <div id="transactionModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 style="margin-top:0; color:var(--primary); text-align:right;">إضافة حركة مالية</h3>
+            <form id="transactionForm" onsubmit="submitTransaction(event)">
+                <div class="form-group">
+                    <label>نوع الحركة</label>
+                    <select id="transType" required>
+                        <option value="Revenue">إيراد (+)</option>
+                        <option value="Expense">مصروف (-)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>البيان</label>
+                    <input type="text" id="transDesc" placeholder="مثال: تبرع، شراء أدوات..." required>
+                </div>
+                <div class="form-group">
+                    <label>المبلغ (ج.م)</label>
+                    <input type="number" id="transAmount" min="1" step="0.5" required>
+                </div>
+                <button type="submit" class="btn-submit">حفظ الحركة</button>
+            </form>
         </div>
     </div>
 
@@ -113,35 +161,100 @@
 
         function renderData(data) {
             const tbody = document.getElementById('tableBody');
-            let total = 0;
+            let totalRevenue = 0;
+            let totalExpense = 0;
 
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" class="empty-state">لا توجد مبالغ محصلة في هذه الفترة</td></tr>';
-                document.getElementById('totalCollected').textContent = '0 ج.م';
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">لا توجد حركات مسجلة في هذه الفترة</td></tr>';
+                document.getElementById('totalRevenue').textContent = '0 ج.م';
+                document.getElementById('totalExpense').textContent = '0 ج.م';
+                document.getElementById('netTotal').textContent = '0 ج.م';
                 document.getElementById('summaryCards').style.display = 'grid';
                 return;
             }
 
             let html = '';
             data.forEach(item => {
-                total += parseFloat(item.totalAmount || 0);
+                const amount = parseFloat(item.amount || 0);
+                let typeText = '';
+                let color = '';
+                let sign = '';
                 
-                // Format date nice
+                if (item.type === 'Revenue') {
+                    totalRevenue += amount;
+                    typeText = 'إيراد';
+                    color = 'var(--success)';
+                    sign = '+';
+                } else {
+                    totalExpense += amount;
+                    typeText = 'مصروف';
+                    color = 'var(--danger)';
+                    sign = '-';
+                }
+                
                 const dateObj = new Date(item.date);
-                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
                 const formattedDate = dateObj.toLocaleDateString('ar-EG', options);
 
                 html += `
                     <tr>
-                        <td style="font-weight:bold; color:var(--primary);">${formattedDate}</td>
-                        <td style="color:var(--success); font-weight:bold; font-size:16px;">${item.totalAmount} ج.م</td>
+                        <td style="font-weight:bold;">${formattedDate}</td>
+                        <td>${item.description}</td>
+                        <td style="color:${color}; font-weight:bold;">${typeText}</td>
+                        <td style="color:${color}; font-weight:bold; font-size:16px;" dir="ltr">${sign} ${amount} ج.م</td>
                     </tr>
                 `;
             });
             tbody.innerHTML = html;
             
-            document.getElementById('totalCollected').textContent = total.toLocaleString('en-US') + ' ج.م';
+            document.getElementById('totalRevenue').textContent = totalRevenue.toLocaleString('en-US') + ' ج.م';
+            document.getElementById('totalExpense').textContent = totalExpense.toLocaleString('en-US') + ' ج.م';
+            
+            const net = totalRevenue - totalExpense;
+            const netEl = document.getElementById('netTotal');
+            netEl.textContent = net.toLocaleString('en-US') + ' ج.م';
+            netEl.style.color = net >= 0 ? 'var(--success)' : 'var(--danger)';
+            
             document.getElementById('summaryCards').style.display = 'grid';
+        }
+
+        // Modal Functions
+        function openModal() {
+            document.getElementById('transactionModal').style.display = 'flex';
+        }
+        function closeModal() {
+            document.getElementById('transactionModal').style.display = 'none';
+            document.getElementById('transactionForm').reset();
+        }
+
+        async function submitTransaction(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = 'جاري الحفظ...';
+
+            const payload = {
+                type: document.getElementById('transType').value,
+                description: document.getElementById('transDesc').value,
+                amount: parseFloat(document.getElementById('transAmount').value)
+            };
+
+            try {
+                const res = await fetchApi('/FinancialTransactions', 'POST', payload);
+
+                if (res && res.success) {
+                    showStatus('تم حفظ الحركة بنجاح', 'success');
+                    closeModal();
+                    loadRevenue(); // reload table
+                } else {
+                    showStatus(res?.message || 'فشل في حفظ الحركة', 'error');
+                }
+            } catch (err) {
+                showStatus('خطأ في الاتصال', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'حفظ الحركة';
+            }
         }
     </script>
     <script src="/js/layout.js"></script>

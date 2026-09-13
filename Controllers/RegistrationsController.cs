@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
+using SchoolSystemAPI.Services;
 
 namespace SchoolSystemAPI.Controllers;
 
@@ -12,10 +13,12 @@ namespace SchoolSystemAPI.Controllers;
 public class RegistrationsController : ControllerBase
 {
     private readonly IUnitOfWork _uow;
+    private readonly IResultsService _resultsService;
 
-    public RegistrationsController(IUnitOfWork uow)
+    public RegistrationsController(IUnitOfWork uow, IResultsService resultsService)
     {
         _uow = uow;
+        _resultsService = resultsService;
     }
 
     [HttpPost("request")]
@@ -70,6 +73,7 @@ public class RegistrationsController : ControllerBase
         var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).Where(s => studentIds.Contains(s.Id)).ToListAsync();
         
         var studentsArchive = await _uow.StudentArchives.FindAsync(sa => studentIds.Contains(sa.OriginalStudentId));
+        var grades = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
         
         var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
         var currentYear = appSettings?.AcademicYear ?? "السنة الحالية";
@@ -77,14 +81,29 @@ public class RegistrationsController : ControllerBase
         var result = pendingList.Select(p => {
             string prevYear = "-";
             string prevClass = "-";
+            decimal? prevPercentage = null;
+            bool? isPrevPassed = null;
 
             if (p.IsRenewal && p.StudentId.HasValue)
             {
+                var studentGrades = grades.Where(g => g.StudentId == p.StudentId.Value).ToList();
+                decimal total = 0;
+                var allSubjects = new[] { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
+                foreach (var sub in allSubjects)
+                {
+                    total += studentGrades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore + g.AttendanceScore);
+                }
+
+                int prevClassId = 0;
                 var archive = studentsArchive.Where(a => a.OriginalStudentId == p.StudentId.Value).OrderByDescending(a => a.Id).FirstOrDefault();
                 if (archive != null)
                 {
                     prevYear = archive.AcademicYear;
                     prevClass = archive.ClassName;
+                    // Try to guess stage from ClassName, or default to الابتدائي
+                    string stage = archive.StageName ?? "ابتدائي";
+                    prevPercentage = _resultsService.CalculatePercentage(total, stage);
+                    isPrevPassed = prevPercentage >= 50;
                 }
                 else
                 {
@@ -94,6 +113,12 @@ public class RegistrationsController : ControllerBase
                         prevYear = currentYear;
                         var cId = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0;
                         prevClass = classMap.ContainsKey(cId) ? classMap[cId] : "-";
+                        prevClassId = cId;
+                        
+                        var classRoom = classRooms.FirstOrDefault(c => c.Id == cId);
+                        string stage = classRoom?.Stage ?? "ابتدائي";
+                        prevPercentage = _resultsService.CalculatePercentage(total, stage);
+                        isPrevPassed = prevPercentage >= 50;
                     }
                 }
             }
@@ -112,7 +137,9 @@ public class RegistrationsController : ControllerBase
                 p.RequestDate,
                 p.Status,
                 PrevYear = prevYear,
-                PrevClass = prevClass
+                PrevClass = prevClass,
+                PrevPercentage = prevPercentage,
+                IsPrevPassed = isPrevPassed
             };
         }).OrderBy(p => p.RequestDate).ToList();
 
@@ -221,7 +248,7 @@ public class RegistrationsController : ControllerBase
                 StudentId = student.Id,
                 IsNewStudent = !pending.IsRenewal,
                 Amount = pending.AmountPaid,
-                PaymentDate = DateTime.UtcNow
+                PaymentDate = pending.RequestDate
             });
         }
 
@@ -373,7 +400,7 @@ public class RegistrationsController : ControllerBase
                     StudentId = student.Id,
                     IsNewStudent = !pending.IsRenewal,
                     Amount = pending.AmountPaid,
-                    PaymentDate = DateTime.UtcNow
+                    PaymentDate = pending.RequestDate
                 });
             }
 
