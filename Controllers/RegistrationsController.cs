@@ -146,6 +146,124 @@ public class RegistrationsController : ControllerBase
         return Ok(new { success = true, requests = result });
     }
 
+    [HttpGet("archive")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
+    public async Task<IActionResult> GetArchiveRegistrations()
+    {
+        var pendingList = await _uow.PendingRegistrations.FindAsync(p => p.Status == "Approved" || p.Status == "Rejected");
+        var classRooms = await _uow.ClassRooms.FindAsync(c => true);
+        var classMap = classRooms.ToDictionary(c => c.Id, c => c.Name);
+        
+        var result = pendingList.Select(p => new
+        {
+            p.Id,
+            p.StudentId,
+            p.Name,
+            p.Gender,
+            p.GovGrade,
+            p.ClassId,
+            ClassName = classMap.ContainsKey(p.ClassId) ? classMap[p.ClassId] : "غير معروف",
+            p.AmountPaid,
+            p.IsRenewal,
+            p.RequestDate,
+            p.Status
+        }).OrderByDescending(p => p.RequestDate).ToList();
+
+        return Ok(new { success = true, requests = result });
+    }
+
+    [HttpPost("fix-enrollments")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> FixEnrollments()
+    {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var currentYear = appSettings?.AcademicYear ?? "2026/2027";
+
+        var approvedRenewals = await _uow.PendingRegistrations.FindAsync(p => p.Status == "Approved" && p.IsRenewal && p.StudentId != null);
+        var classRooms = await _uow.ClassRooms.FindAsync(c => true);
+        
+        int fixedCount = 0;
+        foreach(var pending in approvedRenewals)
+        {
+            var student = await _uow.Students.GetQueryable().Include(s => s.Enrollments).FirstOrDefaultAsync(s => s.Id == pending.StudentId);
+            if (student != null)
+            {
+                var currentEnrollment = student.Enrollments?.FirstOrDefault(e => e.AcademicYear == currentYear);
+                if (currentEnrollment == null)
+                {
+                    // The bug happened!
+                    if (student.Enrollments == null) student.Enrollments = new List<StudentEnrollment>();
+                    student.Enrollments.Add(new StudentEnrollment { ClassRoomId = pending.ClassId, AcademicYear = currentYear });
+                    
+                    var oldEnrollment = student.Enrollments.OrderByDescending(e => e.AcademicYear).FirstOrDefault(e => e.AcademicYear != currentYear);
+                    if (oldEnrollment != null && oldEnrollment.ClassRoomId == pending.ClassId)
+                    {
+                         var archive = (await _uow.StudentArchives.FindAsync(a => a.OriginalStudentId == student.Id && a.AcademicYear == oldEnrollment.AcademicYear)).OrderByDescending(a => a.Id).FirstOrDefault();
+                         if (archive != null) 
+                         {
+                             var oldClass = classRooms.FirstOrDefault(c => c.Name == archive.ClassName);
+                             if (oldClass != null) {
+                                 oldEnrollment.ClassRoomId = oldClass.Id;
+                             }
+                         }
+                    }
+                    
+                    _uow.Students.Update(student);
+                    fixedCount++;
+                }
+            }
+        }
+        await _uow.CompleteAsync();
+        return Ok(new { success = true, message = $"تم إصلاح عدد {fixedCount} سجلات للطلاب." });
+    }
+
+    [HttpGet("messed-up-students")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
+    public async Task<IActionResult> GetMessedUpStudents()
+    {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var currentYear = appSettings?.AcademicYear ?? "2026/2027";
+
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
+        var classRooms = await _uow.ClassRooms.FindAsync(c => true);
+        var classMap = classRooms.ToDictionary(c => c.Id, c => c.Name);
+
+        var messedUp = students.Where(s => 
+        {
+            var newE = s.Enrollments?.FirstOrDefault(e => e.AcademicYear == currentYear);
+            var oldE = s.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault(e => e.AcademicYear != currentYear);
+            return newE != null && oldE != null && newE.ClassRoomId == oldE.ClassRoomId;
+        }).Select(s => new {
+            s.Id,
+            s.Name,
+            OldEnrollmentId = s.Enrollments.OrderByDescending(e => e.AcademicYear).FirstOrDefault(e => e.AcademicYear != currentYear).Id,
+            OldYear = s.Enrollments.OrderByDescending(e => e.AcademicYear).FirstOrDefault(e => e.AcademicYear != currentYear).AcademicYear,
+            CurrentClassId = s.Enrollments.FirstOrDefault(e => e.AcademicYear == currentYear).ClassRoomId,
+            CurrentClassName = classMap.ContainsKey(s.Enrollments.FirstOrDefault(e => e.AcademicYear == currentYear).ClassRoomId) ? classMap[s.Enrollments.FirstOrDefault(e => e.AcademicYear == currentYear).ClassRoomId] : "غير معروف"
+        }).ToList();
+
+        return Ok(new { success = true, students = messedUp, classes = classRooms.Select(c => new { c.Id, c.Name, c.Stage }) });
+    }
+
+    [HttpPost("fix-old-class")]
+    [Authorize(Roles = "Admin,HeadSecretary")]
+    public async Task<IActionResult> FixOldClass([FromBody] FixOldClassDto dto)
+    {
+        var student = await _uow.Students.GetQueryable().Include(s => s.Enrollments).FirstOrDefaultAsync(s => s.Id == dto.StudentId);
+        if (student != null)
+        {
+            var oldEnrollment = student.Enrollments.FirstOrDefault(e => e.Id == dto.OldEnrollmentId);
+            if (oldEnrollment != null)
+            {
+                oldEnrollment.ClassRoomId = dto.NewClassId;
+                _uow.Students.Update(student);
+                await _uow.CompleteAsync();
+                return Ok(new { success = true, message = "تم تعديل الفصل بنجاح" });
+            }
+        }
+        return BadRequest(new { success = false, message = "حدث خطأ أثناء التعديل" });
+    }
+
     [HttpPost("{id}/approve")]
     [Authorize(Roles = "Admin,HeadSecretary")]
     public async Task<IActionResult> ApproveRegistration(int id, [FromBody] ApproveRequestDto dto)
@@ -351,7 +469,7 @@ public class RegistrationsController : ControllerBase
                     student.Gender = pending.Gender;
                     student.IsDeacon = pending.IsDeacon;
                     student.GovGrade = pending.GovGrade;
-                    var enrollment = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault();
+                    var enrollment = student.Enrollments?.FirstOrDefault(e => e.AcademicYear == currentYear);
                     if (enrollment != null) enrollment.ClassRoomId = pending.ClassId;
                     else 
                     {
@@ -455,4 +573,11 @@ public class UpdatePendingDto
 public class BulkApproveRequestDto
 {
     public List<int> Ids { get; set; } = new();
+}
+
+public class FixOldClassDto
+{
+    public int StudentId { get; set; }
+    public int OldEnrollmentId { get; set; }
+    public int NewClassId { get; set; }
 }

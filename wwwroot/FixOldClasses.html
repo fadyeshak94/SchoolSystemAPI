@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>⚙️ إصلاح الفصول السابقة للطلاب</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .table-container { width: 100%; overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #eee; margin-top: 20px; box-shadow: var(--box-shadow); }
+        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f8fafc; color: #334155; font-weight: bold; }
+        tr:hover { background: #f1f5f9; }
+        
+        .class-select { padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-family: inherit; width: 200px; }
+        .action-btn { padding: 8px 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 12px; transition: opacity 0.2s; background: var(--success); }
+        .action-btn:hover { opacity: 0.9; }
+        
+        .empty-state { text-align: center; padding: 40px; color: #64748b; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div class="card" style="padding: 25px;">
+        <h3 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px;">🛠️</span> إصلاح فصول العام السابق
+        </h3>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom:20px;">
+            هذه القائمة تعرض الطلاب الذين تأثروا بمشكلة التجديد وبقي فصلهم القديم مساوياً للفصل الجديد.<br>
+            يمكنك هنا اختيار الفصل القديم الصحيح لكل طالب والضغط على حفظ.
+        </p>
+
+        <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>كود الطالب</th>
+                        <th>اسم الطالب</th>
+                        <th>السنة السابقة</th>
+                        <th>الفصل الحالي (الجديد)</th>
+                        <th>الفصل الصحيح للسنة السابقة</th>
+                        <th style="text-align:center;">إجراء</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsTableBody">
+                    <tr>
+                        <td colspan="6" class="empty-state">⏳ جاري تحميل البيانات...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let messedUpStudents = [];
+        let allClasses = [];
+
+        window.onload = async () => {
+            requireRole('Admin', 'HeadSecretary');
+            await loadMessedUpStudents();
+        };
+
+        async function loadMessedUpStudents() {
+            const tbody = document.getElementById('studentsTableBody');
+            
+            try {
+                const res = await fetchApi('/registrations/messed-up-students');
+                if (res && res.success) {
+                    messedUpStudents = res.students;
+                    allClasses = res.classes;
+                    renderStudents();
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:var(--danger);">❌ خطأ: ${res?.message || 'فشل تحميل البيانات'}</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="6" class="empty-state" style="color:var(--danger);">❌ خطأ في الاتصال بالخادم</td></tr>`;
+            }
+        }
+
+        function renderStudents() {
+            const tbody = document.getElementById('studentsTableBody');
+            
+            if (messedUpStudents.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">✅ لا يوجد طلاب متأثرين، البيانات صحيحة حالياً</td></tr>';
+                return;
+            }
+
+            let html = '';
+            messedUpStudents.forEach(student => {
+                const classOptions = allClasses.map(c => 
+                    `<option value="${c.id}">${c.name} ${c.stage ? '('+c.stage+')' : ''}</option>`
+                ).join('');
+
+                html += `
+                    <tr id="row-${student.id}">
+                        <td style="color:#64748b; font-size:12px;">#${student.id}</td>
+                        <td style="font-weight:bold; color:var(--primary);">${student.name}</td>
+                        <td style="color:#64748b;">${student.oldYear}</td>
+                        <td style="font-weight:bold; color:var(--danger);">${student.currentClassName}</td>
+                        <td>
+                            <select id="class-select-${student.id}" class="class-select">
+                                <option value="">-- اختر الفصل القديم --</option>
+                                ${classOptions}
+                            </select>
+                        </td>
+                        <td style="text-align:center;">
+                            <button class="action-btn" onclick="fixStudent(${student.id}, ${student.oldEnrollmentId})">💾 حفظ الفصل</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        async function fixStudent(studentId, oldEnrollmentId) {
+            const select = document.getElementById(`class-select-${studentId}`);
+            if (!select.value) {
+                alert('الرجاء اختيار الفصل القديم أولاً');
+                return;
+            }
+
+            const newClassId = parseInt(select.value);
+
+            try {
+                const res = await fetchApi('/registrations/fix-old-class', 'POST', {
+                    studentId: studentId,
+                    oldEnrollmentId: oldEnrollmentId,
+                    newClassId: newClassId
+                });
+
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', `✅ ${res.message || 'تم الإصلاح بنجاح'}`);
+                    document.getElementById(`row-${studentId}`).style.display = 'none';
+                    messedUpStudents = messedUpStudents.filter(s => s.id !== studentId);
+                    
+                    if (messedUpStudents.length === 0) {
+                        document.getElementById('studentsTableBody').innerHTML = '<tr><td colspan="6" class="empty-state">✅ تم إصلاح جميع الطلاب بنجاح</td></tr>';
+                    }
+                } else {
+                    showStatus('statusBar', 'error', `❌ خطأ: ${res?.message || 'فشل التعديل'}`);
+                }
+            } catch (e) {
+                showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

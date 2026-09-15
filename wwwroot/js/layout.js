@@ -68,6 +68,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 (userRole !== "Secretary") ? { path: "/SchoolHierarchy.html", icon: "🏢", text: "الهيكل الإداري والمدرسي" } : null,
                 { path: "/ServantsDirectory.html", icon: "📖", text: "دليل الخدام" },
                 { path: "/ManageRegistrations.html", icon: "📋", text: "إدارة التسجيلات" },
+                { path: "/ArchiveRegistrations.html", icon: "🗄️", text: "أرشيف التسجيلات" },
+                { path: "/FixOldClasses.html", icon: "🛠️", text: "إصلاح الفصول القديمة" },
                 { path: "/Financial.html", icon: "💰", text: "المحاسبة المالية" },
                 { path: "/DailyRevenue.html", icon: "📊", text: "تقرير التحصيل اليومي" },
                 (userRole !== "Secretary") ? { path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" } : null,
