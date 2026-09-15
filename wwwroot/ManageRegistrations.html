@@ -236,13 +236,18 @@
         }
 
         async function approveRequest(id) {
+            const classSelect = document.getElementById(`class-select-${id}`);
+            if (!classSelect || !classSelect.value) {
+                alert("برجاء اختيار الفصل قبل الموافقة على الطلب.");
+                return;
+            }
+
             if (!confirm('هل أنت متأكد من الموافقة على هذا الطلب واعتماد البيانات في النظام؟')) return;
 
-            const classId = parseInt(document.getElementById(`class-select-${id}`).value);
+            const classId = parseInt(classSelect.value);
             
             try {
                 const res = await fetchApi(`/registrations/${id}/approve`, 'POST', { classId: classId });
-                fetchApi(`/registrations/pending/${id}/whatsapp`, 'POST').then(() => {}).catch(() => {});
                 if (res && res.success) {
                     showStatus('statusBar', 'success', `✅ ${res.message}`);
                     document.getElementById(`req-row-${id}`).style.display = 'none';

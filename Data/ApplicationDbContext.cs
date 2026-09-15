@@ -32,6 +32,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Family> Families { get; set; }
     public DbSet<ServantAssignment> ServantAssignments { get; set; }
     public DbSet<FinancialTransaction> FinancialTransactions { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<FcmToken> FcmTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +56,16 @@ public class ApplicationDbContext : DbContext
                   .WithMany(c => c.SupervisedByUsers)
                   .HasForeignKey(e => e.ClassRoomId)
                   .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasMany(e => e.RefreshTokens)
+                  .WithOne(rt => rt.AppUser)
+                  .HasForeignKey(rt => rt.AppUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.FcmTokens)
+                  .WithOne(ft => ft.AppUser)
+                  .HasForeignKey(ft => ft.AppUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ==========================================

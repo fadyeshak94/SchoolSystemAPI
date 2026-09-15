@@ -35,25 +35,113 @@ public class AuthService : IAuthService
         return Convert.ToHexString(hash).ToLower();
     }
 
-    public async Task<(bool Success, string Token, string Message, bool PendingReset)> LoginAsync(string username, string password)
+    public async Task<(bool Success, string Token, string RefreshToken, string Message, bool PendingReset)> LoginAsync(string username, string password)
     {
         var user = await _context.Users
             .Include(u => u.ClassRoom)
             .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
 
         if (user == null)
-            return (false, string.Empty, "اسم المستخدم غير صحيح.", false);
+            return (false, string.Empty, string.Empty, "اسم المستخدم غير صحيح.", false);
 
         if (string.IsNullOrEmpty(user.PasswordHash))
-            return (false, string.Empty, "الحساب ده لسه مفيهوش كلمة مرور متسجلة.", false);
+            return (false, string.Empty, string.Empty, "الحساب ده لسه مفيهوش كلمة مرور متسجلة.", false);
 
         var inputHash = HashPassword(password, user.Salt);
 
         if (inputHash != user.PasswordHash)
-            return (false, string.Empty, "كلمة المرور غير صحيحة.", false);
+            return (false, string.Empty, string.Empty, "كلمة المرور غير صحيحة.", false);
 
         var token = GenerateJwtToken(user);
-        return (true, token, "تم تسجيل الدخول بنجاح.", user.PendingReset);
+        var refreshToken = GenerateRefreshToken(user.Id);
+        
+        _context.RefreshTokens.Add(refreshToken);
+        await _context.SaveChangesAsync();
+
+        return (true, token, refreshToken.Token, "تم تسجيل الدخول بنجاح.", user.PendingReset);
+    }
+
+    private RefreshToken GenerateRefreshToken(int userId)
+    {
+        var randomNumber = new byte[32];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return new RefreshToken
+        {
+            Token = Convert.ToBase64String(randomNumber),
+            Expires = DateTime.UtcNow.AddDays(7),
+            Created = DateTime.UtcNow,
+            AppUserId = userId
+        };
+    }
+
+    public async Task<(bool Success, string Token, string RefreshToken, string Message)> RefreshTokenAsync(string token, string refreshToken)
+    {
+        var principal = GetPrincipalFromExpiredToken(token);
+        if (principal == null)
+            return (false, string.Empty, string.Empty, "Invalid access token or refresh token");
+
+        var userIdClaim = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+            return (false, string.Empty, string.Empty, "Invalid access token or refresh token");
+
+        var user = await _context.Users
+            .Include(u => u.ClassRoom)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+            
+        if (user == null)
+            return (false, string.Empty, string.Empty, "User not found");
+
+        var savedRefreshToken = await _context.RefreshTokens
+            .FirstOrDefaultAsync(rt => rt.Token == refreshToken && rt.AppUserId == userId);
+
+        if (savedRefreshToken == null || !savedRefreshToken.IsActive)
+            return (false, string.Empty, string.Empty, "Invalid or expired refresh token");
+
+        var newJwtToken = GenerateJwtToken(user);
+        var newRefreshToken = GenerateRefreshToken(userId);
+
+        savedRefreshToken.Revoked = DateTime.UtcNow;
+        _context.RefreshTokens.Add(newRefreshToken);
+        await _context.SaveChangesAsync();
+
+        return (true, newJwtToken, newRefreshToken.Token, "Token refreshed successfully");
+    }
+
+    public async Task<bool> RevokeTokenAsync(string token)
+    {
+        var refreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == token);
+        if (refreshToken == null)
+            return false;
+
+        refreshToken.Revoked = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
+
+    private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+    {
+        var jwtSettings = _config.GetSection("JwtSettings");
+        var tokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = true,
+            ValidateIssuer = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!)),
+            ValidateLifetime = false // Here we are saying that we don't care about the token's expiration date
+        };
+
+        var tokenHandler = new JwtSecurityTokenHandler();
+        var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken securityToken);
+        
+        var jwtSecurityToken = securityToken as JwtSecurityToken;
+        if (jwtSecurityToken == null || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+            throw new SecurityTokenException("Invalid token");
+
+        return principal;
     }
 
     public async Task<(bool Success, string Message)> ChangePasswordAsync(string username, string oldPassword, string newPassword)

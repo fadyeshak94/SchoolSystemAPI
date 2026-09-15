@@ -17,12 +17,32 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var (success, token, message, pendingReset) = await _authService.LoginAsync(dto.Username, dto.Password);
+        var (success, token, refreshToken, message, pendingReset) = await _authService.LoginAsync(dto.Username, dto.Password);
         
         if (!success)
             return Unauthorized(new { success = false, message });
 
-        return Ok(new { success = true, token, message, requiresPasswordReset = pendingReset });
+        return Ok(new { success = true, token, refreshToken, message, requiresPasswordReset = pendingReset });
+    }
+
+    [HttpPost("refresh-token")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto dto)
+    {
+        var (success, token, refreshToken, message) = await _authService.RefreshTokenAsync(dto.Token, dto.RefreshToken);
+        if (!success)
+            return Unauthorized(new { success = false, message });
+            
+        return Ok(new { success = true, token, refreshToken, message });
+    }
+
+    [HttpPost("revoke-token")]
+    public async Task<IActionResult> RevokeToken([FromBody] RevokeTokenRequestDto dto)
+    {
+        var success = await _authService.RevokeTokenAsync(dto.Token);
+        if (!success)
+            return BadRequest(new { success = false, message = "Token is invalid" });
+            
+        return Ok(new { success = true, message = "Token revoked successfully" });
     }
 
     [HttpPost("change-password")]
@@ -47,4 +67,15 @@ public class ChangePasswordDto
     public string Username { get; set; } = string.Empty;
     public string OldPassword { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;
+}
+
+public class RefreshTokenRequestDto
+{
+    public string Token { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
+}
+
+public class RevokeTokenRequestDto
+{
+    public string Token { get; set; } = string.Empty;
 }

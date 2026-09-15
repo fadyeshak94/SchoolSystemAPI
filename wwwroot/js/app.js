@@ -30,7 +30,8 @@ async function fetchApi(endpoint, method = 'GET', body = null) {
              return response; 
         }
 
-        return await response.json();
+        const text = await response.text();
+        return text ? JSON.parse(text) : {};
     } catch (error) {
         console.error("API Error:", error);
         return { success: false, message: "حدث خطأ في الاتصال بالخادم." };

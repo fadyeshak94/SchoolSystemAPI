@@ -20,5 +20,7 @@ public class AppUser
     public ClassRoom? ClassRoom { get; set; }
 
     public ICollection<ServantAssignment> ServantAssignments { get; set; } = new List<ServantAssignment>();
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<FcmToken> FcmTokens { get; set; } = new List<FcmToken>();
 }
 

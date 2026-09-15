@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 using SchoolSystemAPI.Services;
+using SchoolSystemAPI.DTOs;
 
 namespace SchoolSystemAPI.Controllers;
 
@@ -21,10 +22,17 @@ public class UsersController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "Admin,HeadSecretary")] // للأدمن وأمين السكرتارية
-    public async Task<IActionResult> GetAllUsers()
+    public async Task<IActionResult> GetAllUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50)
     {
-        var users = await _uow.Users.FindAsync(u => true);
-        var result = users.Select(u => new
+        var allUsers = await _uow.Users.FindAsync(u => true);
+        var totalRecords = allUsers.Count();
+        
+        var pagedUsers = allUsers
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        var result = pagedUsers.Select(u => new
         {
             id = u.Id,
             username = u.Username,
@@ -46,7 +54,7 @@ public class UsersController : ControllerBase
         return Ok(new 
         { 
             success = true, 
-            users = result,
+            users = new PagedResponse<object>(result, pageNumber, pageSize, totalRecords),
             classes = classes.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList(),
             stages = stages
         });

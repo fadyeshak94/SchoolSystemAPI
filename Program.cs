@@ -21,8 +21,10 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // 4. تسجيل الـ Services اللي بنيناها
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IResultsService, ResultsService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>(); // صور الـ PNG والـ ZIP
 builder.Services.AddScoped<IPdfService, PdfService>(); // الـ QuestPDF للشهادات
+builder.Services.AddScoped<IUrlHelperService, UrlHelperService>();
 builder.Services.AddHttpContextAccessor();
 
 // 5. إعداد الـ CORS عشان الواجهة (HTML/JS) تقدر تكلم الـ API

@@ -160,18 +160,21 @@ public class RegistrationsController : ControllerBase
             pending.ClassId = dto.ClassId.Value;
         }
 
-        // Check capacity
-        var studentsInClass = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == pending.ClassId)).ToListAsync();
-        if (studentsInClass.Count() >= 35)
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var currentYear = appSettings?.AcademicYear ?? "2024/2025";
+
+        // Check capacity for the current academic year
+        var studentsInClassCount = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == pending.ClassId && e.AcademicYear == currentYear))
+            .CountAsync();
+            
+        if (studentsInClassCount >= 35)
         {
             pending.Status = "Waitlisted";
             _uow.PendingRegistrations.Update(pending);
             await _uow.CompleteAsync();
             return BadRequest(new { success = false, message = "الفصل مكتمل العدد (35 طالب أو أكثر). تم تحويل الطلب إلى قائمة الانتظار (Waitlist)." });
         }
-
-        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
-        var currentYear = appSettings?.AcademicYear ?? "2024/2025";
 
         Student student;
 
@@ -326,8 +329,11 @@ public class RegistrationsController : ControllerBase
             if (pending == null || (pending.Status != "Pending" && pending.Status != "Waitlisted"))
                 continue;
 
-            var studentsInClass = await _uow.Students.GetQueryable().Where(s => s.Enrollments.Any(e => e.ClassRoomId == pending.ClassId)).ToListAsync();
-            if (studentsInClass.Count() >= 35)
+            var studentsInClassCount = await _uow.Students.GetQueryable()
+                .Where(s => s.Enrollments.Any(e => e.ClassRoomId == pending.ClassId && e.AcademicYear == currentYear))
+                .CountAsync();
+                
+            if (studentsInClassCount >= 35)
             {
                 pending.Status = "Waitlisted";
                 _uow.PendingRegistrations.Update(pending);

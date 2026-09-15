@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Hosting;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Services;
+using System.IO;
 
 namespace SchoolSystemAPI.Controllers;
 
@@ -63,13 +65,23 @@ public class CertificatesController : ControllerBase
             return BadRequest(new { success = false, message = "لا يوجد طلاب حاصلين على 50% أو أكثر في هذا الفصل" });
 
         var pdfBytes = _pdfService.GenerateCertificatesPdf(classRoom.Name, classRoom.Stage, classRoom.Year, passingStudents);
-        var base64 = Convert.ToBase64String(pdfBytes);
+        
+        var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        var urlHelper = HttpContext.RequestServices.GetRequiredService<IUrlHelperService>();
+        var dirPath = Path.Combine(env.WebRootPath, "generated");
+        if (!Directory.Exists(dirPath)) Directory.CreateDirectory(dirPath);
+        
+        var filename = $"certificates_{classRoom.Id}_{DateTime.Now.Ticks}.pdf";
+        var filePath = Path.Combine(dirPath, filename);
+        await System.IO.File.WriteAllBytesAsync(filePath, pdfBytes);
+        
+        var url = urlHelper.GetAbsoluteUrl($"/generated/{filename}");
 
         return Ok(new 
         { 
             success = true, 
-            base64 = base64, 
-            filename = $"شهادات_{classRoom.Name}.pdf",
+            url = url, 
+            filename = filename,
             count = passingStudents.Count 
         });
     }
@@ -90,13 +102,23 @@ public class CertificatesController : ControllerBase
         // This assumes IDocumentService is injected, we need to inject it in constructor.
         var documentService = HttpContext.RequestServices.GetRequiredService<IDocumentService>();
         var pngBytes = documentService.GenerateStudentIdCard(student, academicYear);
-        var base64 = Convert.ToBase64String(pngBytes);
+        
+        var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        var urlHelper = HttpContext.RequestServices.GetRequiredService<IUrlHelperService>();
+        var dirPath = Path.Combine(env.WebRootPath, "generated");
+        if (!Directory.Exists(dirPath)) Directory.CreateDirectory(dirPath);
+        
+        var filename = $"idcard_{student.Id}_{DateTime.Now.Ticks}.png";
+        var filePath = Path.Combine(dirPath, filename);
+        await System.IO.File.WriteAllBytesAsync(filePath, pngBytes);
+        
+        var url = urlHelper.GetAbsoluteUrl($"/generated/{filename}");
 
         return Ok(new 
         { 
             success = true, 
-            base64 = base64, 
-            filename = $"بطاقة_{student.Name}.png"
+            url = url, 
+            filename = filename
         });
     }
 
@@ -116,13 +138,23 @@ public class CertificatesController : ControllerBase
 
         var documentService = HttpContext.RequestServices.GetRequiredService<IDocumentService>();
         var zipBytes = documentService.GenerateClassIdCardsZip(students, resolvedAcademicYear);
-        var base64 = Convert.ToBase64String(zipBytes);
+        
+        var env = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>();
+        var urlHelper = HttpContext.RequestServices.GetRequiredService<IUrlHelperService>();
+        var dirPath = Path.Combine(env.WebRootPath, "generated");
+        if (!Directory.Exists(dirPath)) Directory.CreateDirectory(dirPath);
+        
+        var filename = $"idcards_{classRoom.Id}_{DateTime.Now.Ticks}.zip";
+        var filePath = Path.Combine(dirPath, filename);
+        await System.IO.File.WriteAllBytesAsync(filePath, zipBytes);
+        
+        var url = urlHelper.GetAbsoluteUrl($"/generated/{filename}");
 
         return Ok(new 
         { 
             success = true, 
-            base64 = base64, 
-            filename = $"بطاقات_{classRoom.Name}.zip",
+            url = url, 
+            filename = filename,
             count = students.Count()
         });
     }
