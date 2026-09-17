@@ -45,7 +45,8 @@ public class UsersController : ControllerBase
             phoneNumber = u.PhoneNumber,
             confessionFather = u.ConfessionFather,
             dateOfBirth = u.DateOfBirth,
-            hasPassword = !string.IsNullOrEmpty(u.PasswordHash)
+            hasPassword = !string.IsNullOrEmpty(u.PasswordHash),
+            canAccessSmartMother = u.CanAccessSmartMother
         }).ToList();
 
         var classes = await _uow.ClassRooms.FindAsync(c => true);
@@ -85,7 +86,8 @@ public class UsersController : ControllerBase
             DateOfBirth = dto.DateOfBirth,
             PasswordHash = hash,
             Salt = salt,
-            PendingReset = (dto.Role == "Servant")
+            PendingReset = (dto.Role == "Servant"),
+            CanAccessSmartMother = dto.CanAccessSmartMother
         };
 
         await _uow.Users.AddAsync(newUser);
@@ -112,6 +114,10 @@ public class UsersController : ControllerBase
         if (!string.IsNullOrEmpty(dto.Role))
         {
             user.Role = dto.Role;
+        }
+        if (dto.CanAccessSmartMother.HasValue)
+        {
+            user.CanAccessSmartMother = dto.CanAccessSmartMother.Value;
         }
 
         _uow.Users.Update(user);
@@ -288,6 +294,7 @@ public class AddUserDto
     public int? ClassId { get; set; }
     public string? StageAccess { get; set; }
     public string Password { get; set; } = string.Empty;
+    public bool CanAccessSmartMother { get; set; }
 }
 
 public class UpdateUserDto
@@ -300,6 +307,7 @@ public class UpdateUserDto
     public string? PhoneNumber { get; set; }
     public string? ConfessionFather { get; set; }
     public DateTime? DateOfBirth { get; set; }
+    public bool? CanAccessSmartMother { get; set; }
 }
 
 public class UpdatePersonalDataDto

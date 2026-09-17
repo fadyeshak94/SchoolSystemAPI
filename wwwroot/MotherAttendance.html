@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>حضور الأم الشاطرة</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .header-actions { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .date-picker { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; font-size: 16px; }
+        
+        .table-container { width: 100%; overflow-x: auto; background: white; border-radius: 12px; border: 1px solid #eee; box-shadow: var(--box-shadow); }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f8fafc; color: #334155; font-weight: bold; }
+        tr:hover { background: #f1f5f9; }
+        
+        .status-radio { margin-right: 10px; margin-left: 5px; cursor: pointer; }
+        .status-label { cursor: pointer; font-weight: bold; }
+        .status-green { color: #166534; }
+        .status-red { color: #991b1b; }
+        .status-yellow { color: #b45309; }
+        
+        .btn-save { background: var(--primary); color: white; padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
+        .btn-save:hover { background: #1e3a8a; }
+        
+        .btn-wa { background: #25D366; color: white; padding: 10px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-wa:hover { background: #20b858; }
+        
+        .empty-state { text-align: center; padding: 40px; color: #64748b; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+    <div class="card" style="padding: 25px;">
+        <div class="header-actions">
+            <h3 style="margin:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">📅</span> غياب وحضور "الأم الشاطرة"
+            </h3>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <label style="font-weight: bold; color: var(--text-muted);">تاريخ المحاضرة:</label>
+                <input type="date" id="attDate" class="date-picker" onchange="loadAttendance()">
+            </div>
+        </div>
+
+        <div id="statusBar" class="status-bar" style="display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold; margin-bottom: 15px;"></div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>اسم الأم</th>
+                        <th style="width: 350px;">حالة الحضور</th>
+                        <th>تواصل (واتساب)</th>
+                    </tr>
+                </thead>
+                <tbody id="attTableBody">
+                    <tr>
+                        <td colspan="3" class="empty-state">يرجى اختيار التاريخ أولاً</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: left;">
+            <button class="btn-save" onclick="saveAttendance()">💾 حفظ كشف الحضور</button>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let attendanceData = [];
+
+        window.onload = () => {
+            requireSmartMotherAccess();
+            
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('attDate').value = today;
+            
+            loadAttendance();
+        };
+
+        async function loadAttendance() {
+            const date = document.getElementById('attDate').value;
+            if (!date) return;
+            
+            const tbody = document.getElementById('attTableBody');
+            tbody.innerHTML = '<tr><td colspan="3" class="empty-state">⏳ جاري التحميل...</td></tr>';
+            
+            try {
+                const res = await fetchApi(`/mothers/attendance?date=${date}`);
+                if (res && res.success) {
+                    attendanceData = res.attendance;
+                    renderTable();
+                }
+            } catch(e) {
+                showStatus('statusBar', 'error', '❌ فشل تحميل البيانات');
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('attTableBody');
+            if (attendanceData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-state">✅ لا توجد أمهات مسجلات في النظام</td></tr>';
+                return;
+            }
+
+            let html = '';
+            attendanceData.forEach(m => {
+                const phone = m.whatsapp || m.phone;
+                html += `
+                    <tr>
+                        <td style="font-weight:bold; color:var(--primary);">${m.name}</td>
+                        <td>
+                            <label class="status-label status-green">
+                                <input type="radio" name="status_${m.id}" class="status-radio" value="حاضر" ${m.status === 'حاضر' ? 'checked' : ''} onchange="updateStatus(${m.id}, 'حاضر')"> حاضر
+                            </label>
+                            <label class="status-label status-red" style="margin-right: 20px;">
+                                <input type="radio" name="status_${m.id}" class="status-radio" value="غائب" ${m.status === 'غائب' ? 'checked' : ''} onchange="updateStatus(${m.id}, 'غائب')"> غائب
+                            </label>
+                            <label class="status-label status-yellow" style="margin-right: 20px;">
+                                <input type="radio" name="status_${m.id}" class="status-radio" value="بعذر" ${m.status === 'بعذر' ? 'checked' : ''} onchange="updateStatus(${m.id}, 'بعذر')"> بعذر
+                            </label>
+                        </td>
+                        <td>
+                            ${phone ? `<button class="btn-wa" onclick="sendWa('${phone}', '${m.name}')">💬 واتساب</button>` : '-'}
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function updateStatus(id, status) {
+            const index = attendanceData.findIndex(x => x.id === id);
+            if (index > -1) {
+                attendanceData[index].status = status;
+            }
+        }
+
+        function sendWa(phone, name) {
+            let msg = `سلام ونعمة يا أستاذة ${name}، مفتقدينك جداً في فصل الأم الشاطرة، نتمنى تكوني بخير.`;
+            if (phone.startsWith('01')) phone = '+2' + phone;
+            const url = `https://wa.me/${phone.replace('+', '')}?text=${encodeURIComponent(msg)}`;
+            window.open(url, '_blank');
+        }
+
+        async function saveAttendance() {
+            const date = document.getElementById('attDate').value;
+            if (!date) {
+                alert("اختر التاريخ أولاً");
+                return;
+            }
+
+            const payload = {
+                Date: date,
+                Attendances: attendanceData.filter(x => x.status).map(x => ({
+                    MotherId: x.id,
+                    Status: x.status
+                }))
+            };
+
+            const btn = document.querySelector('.btn-save');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ جاري الحفظ...';
+
+            try {
+                const res = await fetchApi('/mothers/attendance', 'POST', payload);
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', '✅ ' + res.message);
+                } else {
+                    showStatus('statusBar', 'error', '❌ فشل الحفظ');
+                }
+            } catch(e) {
+                showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
+            }
+            
+            btn.disabled = false;
+            btn.innerHTML = '💾 حفظ كشف الحضور';
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

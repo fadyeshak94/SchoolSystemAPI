@@ -16,6 +16,9 @@ public class Student
     public string? FamilyId { get; set; } // لمعرفة الأخوة
     public Family? Family { get; set; }
     
+    public int? MotherId { get; set; }
+    public Mother? Mother { get; set; }
+    
     public ICollection<AttendanceRecord> AttendanceRecords { get; set; } = new List<AttendanceRecord>();
     public ICollection<StudentGrade> Grades { get; set; } = new List<StudentGrade>();
 }

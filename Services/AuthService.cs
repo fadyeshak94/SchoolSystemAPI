@@ -176,7 +176,8 @@ public class AuthService : IAuthService
             new Claim("Role", effectiveRole),
             new Claim("ClassRoomId", user.ClassRoomId?.ToString() ?? string.Empty),
             new Claim("StageAccess", user.StageAccess ?? string.Empty),
-            new Claim("Title", user.Title ?? string.Empty)
+            new Claim("Title", user.Title ?? string.Empty),
+            new Claim("CanAccessSmartMother", user.CanAccessSmartMother ? "True" : "False")
         };
 
         var token = new JwtSecurityToken(

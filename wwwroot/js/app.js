@@ -149,6 +149,37 @@ function requireRole(...allowedRoles) {
     }
 }
 
+// التحقق من صلاحية الأم الشاطرة
+function requireSmartMotherAccess() {
+    const token = localStorage.getItem('appToken');
+    if (!token) {
+        window.location.href = '/Login.html';
+        return false;
+    }
+    
+    try {
+        const payload = parseJwtToken(token);
+        if (!payload) throw new Error("Invalid token");
+        
+        let rawRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "User";
+        const role = Array.isArray(rawRole) ? rawRole[0] : rawRole;
+        const roleLower = String(role).toLowerCase();
+        
+        const isDefaultAdmin = roleLower === 'admin' || roleLower === 'headsecretary';
+        const hasSpecificAccess = payload["CanAccessSmartMother"] === "True";
+        
+        if (!isDefaultAdmin && !hasSpecificAccess) {
+            alert('🚫 عذراً، ليس لديك صلاحية للوصول لصفحات الأم الشاطرة.');
+            window.location.href = '/Dashboard.html';
+            return false;
+        }
+        return true;
+    } catch (e) {
+        window.location.href = '/Login.html';
+        return false;
+    }
+}
+
 // دالة مساعدة لتحميل الملفات من Base64
 function downloadBase64(base64Data, filename, contentType) {
     const linkSource = `data:${contentType};base64,${base64Data}`;

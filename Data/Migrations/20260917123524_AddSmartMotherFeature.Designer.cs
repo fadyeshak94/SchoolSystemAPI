@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SchoolSystemAPI.Data;
 
 #nullable disable
 
-namespace SchoolSystemAPI.Migrations
+namespace SchoolSystemAPI.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917123524_AddSmartMotherFeature")]
+    partial class AddSmartMotherFeature
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -54,9 +57,6 @@ namespace SchoolSystemAPI.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("CanAccessSmartMother")
-                        .HasColumnType("bit");
 
                     b.Property<int?>("ClassRoomId")
                         .HasColumnType("int");
@@ -385,7 +385,7 @@ namespace SchoolSystemAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Mother", (string)null);
+                    b.ToTable("Mother");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.MotherAttendance", b =>
@@ -410,7 +410,7 @@ namespace SchoolSystemAPI.Migrations
 
                     b.HasIndex("MotherId");
 
-                    b.ToTable("MotherAttendance", (string)null);
+                    b.ToTable("MotherAttendance");
                 });
 
             modelBuilder.Entity("SchoolSystemAPI.Models.PendingRegistration", b =>

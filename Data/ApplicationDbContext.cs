@@ -34,10 +34,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<FinancialTransaction> FinancialTransactions { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<FcmToken> FcmTokens { get; set; }
+    public DbSet<Mother> Mothers { get; set; }
+    public DbSet<MotherAttendance> MotherAttendances { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        
+        modelBuilder.Entity<Mother>().ToTable("Mother");
+        modelBuilder.Entity<MotherAttendance>().ToTable("MotherAttendance");
 
         // ==========================================
         // 1. AppUser Configuration

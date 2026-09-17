@@ -15,6 +15,7 @@ public class AppUser
     public string? ConfessionFather { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public bool PendingReset { get; set; } = false;
+    public bool CanAccessSmartMother { get; set; } = false;
 
     public int? ClassRoomId { get; set; }
     public ClassRoom? ClassRoom { get; set; }

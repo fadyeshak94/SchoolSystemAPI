@@ -59,6 +59,12 @@
         <div><label>رقم التليفون</label><input type="text" id="newPhone"></div>
         <div><label>أب الاعتراف</label><input type="text" id="newConfessionFather"></div>
         <div><label>تاريخ الميلاد</label><input type="date" id="newDob"></div>
+        <div>
+            <label style="display:flex; align-items:center; gap:5px; margin-top:20px; font-size:13px;">
+                <input type="checkbox" id="newCanAccessSmartMother" style="width:auto; margin:0;">
+                صلاحية الأم الشاطرة
+            </label>
+        </div>
         <div><button class="btn btn-primary" onclick="addUser()">إضافة</button></div>
       </div>
     </div>
@@ -99,7 +105,7 @@
                 stagesData = data.stages || [];
                 populateClassSelect(document.getElementById('newClass'));
                 populateStageSelect(document.getElementById('newStage'));
-                renderUsers(data.users || []);
+                renderUsers((data.users && data.users.data) ? data.users.data : (data.users || []));
             } else {
                 document.getElementById('content').innerHTML = '<div class="error-box">❌ ' + (data?.message || 'خطأ غير معروف') + '</div>';
             }
@@ -128,14 +134,18 @@
       }
 
       function renderUsers(users) {
-        if (users.length === 0) {
-          document.getElementById('content').innerHTML = '<div class="no-data">📭 لا يوجد مستخدمين</div>';
-          return;
-        }
+  // Ensure users is always an array to avoid "users.forEach is not a function"
+  if (!Array.isArray(users)) {
+    users = [];
+  }
+  if (users.length === 0) {
+    document.getElementById('content').innerHTML = '<div class="no-data">📭 لا يوجد مستخدمين</div>';
+    return;
+  }
 
-        var html = '<div class="table-container"><table><thead><tr>';
-        html += '<th>Username</th><th>الإيميل</th><th>نوع الصلاحية</th><th>الفصل / المرحلة</th><th>الدور والمسمى</th><th>بيانات شخصية</th><th>الحالة / الباسورد</th><th></th>';
-        html += '</tr></thead><tbody>';
+  var html = '<div class="table-container"><table><thead><tr>';
+  html += '<th>Username</th><th>الإيميل</th><th>نوع الصلاحية</th><th>الفصل / المرحلة</th><th>الدور والمسمى</th><th>بيانات شخصية</th><th>خيارات إضافية</th><th>الحالة / الباسورد</th><th></th>';
+  html += '</tr></thead><tbody>';
 
         users.forEach(function(u) {
           var isStage = !!u.stageAccess;
@@ -169,6 +179,10 @@
           html += '</td>';
 
           html += '<td>';
+          html += '<label style="font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="smart-mother-chk" ' + (u.canAccessSmartMother ? 'checked' : '') + ' style="width:auto; margin:0;"> الأم الشاطرة</label>';
+          html += '</td>';
+
+          html += '<td>';
           html += '<div style="font-size:11px; margin-bottom:5px;">' + (u.hasPassword ? '✅ باسورد' : '⚠️ لا يوجد') + '</div>';
           html += '<input type="text" class="pw-input" placeholder="جديدة" style="width:70px; padding:4px; font-size:11px; margin-bottom:4px; display:block;">';
           html += '<button class="btn btn-small btn-key" onclick="setPassword(this)" style="padding:4px 8px; width:70px;">🔑 تعيين</button>';
@@ -193,7 +207,8 @@
           var user = users.filter(function(u) { return u.username === username; })[0];
           populateStageSelect(select);
           if (user.stageAccess) select.value = user.stageAccess;
-        });
+
+    });
       }
 
       function toggleRowAccessType(select) {
@@ -216,6 +231,7 @@
         var phoneNumber = row.querySelector('.phone-input').value.trim();
         var confessionFather = row.querySelector('.cfather-input').value.trim();
         var dateOfBirth = row.querySelector('.dob-input').value || null;
+        var canAccessSmartMother = row.querySelector('.smart-mother-chk').checked;
 
         try {
             const res = await fetchApi(`/users/${username}`, 'PUT', {
@@ -226,7 +242,8 @@
                 nameAR: nameAR || null,
                 phoneNumber: phoneNumber,
                 confessionFather: confessionFather,
-                dateOfBirth: dateOfBirth
+                dateOfBirth: dateOfBirth,
+                canAccessSmartMother: canAccessSmartMother
             });
             if(res && res.success) {
                 showStatus('success', res.message);
@@ -278,7 +295,8 @@
           password: document.getElementById('newPassword').value.trim(),
           phoneNumber: document.getElementById('newPhone').value.trim(),
           confessionFather: document.getElementById('newConfessionFather').value.trim(),
-          dateOfBirth: document.getElementById('newDob').value || null
+          dateOfBirth: document.getElementById('newDob').value || null,
+          canAccessSmartMother: document.getElementById('newCanAccessSmartMother').checked
         };
 
         if (!payload.username || (!payload.classId && !payload.stageAccess)) {
@@ -297,6 +315,7 @@
                 document.getElementById('newPhone').value = '';
                 document.getElementById('newConfessionFather').value = '';
                 document.getElementById('newDob').value = '';
+                document.getElementById('newCanAccessSmartMother').checked = false;
                 loadUsers();
             } else {
                 showStatus('error', res?.message || 'حدث خطأ');
@@ -311,7 +330,7 @@
         bar.className = 'status-bar ' + type;
         bar.textContent = message;
         bar.style.display = 'block';
-      }
+    }
     </script>
       <script src="/js/layout.js"></script>
   </body>

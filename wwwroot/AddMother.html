@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>إضافة أم الشاطرة</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .form-card { background: white; padding: 25px; border-radius: 12px; box-shadow: var(--box-shadow); max-width: 800px; margin: 20px auto; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--primary); }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-family: inherit; }
+        .btn-submit { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 16px; margin-top: 20px; }
+        .btn-submit:hover { background: #1e3a8a; }
+        
+        .children-section { margin-top: 25px; padding-top: 20px; border-top: 2px dashed #eee; }
+        .search-results { border: 1px solid #ccc; border-radius: 8px; max-height: 150px; overflow-y: auto; background: white; margin-top: 5px; display: none; }
+        .search-item { padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .search-item:hover { background: #f1f5f9; }
+        .search-item:last-child { border-bottom: none; }
+        
+        .selected-children { margin-top: 15px; }
+        .child-tag { display: inline-flex; align-items: center; gap: 8px; background: #e0e7ff; color: #3730a3; padding: 8px 12px; border-radius: 20px; margin: 5px; font-size: 14px; font-weight: bold; }
+        .child-tag span { cursor: pointer; color: #ef4444; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="form-card">
+        <h3 style="margin-top:0; color:var(--primary); display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px;">👩‍👦</span> إضافة أم جديدة لفصل "الأم الشاطرة"
+        </h3>
+        
+        <div id="statusBar" class="status-bar" style="display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold; margin-bottom: 20px;"></div>
+
+        <form id="addMotherForm" onsubmit="event.preventDefault(); saveMother();">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>اسم الأم (رباعي) *</label>
+                    <input type="text" id="mName" required>
+                </div>
+                <div class="form-group">
+                    <label>رقم التليفون *</label>
+                    <input type="text" id="mPhone" required>
+                </div>
+                <div class="form-group">
+                    <label>رقم الواتساب</label>
+                    <input type="text" id="mWhatsapp">
+                </div>
+                <div class="form-group">
+                    <label>تاريخ الميلاد</label>
+                    <input type="date" id="mDOB">
+                </div>
+                <div class="form-group">
+                    <label>اسم الزوج</label>
+                    <input type="text" id="mHusband">
+                </div>
+                <div class="form-group">
+                    <label>الوظيفة</label>
+                    <input type="text" id="mJob">
+                </div>
+                <div class="form-group">
+                    <label>أب الاعتراف</label>
+                    <input type="text" id="mConfession">
+                </div>
+            </div>
+
+            <div class="children-section">
+                <h4 style="color:var(--primary); margin-bottom: 10px;">👶 إضافة الأبناء</h4>
+                <p style="font-size:12px; color:#64748b; margin-top:0;">ابحث باسم الطالب واضغط على اسمه لإضافته كابن لهذه الأم.</p>
+                
+                <input type="text" id="studentSearch" placeholder="🔍 بحث باسم الطالب..." oninput="searchStudents()" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit;">
+                
+                <div id="searchResults" class="search-results"></div>
+                
+                <div id="selectedChildren" class="selected-children">
+                    <!-- Child tags will appear here -->
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit">💾 حفظ بيانات الأم</button>
+        </form>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let selectedStudentIds = [];
+        let searchTimer = null;
+
+        window.onload = () => {
+            requireSmartMotherAccess();
+        };
+
+        function searchStudents() {
+            clearTimeout(searchTimer);
+            const query = document.getElementById('studentSearch').value.trim();
+            const resultsDiv = document.getElementById('searchResults');
+            
+            if (query.length < 2) {
+                resultsDiv.style.display = 'none';
+                return;
+            }
+
+            searchTimer = setTimeout(async () => {
+                try {
+                    const res = await fetchApi(`/mothers/search-students?query=${encodeURIComponent(query)}`);
+                    if (res && res.success) {
+                        resultsDiv.innerHTML = '';
+                        if (res.students.length === 0) {
+                            resultsDiv.innerHTML = '<div style="padding:10px; color:#64748b; text-align:center;">لا توجد نتائج</div>';
+                        } else {
+                            res.students.forEach(s => {
+                                const div = document.createElement('div');
+                                div.className = 'search-item';
+                                div.innerHTML = `
+                                    <div>
+                                        <div style="font-weight:bold; color:var(--primary);">${s.name}</div>
+                                        <div style="font-size:12px; color:#64748b;">${s.govGrade || '-'}</div>
+                                    </div>
+                                    <button type="button" style="background:var(--success); color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;" onclick="addChild(${s.id}, '${s.name.replace(/'/g, "\\'")}')">إضافة</button>
+                                `;
+                                resultsDiv.appendChild(div);
+                            });
+                        }
+                        resultsDiv.style.display = 'block';
+                    }
+                } catch(e) {
+                    console.error(e);
+                }
+            }, 300); // debounce
+        }
+
+        function addChild(id, name) {
+            if (selectedStudentIds.includes(id)) {
+                alert("تم إضافة هذا الطالب مسبقاً");
+                return;
+            }
+            selectedStudentIds.push(id);
+            renderSelectedChildren();
+            document.getElementById('studentSearch').value = '';
+            document.getElementById('searchResults').style.display = 'none';
+        }
+
+        function removeChild(id) {
+            selectedStudentIds = selectedStudentIds.filter(s => s !== id);
+            renderSelectedChildren();
+        }
+
+        function renderSelectedChildren() {
+            const container = document.getElementById('selectedChildren');
+            container.innerHTML = '';
+            
+            // To display names, we could either keep an array of objects {id, name} or just re-fetch.
+            // A simpler way: we pass name to addChild and store it globally.
+        }
+
+        // Better way: store objects
+        let selectedChildren = [];
+        
+        // Rewrite addChild
+        function addChild(id, name) {
+            if (selectedChildren.some(s => s.id === id)) {
+                alert("تم إضافة هذا الطالب مسبقاً");
+                return;
+            }
+            selectedChildren.push({id, name});
+            renderSelectedChildren();
+            document.getElementById('studentSearch').value = '';
+            document.getElementById('searchResults').style.display = 'none';
+        }
+
+        // Rewrite removeChild
+        function removeChild(id) {
+            selectedChildren = selectedChildren.filter(s => s.id !== id);
+            renderSelectedChildren();
+        }
+
+        // Rewrite renderSelectedChildren
+        function renderSelectedChildren() {
+            const container = document.getElementById('selectedChildren');
+            container.innerHTML = '';
+            
+            if (selectedChildren.length === 0) return;
+
+            selectedChildren.forEach(child => {
+                const tag = document.createElement('div');
+                tag.className = 'child-tag';
+                tag.innerHTML = `👶 ${child.name} <span onclick="removeChild(${child.id})">✖</span>`;
+                container.appendChild(tag);
+            });
+        }
+
+        async function saveMother() {
+            const payload = {
+                Name: document.getElementById('mName').value.trim(),
+                Phone: document.getElementById('mPhone').value.trim(),
+                Whatsapp: document.getElementById('mWhatsapp').value.trim(),
+                DateOfBirth: document.getElementById('mDOB').value ? document.getElementById('mDOB').value : null,
+                HusbandName: document.getElementById('mHusband').value.trim(),
+                Occupation: document.getElementById('mJob').value.trim(),
+                ConfessionFather: document.getElementById('mConfession').value.trim(),
+                StudentIds: selectedChildren.map(c => c.id)
+            };
+
+            if (!payload.Name || !payload.Phone) {
+                alert("الاسم ورقم الهاتف مطلوبان");
+                return;
+            }
+
+            const btn = document.querySelector('.btn-submit');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ جاري الحفظ...';
+
+            try {
+                const res = await fetchApi('/mothers', 'POST', payload);
+                if (res && res.success) {
+                    showStatus('statusBar', 'success', '✅ ' + res.message);
+                    setTimeout(() => {
+                        window.location.href = '/MothersDirectory.html';
+                    }, 1500);
+                } else {
+                    showStatus('statusBar', 'error', '❌ خطأ: ' + (res?.message || 'فشل الحفظ'));
+                    btn.disabled = false;
+                    btn.innerHTML = '💾 حفظ بيانات الأم';
+                }
+            } catch (e) {
+                showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
+                btn.disabled = false;
+                btn.innerHTML = '💾 حفظ بيانات الأم';
+            }
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

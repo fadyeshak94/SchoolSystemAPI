@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const payload = parseJwtToken(token);
             let rawRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || payload.role || payload.Role || "User";
             userRole = Array.isArray(rawRole) ? rawRole[0] : rawRole;
+            window.userHasSmartMotherAccess = payload["CanAccessSmartMother"] === "True";
         } catch (e) {}
     }
 
@@ -55,11 +56,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
                 { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
                 { path: "/AllResultsPrint.html", icon: "🖨️", text: "طباعة كل النتائج" },
-                { path: "/Certificates.html", icon: "🎓", text: "الشهادات" },
                 { path: "/TopStudentsPoster.html", icon: "🖼️", text: "بوستر الأوائل" }
             ]
         }
     ];
+
+    if (userRole === "Admin" || userRole === "admin" || userRole === "HeadSecretary" || window.userHasSmartMotherAccess) {
+        menuGroups.push({
+            title: "الأم الشاطرة",
+            links: [
+                { path: "/MothersDirectory.html", icon: "👩‍👧‍👦", text: "سجل الأمهات" },
+                { path: "/MotherAttendance.html", icon: "📅", text: "غياب وحضور الأمهات" }
+            ]
+        });
+    }
 
     if (userRole === "Admin" || userRole === "admin" || userRole === "HeadSecretary" || userRole === "Secretary" || userRole === "StageSupervisor") {
         menuGroups.push({
