@@ -43,9 +43,12 @@
 
         <div id="statusBar" class="status-bar" style="margin-bottom:15px; display:none; padding:15px; border-radius:10px; text-align:center; font-weight:bold;"></div>
 
-        <div class="bulk-actions">
-            <button class="btn-bulk" onclick="approveBulk()">✔️ موافقة على المحدد</button>
-            <span style="font-size: 13px; color: #64748b;">(سيتم تخصيص الطلاب للفصول المحددة في الجدول)</span>
+        <div class="bulk-actions" style="justify-content: space-between;">
+            <div>
+                <button class="btn-bulk" onclick="approveBulk()">✔️ موافقة على المحدد</button>
+                <span style="font-size: 13px; color: #64748b;">(سيتم تخصيص الطلاب للفصول المحددة في الجدول)</span>
+            </div>
+            <input type="text" id="searchInput" placeholder="🔍 بحث باسم الطالب..." onkeyup="filterPendingTable()" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; width: 300px; font-family: inherit;">
         </div>
 
         <div class="table-container">
@@ -77,6 +80,7 @@
     <script>
         let allMyClasses = [];
         let pendingRequests = [];
+        let filteredPendingRequests = [];
 
         window.onload = async () => {
             requireRole('Admin', 'HeadSecretary');
@@ -102,6 +106,7 @@
                 const res = await fetchApi('/registrations/pending');
                 if (res && res.success) {
                     pendingRequests = res.requests;
+                    filteredPendingRequests = [...pendingRequests];
                     renderRequests();
                 } else {
                     tbody.innerHTML = `<tr><td colspan="7" class="empty-state" style="color:var(--danger);">❌ خطأ: ${res?.message || 'فشل تحميل الطلبات'}</td></tr>`;
@@ -111,16 +116,26 @@
             }
         }
 
+        function filterPendingTable() {
+            const term = document.getElementById('searchInput').value.trim().toLowerCase();
+            if (!term) {
+                filteredPendingRequests = [...pendingRequests];
+            } else {
+                filteredPendingRequests = pendingRequests.filter(r => r.name.toLowerCase().includes(term));
+            }
+            renderRequests();
+        }
+
         function renderRequests() {
             const tbody = document.getElementById('requestsTableBody');
             
-            if (pendingRequests.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="empty-state">✅ لا توجد طلبات معلقة حالياً</td></tr>';
+            if (filteredPendingRequests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="empty-state">✅ لا توجد طلبات معلقة مطابقة للبحث حالياً</td></tr>';
                 return;
             }
 
             let html = '';
-            pendingRequests.forEach(req => {
+            filteredPendingRequests.forEach(req => {
                 const typeBadge = req.isRenewal 
                     ? '<span class="badge badge-old">تجديد طالب قديم</span>' 
                     : '<span class="badge badge-new">طالب جديد</span>';
