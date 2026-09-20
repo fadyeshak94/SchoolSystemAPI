@@ -228,18 +228,29 @@ public class StudentsController : ControllerBase
         var allStudents = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
         var allClasses = await _uow.ClassRooms.FindAsync(c => true);
         var classMap = allClasses.ToDictionary(c => c.Id, c => c);
+        var grades = await _uow.StudentGrades.FindAsync(g => true);
 
         var unregistered = allStudents
             .Where(s => s.Enrollments != null && s.Enrollments.Any() && !s.Enrollments.Any(e => e.AcademicYear == resolvedYear))
             .Select(s => {
                 var lastEnrollment = s.Enrollments.OrderByDescending(e => e.AcademicYear).First();
+                var stage = classMap.ContainsKey(lastEnrollment.ClassRoomId) ? classMap[lastEnrollment.ClassRoomId].Stage : "";
+                
+                var studentGrades = grades.Where(g => g.StudentId == s.Id).ToList();
+                decimal totalScore = studentGrades.Sum(g => g.ExamScore + g.AttendanceScore);
+                decimal maxScore = stage.Contains("ابتدائي") ? 400m : 500m;
+                decimal percentage = maxScore > 0 ? (totalScore / maxScore) * 100m : 0;
+                bool isPassed = percentage >= 50m;
+
                 return new {
                     id = s.Id,
                     name = s.Name,
                     phone = s.PhonesJson,
                     lastYear = lastEnrollment.AcademicYear,
                     lastClassName = classMap.ContainsKey(lastEnrollment.ClassRoomId) ? classMap[lastEnrollment.ClassRoomId].Name : "غير مسجل",
-                    lastStage = classMap.ContainsKey(lastEnrollment.ClassRoomId) ? classMap[lastEnrollment.ClassRoomId].Stage : ""
+                    lastStage = stage,
+                    percentage = percentage,
+                    isPassed = isPassed
                 };
             })
             .OrderBy(s => s.lastStage).ThenBy(s => s.lastClassName).ThenBy(s => s.name)

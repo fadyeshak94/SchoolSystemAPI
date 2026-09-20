@@ -52,6 +52,7 @@
                     <th>آخر سنة تسجيل</th>
                     <th>المرحلة السابقة</th>
                     <th>الفصل السابق</th>
+                    <th>النتيجة</th>
                     <th>أرقام الهواتف</th>
                     <th>تواصل</th>
                 </tr>
@@ -123,34 +124,49 @@
             
             let html = '';
             data.forEach(s => {
-                let phonesObj = {};
-                try { phonesObj = JSON.parse(s.phone || '{}'); } catch(e){}
+                let phonesArr = [];
+                try { 
+                    const parsed = JSON.parse(s.phone || '[]');
+                    if (Array.isArray(parsed)) {
+                        phonesArr = parsed;
+                    } else if (typeof parsed === 'object' && parsed !== null) {
+                        Object.entries(parsed).forEach(([key, val]) => {
+                            phonesArr.push({number: val, label: key});
+                        });
+                    }
+                } catch(e){}
                 
                 let phonesList = [];
                 let actionButtons = '';
                 
-                Object.entries(phonesObj).forEach(([label, num]) => {
-                    let strNum = String(num || '');
-                    if(strNum.trim() !== '') {
-                        phonesList.push(`<div><strong>${label}:</strong> <span dir="ltr">${strNum}</span></div>`);
-                        
-                        // Basic cleanup for whatsapp
+                phonesArr.forEach((p, index) => {
+                    let num = typeof p === 'string' ? p : (p.number || '');
+                    let strNum = String(num).trim();
+                    if(strNum !== '') {
+                        phonesList.push(`<div><span dir="ltr">${strNum}</span></div>`);
                         let cleanNum = strNum.replace(/\D/g, '');
                         if(cleanNum.startsWith('01')) cleanNum = '2' + cleanNum;
                         
-                        actionButtons += `<a href="tel:${strNum}" class="call-btn">📞 ${label}</a>`;
-                        actionButtons += `<a href="https://wa.me/${cleanNum}" target="_blank" class="whatsapp-btn">💬 ${label}</a> `;
+                        actionButtons += `<a href="tel:${strNum}" class="call-btn">📞 اتصال</a>`;
+                        
+                        let message = encodeURIComponent(`مساء الخير يا ${s.name}،\n\nحرصاً من الكنيسة وإدارة مدرسة الشمامسة على استمراركم معنا، نود تذكيركم بأن آخر يوم لتسجيل الاشتراكات للمرحلة الجديدة هو يوم الخميس 24 سبتمبر.\n\nيمكنكم الحجز أونلاين بسهولة من خلال الرد على هذه الرسالة بالبيانات التالية:\n- النوع (ولد/بنت):\n- هل تم رسامة شماس؟ (نعم/لا):\n- السنة الدراسية (حكومي):\n\nفي انتظاركم، وشكراً لكم! ⛪`);
+
+                        actionButtons += `<a href="https://wa.me/${cleanNum}?text=${message}" target="_blank" class="whatsapp-btn">💬 واتساب</a> `;
                     }
                 });
                 
                 if (phonesList.length === 0) phonesList.push('لا يوجد');
                 
+                let percentageText = s.percentage ? Math.round(s.percentage) + '%' : '0%';
+                let resultText = s.isPassed ? '<span style="color:var(--success); font-weight:bold;">ناجح</span>' : '<span style="color:var(--danger); font-weight:bold;">راسب</span>';
+
                 html += `<tr>
                     <td><strong>${s.id}</strong></td>
                     <td style="text-align:right;">${s.name}</td>
                     <td>${s.lastYear || 'غير محدد'}</td>
                     <td>${s.lastStage || 'غير محدد'}</td>
                     <td>${s.lastClassName || 'غير محدد'}</td>
+                    <td><div style="font-weight:bold;" dir="ltr">${percentageText}</div>${resultText}</td>
                     <td style="font-size:13px; text-align:right;">${phonesList.join('')}</td>
                     <td><div style="display:flex; flex-wrap:wrap; gap:5px; justify-content:center;">${actionButtons}</div></td>
                 </tr>`;
