@@ -239,7 +239,7 @@
                             ${studentsHtml}
                         </div>
                         <div class="card-footer">
-                            <button class="btn-edit" onclick="openEditModal(this.dataset.id, this.dataset.address, this.dataset.father, this.dataset.mother)" data-id="${group.familyId}" data-address="${(group.address || '').replace(/\"/g, '&quot;')}" data-father="${(group.fatherPhone || '').replace(/\"/g, '&quot;')}" data-mother="${(group.motherPhone || '').replace(/\"/g, '&quot;')}">✏️ تعديل بيانات الأسرة</button>
+                            <button class="btn-edit" onclick="openEditModal(this)" data-id="${group.familyId}" data-address="${encodeURIComponent(group.address || '')}" data-father="${encodeURIComponent(group.fatherPhone || '')}" data-mother="${encodeURIComponent(group.motherPhone || '')}">✏️ تعديل بيانات الأسرة</button>
                         </div>
                     </div>
                 `;
@@ -274,12 +274,17 @@
             }
         }
 
-        function openEditModal(familyId, address, fatherPhone, motherPhone) {
-            document.getElementById('editFamilyId').value = familyId;
-            document.getElementById('editAddress').value = address;
-            document.getElementById('editFatherPhone').value = fatherPhone;
-            document.getElementById('editMotherPhone').value = motherPhone;
-            document.getElementById('editFamilyModal').style.display = 'flex';
+        function openEditModal(btn) {
+            try {
+                document.getElementById('editFamilyId').value = btn.getAttribute('data-id') || '';
+                document.getElementById('editAddress').value = decodeURIComponent(btn.getAttribute('data-address') || '');
+                document.getElementById('editFatherPhone').value = decodeURIComponent(btn.getAttribute('data-father') || '');
+                document.getElementById('editMotherPhone').value = decodeURIComponent(btn.getAttribute('data-mother') || '');
+                document.getElementById('editFamilyModal').style.display = 'flex';
+            } catch(e) {
+                console.error("Error opening edit modal:", e);
+                alert("حدث خطأ في فتح نافذة التعديل");
+            }
         }
 
         function closeEditModal() {

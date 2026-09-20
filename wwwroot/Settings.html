@@ -73,7 +73,7 @@
         async function loadFees() {
             const fees = await fetchApi('/settings/fees');
             // List of default stages to show
-            const defaultStages = ["حضانة", "ابتدائي أ", "ابتدائي ب", "ابتدائي ج", "اعدادي", "ثانوي"];
+            const defaultStages = ["حضانة", "ابتدائي أ", "ابتدائي ب", "ابتدائي ج", "اعدادي", "إعدادي", "ثانوي", "كبار"];
             let html = '';
             
             let stageKeys = fees ? Object.keys(fees) : [];

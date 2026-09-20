@@ -56,7 +56,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
                 { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
                 { path: "/AllResultsPrint.html", icon: "🖨️", text: "طباعة كل النتائج" },
-                { path: "/TopStudentsPoster.html", icon: "🖼️", text: "بوستر الأوائل" }
+                { path: "/TopStudentsPoster.html", icon: "🖼️", text: "بوستر الأوائل" },
+                { path: "/AnnouncementsPoster.html", icon: "📢", text: "صانع الإعلانات" }
             ]
         }
     ];

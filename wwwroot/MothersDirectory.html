@@ -40,6 +40,7 @@
                         <th>التليفون</th>
                         <th>الواتساب</th>
                         <th>الأبناء في المدرسة</th>
+                        <th>بيانات الأسرة</th>
                         <th>اسم الزوج</th>
                         <th>أب الاعتراف</th>
                     </tr>
@@ -101,6 +102,11 @@
                         <td style="font-family: monospace; font-size: 14px;">${m.phone}</td>
                         <td style="font-family: monospace; font-size: 14px; color: var(--success);">${m.whatsapp || '-'}</td>
                         <td style="color:#3730a3; font-size: 13px;">${m.childrenNames || '-'}</td>
+                        <td>
+                            ${m.familyAddress ? `<div style="font-size:12px; margin-bottom:4px;">📍 ${m.familyAddress}</div>` : ''}
+                            ${m.fatherPhone ? `<div style="font-size:12px; color:#1e40af;">📱 الأب: ${m.fatherPhone}</div>` : ''}
+                            ${(!m.familyAddress && !m.fatherPhone) ? '<span style="color:#94a3b8; font-size:12px;">غير مسجل بيانات للأسرة</span>' : ''}
+                        </td>
                         <td>${m.husbandName || '-'}</td>
                         <td>${m.confessionFather || '-'}</td>
                     </tr>

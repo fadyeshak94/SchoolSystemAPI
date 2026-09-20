@@ -7,7 +7,15 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         .phone-link { color: var(--primary); font-weight: bold; text-decoration: none; direction: ltr; display: inline-block; }
-        @media print { .back-btn, .controls, .header { display: none; } }
+        @media print { 
+            .back-btn, .controls, .header { display: none; } 
+            @page { size: portrait; margin: 10mm; }
+        }
+        #studentsExportTable th, #studentsExportTable td {
+            white-space: nowrap !important;
+            padding: 4px 6px !important;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>    <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -45,7 +53,11 @@
                 return;
             }
 
-            let html = '<table id="studentsExportTable"><thead><tr><th>#</th><th>🆔 ID</th><th style="text-align:right;">👤 الاسم</th><th>📱 التليفون</th><th>🚻 النوع</th><th>✝️ شماس؟</th><th>🏫 السنة الدراسية</th></tr></thead><tbody>';
+            const sel = document.getElementById('classSelect');
+            const classText = sel.options[sel.selectedIndex].text;
+
+            let html = `<div style="text-align:center; margin-bottom:15px; font-family:'Aref Ruqaa',serif; color:var(--primary);"><h2 style="margin:0;">📝 سجل حضور وانصراف طلبة: ${classText}</h2></div>`;
+            html += '<table id="studentsExportTable"><thead><tr><th>#</th><th>🆔 ID</th><th style="text-align:right;">👤 الاسم</th><th>📱 التليفون</th><th>🚻 النوع</th><th>✝️ شماس؟</th><th>🏫 السنة الدراسية</th><th>💰 دفع كام</th><th>⏳ عليه كام</th></tr></thead><tbody>';
             res.students.forEach((s, idx) => {
                 let phones = [];
                 try { phones = JSON.parse(s.phone) || []; } catch(e) { if(s.phone) phones = [s.phone]; }
@@ -58,6 +70,8 @@
                 let isDeacon = s.isDeacon ? 'نعم' : 'لا';
                 if (gender === 'أنثى') isDeacon = '—';
                 let govGrade = s.govGrade || '—';
+                let paid = s.amountPaid !== undefined ? s.amountPaid + ' ج.م' : '—';
+                let remaining = s.amountRemaining !== undefined ? s.amountRemaining + ' ج.م' : '—';
 
                 html += `<tr>
                     <td>${idx + 1}</td>
@@ -67,6 +81,8 @@
                     <td>${gender}</td>
                     <td>${isDeacon}</td>
                     <td>${govGrade}</td>
+                    <td style="color:var(--success); font-weight:bold;">${paid}</td>
+                    <td style="color:var(--danger); font-weight:bold;">${remaining}</td>
                 </tr>`;
             });
             html += '</tbody></table>';

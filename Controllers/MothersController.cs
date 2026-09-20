@@ -49,6 +49,17 @@ public class MothersController : ControllerBase
                 .Where(s => request.StudentIds.Contains(s.Id))
                 .ToListAsync();
 
+            // Auto-link siblings sharing the same FamilyId
+            var familyIds = students.Where(s => !string.IsNullOrEmpty(s.FamilyId)).Select(s => s.FamilyId).Distinct().ToList();
+            if (familyIds.Any())
+            {
+                var siblings = await _context.Students
+                    .Where(s => familyIds.Contains(s.FamilyId))
+                    .ToListAsync();
+                
+                students = students.Union(siblings).DistinctBy(s => s.Id).ToList();
+            }
+
             foreach (var student in students)
             {
                 student.MotherId = mother.Id;
@@ -66,6 +77,7 @@ public class MothersController : ControllerBase
 
         var mothers = await _context.Mothers
             .Include(m => m.Children)
+                .ThenInclude(c => c.Family)
             .Select(m => new
             {
                 m.Id,
@@ -76,7 +88,9 @@ public class MothersController : ControllerBase
                 m.HusbandName,
                 m.Occupation,
                 m.ConfessionFather,
-                ChildrenNames = string.Join("، ", m.Children.Select(c => c.Name))
+                ChildrenNames = string.Join("، ", m.Children.Select(c => c.Name)),
+                FamilyAddress = m.Children.Where(c => c.Family != null).Select(c => c.Family.Address).FirstOrDefault() ?? "",
+                FatherPhone = m.Children.Where(c => c.Family != null).Select(c => c.Family.FatherPhone).FirstOrDefault() ?? ""
             })
             .ToListAsync();
 

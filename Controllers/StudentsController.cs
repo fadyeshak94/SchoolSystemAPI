@@ -35,17 +35,33 @@ public class StudentsController : ControllerBase
         var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
         var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
 
+        var classRoom = await _uow.ClassRooms.GetByIdAsync(classId);
+        if (classRoom == null) return NotFound("الفصل غير موجود");
+
+        var stageFee = (await _uow.StageFees.FindAsync(f => f.StageName == classRoom.Stage)).FirstOrDefault();
+        decimal baseFee = stageFee?.FeeAmount ?? 0m;
+
         var students = await _uow.Students.GetQueryable()
             .Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear))
             .ToListAsync();
         
-        var result = students.Select(s => new
+        var result = students.Select(s => 
         {
-            id = s.Id,
-            name = s.Name,
-            phone = s.PhonesJson, // ممكن نفك الـ JSON هنا لو الواجهة محتاجاه كـ Array
-            gender = s.Gender,
-            isDeacon = s.IsDeacon
+            decimal requiredFee = s.HasHalfDiscount ? baseFee / 2m : baseFee;
+            decimal remainingAmount = requiredFee - s.AmountPaid;
+            if (remainingAmount < 0) remainingAmount = 0;
+            
+            return new
+            {
+                id = s.Id,
+                name = s.Name,
+                phone = s.PhonesJson,
+                gender = s.Gender,
+                isDeacon = s.IsDeacon,
+                govGrade = s.GovGrade,
+                amountPaid = s.AmountPaid,
+                amountRemaining = remainingAmount
+            };
         }).OrderBy(s => s.name).ToList();
 
         return Ok(new { students = result });
@@ -104,11 +120,35 @@ public class StudentsController : ControllerBase
         if (phonesList.Any()) 
             student.PhonesJson = System.Text.Json.JsonSerializer.Serialize(phonesList);
         
-        decimal amountDifference = 0;
+        decimal amountPaidByCash = 0;
+        decimal amountWaived = dto.AmountWaived ?? 0;
+
         if (dto.AmountPaid.HasValue)
         {
-            amountDifference = dto.AmountPaid.Value - student.AmountPaid;
-            student.AmountPaid = dto.AmountPaid.Value;
+            amountPaidByCash = dto.AmountPaid.Value - student.AmountPaid;
+        }
+
+        if (amountWaived > 0)
+        {
+            student.AmountPaid += amountWaived;
+            await _uow.FinancialTransactions.AddAsync(new FinancialTransaction {
+                Type = "WaivedFee",
+                Description = $"إعفاء من المصاريف من قبل إدارة المدرسة للطالب: {student.Name}",
+                Amount = amountWaived,
+                TransactionDate = DateTime.UtcNow,
+                AppUserId = int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int uid) ? uid : null
+            });
+        }
+
+        if (amountPaidByCash > 0)
+        {
+            student.AmountPaid += amountPaidByCash;
+            await _uow.SubscriptionPayments.AddAsync(new SubscriptionPayment {
+                StudentId = student.Id,
+                IsNewStudent = false,
+                Amount = amountPaidByCash,
+                PaymentDate = DateTime.UtcNow
+            });
         }
 
         if (dto.ClassId.HasValue)
@@ -123,15 +163,6 @@ public class StudentsController : ControllerBase
         }
 
         _uow.Students.Update(student);
-        if (amountDifference > 0)
-        {
-            await _uow.SubscriptionPayments.AddAsync(new SubscriptionPayment {
-                StudentId = student.Id,
-                IsNewStudent = false,
-                Amount = amountDifference,
-                PaymentDate = DateTime.UtcNow
-            });
-        }
         await _uow.CompleteAsync();
 
         return Ok(new { success = true, message = "تم حفظ بيانات الطالب بنجاح" });
@@ -246,16 +277,35 @@ public class StudentsController : ControllerBase
             }
         } catch {}
 
+        var classRoomId = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0;
+        decimal requiredFee = 0;
+        if (classRoomId > 0)
+        {
+            var classRoom = await _uow.ClassRooms.GetByIdAsync(classRoomId);
+            if (classRoom != null)
+            {
+                var stageFee = (await _uow.StageFees.FindAsync(f => f.StageName == classRoom.Stage)).FirstOrDefault();
+                decimal baseFee = stageFee?.FeeAmount ?? 0m;
+                requiredFee = student.HasHalfDiscount ? baseFee / 2m : baseFee;
+            }
+        }
+        
+        decimal amountRemaining = requiredFee - student.AmountPaid;
+        if (amountRemaining < 0) amountRemaining = 0;
+
         return Ok(new
         {
             id = student.Id,
             name = student.Name,
-            classRoomId = student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0,
+            classRoomId = classRoomId,
             gender = student.Gender,
             isDeacon = student.IsDeacon,
             govGrade = student.GovGrade,
             phone1 = phone1,
-            phone2 = phone2
+            phone2 = phone2,
+            amountPaid = student.AmountPaid,
+            requiredFee = requiredFee,
+            amountRemaining = amountRemaining
         });
     }
 
@@ -404,5 +454,6 @@ public class UpdateStudentDto
     public string? Phone1 { get; set; }
     public string? Phone2 { get; set; }
     public decimal? AmountPaid { get; set; }
+    public decimal? AmountWaived { get; set; }
 }
 

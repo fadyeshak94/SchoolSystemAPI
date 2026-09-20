@@ -185,6 +185,10 @@
                     typeText = 'إيراد';
                     color = 'var(--success)';
                     sign = '+';
+                } else if (item.type === 'WaivedFee') {
+                    typeText = 'إعفاء';
+                    color = '#f59e0b';
+                    sign = '≈';
                 } else {
                     totalExpense += amount;
                     typeText = 'مصروف';

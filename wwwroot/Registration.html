@@ -370,9 +370,9 @@
                 allowedStages = [oldStage];
             }
             else if (oldStage.includes('ابتدائي أ') || oldStage.includes('ابتدائى أ') || oldStage.includes('ابتدائي ا')) {
-                if (oldGovGrade.includes('أولى') || oldGovGrade.includes('تانية') || oldGovGrade.includes('اولي') || oldGovGrade.includes('ثانية')) {
-                    allowedStages = ['ابتدائي أ', 'ابتدائى أ', 'ابتدائي ا', 'ابتدائي ب', 'ابتدائى ب'];
-                } else if (oldGovGrade.includes('تالتة') || oldGovGrade.includes('رابعة') || oldGovGrade.includes('خامسة') || oldGovGrade.includes('سادسة') || oldGovGrade.includes('ثالثة')) {
+                if (oldGovGrade.includes('أولى') || oldGovGrade.includes('تانية') || oldGovGrade.includes('اولي') || oldGovGrade.includes('ثانية') || oldGovGrade.includes('تالتة') || oldGovGrade.includes('ثالثة')) {
+                    allowedStages = ['ابتدائي أ', 'ابتدائى أ', 'ابتدائي ا'];
+                } else if (oldGovGrade.includes('رابعة') || oldGovGrade.includes('خامسة') || oldGovGrade.includes('سادسة')) {
                     allowedStages = ['ابتدائي ب', 'ابتدائى ب'];
                 } else {
                     allowedStages = ['ابتدائي أ', 'ابتدائى أ', 'ابتدائي ا', 'ابتدائي ب', 'ابتدائى ب'];
