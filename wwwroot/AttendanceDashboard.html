@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>📊 لوحة تحكم الغياب</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 768px) {
+            .dashboard-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .class-card {
+            background: white; border-radius: 12px; padding: 16px; margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .class-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .class-card.active { border-color: var(--primary); background-color: #f0f7ff; }
+        .progress-bar { background: #e5e7eb; border-radius: 8px; height: 12px; width: 100%; overflow: hidden; margin-top: 15px; }
+        .progress-fill { height: 100%; border-radius: 8px; transition: width 0.5s ease; }
+        
+        .chart-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .stat-badge { display: inline-block; padding: 6px 10px; border-radius: 8px; font-size: 13px; font-weight: bold; margin-left: 5px; margin-top: 10px; }
+        .stat-badge.present { background: #d1fae5; color: #065f46; }
+        .stat-badge.absent { background: #fee2e2; color: #991b1b; }
+        .stat-badge.total { background: #e0e7ff; color: #3730a3; }
+        .stage-header { font-family: 'Aref Ruqaa', serif; color: var(--primary); margin: 25px 0 10px 0; border-bottom: 2px solid var(--primary); padding-bottom: 5px; font-size: 20px; }
+        
+        .summary-cards { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+        .summary-card { flex: 1; min-width: 130px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center; border: 1px solid #eee; }
+        .summary-card h4 { margin: 0 0 10px 0; color: #666; font-size: 14px; }
+        .summary-card .value { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .summary-card.green .value { color: #10b981; }
+        .summary-card.red .value { color: #ef4444; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="statusBar" class="status-bar"></div>
+
+    <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background:white; padding:15px; border-radius:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:20px;">
+        <h3 style="margin:0 0 0 15px; color:var(--primary);">📊 لوحة الغياب</h3>
+        <select id="academicYearSelect" style="padding: 10px; border-radius: 8px; border:1px solid #ccc; min-width: 150px;"></select>
+        <select id="termSelect" style="padding: 10px; border-radius: 8px; border:1px solid #ccc; min-width: 150px;">
+            <option value="ت1">التيرم الأول</option>
+            <option value="ت2">التيرم الثاني</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadDashboard()">🔄 تحديث البيانات</button>
+    </div>
+
+    <div id="summarySection" class="summary-cards" style="display: none;">
+        <div class="summary-card">
+            <h4>إجمالي الطلبة</h4>
+            <div class="value" id="sumTotalStudents">0</div>
+        </div>
+        <div class="summary-card">
+            <h4>أيام الغياب المسجلة</h4>
+            <div class="value" id="sumTotalRecords">0</div>
+        </div>
+        <div class="summary-card green">
+            <h4>إجمالي الحضور</h4>
+            <div class="value" id="sumTotalPresent">0</div>
+        </div>
+        <div class="summary-card red">
+            <h4>إجمالي الغياب</h4>
+            <div class="value" id="sumTotalAbsent">0</div>
+        </div>
+        <div class="summary-card">
+            <h4>النسبة العامة</h4>
+            <div class="value" id="sumOverallPercentage">0%</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid" id="mainContainer" style="display: none;">
+        <div class="classes-list-section">
+            <div id="classesList"></div>
+        </div>
+        <div class="chart-section">
+            <div class="chart-container" id="chartWrapper" style="position: sticky; top: 20px; display:none;">
+                <h3 id="chartTitle" style="margin-top:0; color:var(--primary);">مؤشر الغياب</h3>
+                <canvas id="attendanceChart"></canvas>
+            </div>
+            <div id="noSelectionMsg" style="text-align:center; padding: 50px 20px; color:#666; background:white; border-radius:12px; border:2px dashed #ccc; position: sticky; top: 20px;">
+                <h2 style="margin-bottom:10px;">📈 مؤشر الغياب</h2>
+                <p>يرجى اختيار فصل من القائمة لعرض مؤشر الحضور والغياب بمرور الوقت.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        let currentChart = null;
+        let dashboardData = [];
+
+        window.onload = async () => {
+            requireRole('Admin', 'HeadSecretary', 'Secretary', 'StageSupervisor', 'BoardMember', 'Principal', 'عضو مجلس إدارة', 'ناظر');
+            
+            let term = "ت1";
+            let year = "2024/2025";
+            
+            try {
+                const settings = await fetchApi('/settings');
+                if (settings) {
+                    term = settings.currentTerm || term;
+                    year = settings.academicYear || year;
+                }
+            } catch(e) {}
+
+            await loadAcademicYearsDropdown('academicYearSelect');
+            
+            const termSel = document.getElementById('termSelect');
+            if (termSel.querySelector(`option[value="${term}"]`)) termSel.value = term;
+
+            const yearSel = document.getElementById('academicYearSelect');
+            if (yearSel.querySelector(`option[value="${year}"]`)) yearSel.value = year;
+
+            loadDashboard();
+        };
+
+        async function loadDashboard() {
+            const year = document.getElementById('academicYearSelect').value;
+            const term = document.getElementById('termSelect').value;
+
+            document.getElementById('mainContainer').style.display = 'grid';
+            document.getElementById('summarySection').style.display = 'none';
+            document.getElementById('classesList').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('chartWrapper').style.display = 'none';
+            document.getElementById('noSelectionMsg').style.display = 'block';
+
+            const res = await fetchApi(`/attendance/dashboard?term=${term}&academicYear=${encodeURIComponent(year)}`);
+            
+            if (!res || !res.success) {
+                document.getElementById('classesList').innerHTML = '<div class="status-bar error" style="display:block;">حدث خطأ في تحميل البيانات</div>';
+                return;
+            }
+
+            if (res.summary) {
+                document.getElementById('summarySection').style.display = 'flex';
+                document.getElementById('sumTotalStudents').innerText = res.summary.totalStudents;
+                document.getElementById('sumTotalRecords').innerText = res.summary.totalRecords;
+                document.getElementById('sumTotalPresent').innerText = res.summary.totalPresent;
+                document.getElementById('sumTotalAbsent').innerText = res.summary.totalAbsent;
+                document.getElementById('sumOverallPercentage').innerText = res.summary.overallPercentage.toFixed(1) + '%';
+            }
+
+            dashboardData = res.classes;
+            renderClassesList();
+        }
+
+        function renderClassesList() {
+            const container = document.getElementById('classesList');
+            if (dashboardData.length === 0) {
+                container.innerHTML = '<div style="padding:20px; text-align:center; color:#666; background:white; border-radius:12px;">لا توجد بيانات متاحة لهذا التيرم والسنة.</div>';
+                return;
+            }
+
+            let html = '';
+            let currentStage = '';
+
+            dashboardData.forEach(c => {
+                if (c.stage !== currentStage) {
+                    currentStage = c.stage;
+                    html += `<h4 class="stage-header">${currentStage || 'فصول غير مصنفة'}</h4>`;
+                }
+
+                const color = c.percentage >= 85 ? 'var(--success)' : (c.percentage >= 70 ? '#f59e0b' : 'var(--danger)');
+                
+                html += `
+                <div class="class-card" onclick="selectClass(${c.classId}, this)" id="card-${c.classId}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="font-size:18px;">${c.className}</strong>
+                        <span style="font-weight:bold; color:${color}; font-size:18px;">${c.percentage.toFixed(1)}%</span>
+                    </div>
+                    <div>
+                        <span class="stat-badge total">الطلبة: ${c.totalStudents}</span>
+                        <span class="stat-badge present">حضور: ${c.presentCount}</span>
+                        <span class="stat-badge absent">غياب: ${c.absentCount}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${c.percentage}%; background-color: ${color};"></div>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function selectClass(classId, el) {
+            document.querySelectorAll('.class-card').forEach(c => c.classList.remove('active'));
+            if(el) el.classList.add('active');
+
+            const classData = dashboardData.find(c => c.classId === classId);
+            if (!classData) return;
+
+            document.getElementById('noSelectionMsg').style.display = 'none';
+            document.getElementById('chartWrapper').style.display = 'block';
+            document.getElementById('chartTitle').innerText = `مؤشر الغياب: ${classData.className}`;
+
+            renderChart(classData);
+        }
+
+        function renderChart(classData) {
+            const ctx = document.getElementById('attendanceChart').getContext('2d');
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            const labels = classData.history.map(h => h.date);
+            const dataPoints = classData.history.map(h => h.percentage.toFixed(1));
+
+            // Determine if trend is generally up or down
+            let borderColor = '#3b82f6';
+            let bgColor = 'rgba(59, 130, 246, 0.1)';
+            let pointColor = '#2563eb';
+
+            if (dataPoints.length >= 2) {
+                const first = parseFloat(dataPoints[0]);
+                const last = parseFloat(dataPoints[dataPoints.length - 1]);
+                if (last > first + 5) {
+                    borderColor = '#10b981'; // Green for improving attendance
+                    bgColor = 'rgba(16, 185, 129, 0.1)';
+                    pointColor = '#059669';
+                } else if (last < first - 5) {
+                    borderColor = '#ef4444'; // Red for dropping attendance
+                    bgColor = 'rgba(239, 68, 68, 0.1)';
+                    pointColor = '#dc2626';
+                }
+            }
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'نسبة الحضور %',
+                        data: dataPoints,
+                        borderColor: borderColor,
+                        backgroundColor: bgColor,
+                        borderWidth: 3,
+                        pointBackgroundColor: pointColor,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'النسبة المئوية %',
+                                font: { family: 'Cairo', size: 14 }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'التاريخ',
+                                font: { family: 'Cairo', size: 14 }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y + '% حضور';
+                                }
+                            }
+                        },
+                        legend: {
+                            labels: {
+                                font: { family: 'Cairo' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

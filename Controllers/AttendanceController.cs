@@ -182,6 +182,126 @@ public class AttendanceController : ControllerBase
 
         return Ok(new { dates = dateSet, students = result });
     }
+
+    // 5. لوحة تحكم الغياب (Dashboard)
+    [HttpGet("dashboard")]
+    public async Task<IActionResult> GetDashboardData([FromQuery] string term, [FromQuery] string? academicYear)
+    {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? User.FindFirst("Role")?.Value;
+        var userTitle = User.FindFirst("Title")?.Value ?? "";
+        var userClassId = User.FindFirst("ClassRoomId")?.Value;
+        var stageAccess = User.FindFirst("StageAccess")?.Value;
+
+        var allClasses = await _uow.ClassRooms.FindAsync(c => true);
+        var allowedClasses = allClasses.AsEnumerable();
+
+        bool isTopManagement = userRole == "Admin" || userRole == "HeadSecretary" || userRole == "Principal" || userRole == "BoardMember" || userTitle.Contains("ناظر") || userTitle.Contains("عضو مجلس إدارة");
+
+        if (!isTopManagement)
+        {
+            if (userRole == "StageSupervisor")
+            {
+                allowedClasses = allowedClasses.Where(c => !string.IsNullOrEmpty(stageAccess) && stageAccess.Contains(c.Stage));
+            }
+            else if (userRole == "Secretary" || userRole == "User")
+            {
+                allowedClasses = allowedClasses.Where(c => c.Id.ToString() == userClassId);
+            }
+            else
+            {
+                allowedClasses = allowedClasses.Where(c => c.Id.ToString() == userClassId);
+            }
+        }
+
+        var classIds = allowedClasses.Select(c => c.Id).ToList();
+
+        var normYear1 = resolvedYear.Replace("-", "/");
+        var normYear2 = resolvedYear.Replace("/", "-");
+
+        var students = await _uow.Students.GetQueryable()
+            .Where(s => s.Enrollments.Any(e => classIds.Contains(e.ClassRoomId) && (e.AcademicYear == normYear1 || e.AcademicYear == normYear2)))
+            .Include(s => s.Enrollments)
+            .ToListAsync();
+
+        var studentIds = students.Select(s => s.Id).ToList();
+
+        string altTerm = term;
+        if (term == "ت1") altTerm = "1";
+        else if (term == "ت2") altTerm = "2";
+        else if (term == "1") altTerm = "ت1";
+        else if (term == "2") altTerm = "ت2";
+
+        var records = await _uow.AttendanceRecords
+            .FindAsync(a => studentIds.Contains(a.StudentId) && (a.Term == term || a.Term == altTerm) && (a.AcademicYear == normYear1 || a.AcademicYear == normYear2));
+
+        var result = new List<object>();
+
+        int totalSchoolStudents = 0;
+        int totalSchoolPresent = 0;
+        int totalSchoolAbsent = 0;
+        int totalSchoolRecords = 0;
+
+        foreach (var c in allowedClasses.OrderBy(c => c.Stage).ThenBy(c => c.Name))
+        {
+            var classStudents = students.Where(s => s.Enrollments.Any(e => e.ClassRoomId == c.Id && (e.AcademicYear == normYear1 || e.AcademicYear == normYear2))).ToList();
+            if (!classStudents.Any()) continue;
+
+            var classStudentIds = classStudents.Select(s => s.Id).ToList();
+            var classRecords = records.Where(r => classStudentIds.Contains(r.StudentId)).ToList();
+
+            int totalRecords = classRecords.Count;
+            int presentCount = classRecords.Count(r => r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase) || r.IsExcused);
+            int absentCount = totalRecords - presentCount;
+
+            totalSchoolStudents += classStudents.Count;
+            totalSchoolPresent += presentCount;
+            totalSchoolAbsent += absentCount;
+            totalSchoolRecords += totalRecords;
+
+            double overallPercentage = totalRecords > 0 ? (presentCount / (double)totalRecords) * 100 : 0;
+
+            // Trend over time
+            var dates = classRecords.Select(r => r.Date.ToString("yyyy-MM-dd")).Distinct().OrderBy(d => d).ToList();
+            var history = new List<object>();
+
+            foreach(var d in dates)
+            {
+                var dayRecords = classRecords.Where(r => r.Date.ToString("yyyy-MM-dd") == d).ToList();
+                int dayTotal = dayRecords.Count;
+                int dayPresent = dayRecords.Count(r => r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase) || r.IsExcused);
+                history.Add(new {
+                    date = d,
+                    percentage = dayTotal > 0 ? (dayPresent / (double)dayTotal) * 100 : 0
+                });
+            }
+
+            result.Add(new {
+                classId = c.Id,
+                className = c.Name,
+                stage = c.Stage,
+                totalStudents = classStudents.Count,
+                presentCount = presentCount,
+                absentCount = absentCount,
+                percentage = overallPercentage,
+                history = history
+            });
+        }
+
+        double schoolPercentage = totalSchoolRecords > 0 ? (totalSchoolPresent / (double)totalSchoolRecords) * 100 : 0;
+
+        var summary = new {
+            totalStudents = totalSchoolStudents,
+            totalRecords = totalSchoolRecords,
+            totalPresent = totalSchoolPresent,
+            totalAbsent = totalSchoolAbsent,
+            overallPercentage = schoolPercentage
+        };
+
+        return Ok(new { success = true, summary = summary, classes = result });
+    }
 }
 
 public class SaveAttendanceDto

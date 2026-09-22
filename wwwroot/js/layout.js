@@ -46,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
             links: [
                 (userRole !== "Servant") ? { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" } : null,
                 { path: "/AttendanceTrack.html", icon: "📅", text: "متابعة الحضور" },
+                (userRole !== "Servant") ? { path: "/AttendanceDashboard.html", icon: "📊", text: "لوحة الغياب" } : null,
                 (userRole !== "Servant") ? { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" } : null
             ].filter(l => l !== null)
         },

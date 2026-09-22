@@ -26,17 +26,28 @@ public class StudentsController : ControllerBase
         // التحقق من الصلاحيات (هل اليوزر أدمن أو له صلاحية على الفصل ده؟)
         var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
         var userClassId = User.FindFirst("ClassRoomId")?.Value;
+        var stageAccess = User.FindFirst("StageAccess")?.Value;
 
-        if (userRole != "Admin" && userRole != "HeadSecretary" && userClassId != classId.ToString())
+        var classRoom = await _uow.ClassRooms.GetByIdAsync(classId);
+        if (classRoom == null) return NotFound("الفصل غير موجود");
+
+        bool hasAccess = false;
+        if (userRole == "Admin" || userRole == "HeadSecretary" || userRole == "Secretary" || userClassId == classId.ToString())
+        {
+            hasAccess = true;
+        }
+        else if (userRole == "StageSupervisor" && !string.IsNullOrEmpty(stageAccess) && !string.IsNullOrEmpty(classRoom.Stage) && stageAccess.Contains(classRoom.Stage))
+        {
+            hasAccess = true;
+        }
+
+        if (!hasAccess)
         {
             return Forbid("ليس لديك صلاحية الوصول لهذا الفصل");
         }
 
         var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
         var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
-
-        var classRoom = await _uow.ClassRooms.GetByIdAsync(classId);
-        if (classRoom == null) return NotFound("الفصل غير موجود");
 
         var stageFee = (await _uow.StageFees.FindAsync(f => f.StageName == classRoom.Stage)).FirstOrDefault();
         decimal baseFee = stageFee?.FeeAmount ?? 0m;

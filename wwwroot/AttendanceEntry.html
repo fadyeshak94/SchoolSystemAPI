@@ -6,10 +6,50 @@
     <title>🗓️ تسجيل الغياب</title>
     <link rel="stylesheet" href="/css/style.css">
     <style>
-        .status-toggle { display: inline-flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--glass-border); }
-        .status-toggle button { border: none; padding: 6px 16px; background: rgba(255,255,255,0.05); cursor: pointer; font-weight: bold; color: var(--text-muted); }
-        .status-toggle button.active.present { background: var(--success); color: white; }
-        .status-toggle button.active.absent { background: var(--danger); color: white; }
+        .student-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border-radius: 12px;
+            background: white;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .student-card.present {
+            background-color: #d1fae5;
+            border-color: #10b981;
+        }
+        .student-card.absent {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+        }
+        .student-card .student-name {
+            font-size: 17px;
+            font-weight: bold;
+            color: #333;
+        }
+        .student-card.present .student-name { color: #065f46; }
+        .student-card.absent .student-name { color: #991b1b; }
+        
+        .student-card .status-icon {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+        }
+        
+        .student-card.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -72,35 +112,49 @@
 
             if(res.alreadyRecorded) showStatus('statusBar', 'info', 'الغياب مسجل مسبقاً، أي تعديل سيحدث السجل.');
 
-            let html = '<table><thead><tr><th>الاسم</th><th>الحالة</th></tr></thead><tbody>';
+            let html = '<div class="students-list" style="max-width: 600px; margin: 0 auto; padding-bottom: 30px;">';
+            html += '<p style="text-align:center; color:#666; margin-bottom:15px; font-size:14px;">اضغط على اسم الطالب لتغيير حالة الغياب</p>';
             res.students.forEach(s => {
-                html += `<tr data-id="${s.id}">
-                    <td style="text-align:right;"><strong>${s.name}</strong></td>
-                    <td>
-                        <div class="status-toggle">
-                            <button ${isServant ? 'disabled' : ''} class="present ${s.status === 'Present' ? 'active' : ''}" onclick="setStatus(this, 'Present')">حاضر</button>
-                            <button ${isServant ? 'disabled' : ''} class="absent ${s.status === 'Absent' ? 'active' : ''}" onclick="setStatus(this, 'Absent')">غائب</button>
-                        </div>
-                    </td>
-                </tr>`;
+                const isAbsent = s.status === 'Absent';
+                const statusClass = isAbsent ? 'absent' : 'present';
+                const icon = isAbsent ? '❌' : '✅';
+                const disabledClass = isServant ? 'disabled' : '';
+                const clickHandler = isServant ? '' : 'onclick="toggleStatus(this)"';
+                
+                html += `
+                <div class="student-card ${statusClass} ${disabledClass}" data-id="${s.id}" data-status="${isAbsent ? 'Absent' : 'Present'}" ${clickHandler}>
+                    <div class="student-name">${s.name}</div>
+                    <div class="status-icon">${icon}</div>
+                </div>`;
             });
-            html += '</tbody></table>';
+            html += '</div>';
+            
             document.getElementById('content').innerHTML = html;
             if (res.students.length > 0 && !isServant) {
                 document.getElementById('saveBtn').style.display = 'inline-flex';
             }
         }
 
-        function setStatus(btn, status) {
-            btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        function toggleStatus(card) {
+            if (card.classList.contains('disabled')) return;
+            
+            if (card.dataset.status === 'Present') {
+                card.dataset.status = 'Absent';
+                card.classList.remove('present');
+                card.classList.add('absent');
+                card.querySelector('.status-icon').innerText = '❌';
+            } else {
+                card.dataset.status = 'Present';
+                card.classList.remove('absent');
+                card.classList.add('present');
+                card.querySelector('.status-icon').innerText = '✅';
+            }
         }
 
         async function saveAttendance() {
             const records = [];
-            document.querySelectorAll('#content tbody tr').forEach(row => {
-                const isAbsent = row.querySelector('.absent.active') !== null;
-                records.push({ studentId: parseInt(row.dataset.id), status: isAbsent ? 'Absent' : 'Present' });
+            document.querySelectorAll('.student-card').forEach(card => {
+                records.push({ studentId: parseInt(card.dataset.id), status: card.dataset.status });
             });
 
             const payload = {
