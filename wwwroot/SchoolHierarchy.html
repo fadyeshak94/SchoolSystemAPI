@@ -461,6 +461,23 @@
             </div>
             <div class="modal-body">
                 <div class="form-row">
+                    <label>الاسم بالعربي *</label>
+                    <input type="text" id="newServantNameAR" placeholder="مثال: فادي أشرف">
+                </div>
+                <div class="form-row">
+                    <label>رقم التليفون</label>
+                    <input type="text" id="newServantPhone" placeholder="مثال: 01200000000">
+                </div>
+                <div class="form-row">
+                    <label>أب الاعتراف</label>
+                    <input type="text" id="newServantFather" placeholder="مثال: أبونا مينا">
+                </div>
+                <div class="form-row">
+                    <label>تاريخ الميلاد</label>
+                    <input type="date" id="newServantDOB">
+                </div>
+                <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 10px 0;">
+                <div class="form-row">
                     <label>اسم المستخدم (لتسجيل الدخول) *</label>
                     <input type="text" id="newServantUsername" placeholder="مثال: fady.servant">
                 </div>
@@ -874,6 +891,15 @@
             const classIdVal = document.getElementById('newServantClass').value;
             const subjectVal = document.getElementById('newServantSubject').value;
 
+            const nameAR = document.getElementById('newServantNameAR').value.trim();
+            const phone = document.getElementById('newServantPhone').value.trim();
+            const father = document.getElementById('newServantFather').value.trim();
+            const dob = document.getElementById('newServantDOB').value;
+
+            if (!nameAR) {
+                showStatus('statusBar', 'error', 'يجب إدخال اسم الخادم بالعربي');
+                return;
+            }
             if (!username) {
                 showStatus('statusBar', 'error', 'يجب إدخال اسم المستخدم للخادم');
                 return;
@@ -883,6 +909,10 @@
                 username: username,
                 password: password,
                 title: title,
+                nameAR: nameAR || null,
+                phoneNumber: phone || null,
+                confessionFather: father || null,
+                dateOfBirth: dob || null,
                 classRoomId: classIdVal ? parseInt(classIdVal) : null,
                 subjectName: subjectVal || null
             };
@@ -891,6 +921,10 @@
             if (res && res.success) {
                 showStatus('statusBar', 'success', res.message || 'تمت إضافة الخادم بنجاح');
                 closeModal('addServantModal');
+                document.getElementById('newServantNameAR').value = '';
+                document.getElementById('newServantPhone').value = '';
+                document.getElementById('newServantFather').value = '';
+                document.getElementById('newServantDOB').value = '';
                 document.getElementById('newServantUsername').value = '';
                 await loadHierarchy();
             } else {

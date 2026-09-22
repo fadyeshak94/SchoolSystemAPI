@@ -173,42 +173,87 @@
                 return;
             }
 
-            let html = '';
+            // Sort data by date descending (newest first)
+            data.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const groupedData = {};
             data.forEach(item => {
-                const amount = parseFloat(item.amount || 0);
-                let typeText = '';
-                let color = '';
-                let sign = '';
+                const dateObj = new Date(item.date);
+                const dateKey = dateObj.toLocaleDateString('en-US'); // Group by local date string
                 
-                if (item.type === 'Revenue') {
-                    totalRevenue += amount;
-                    typeText = 'إيراد';
-                    color = 'var(--success)';
-                    sign = '+';
-                } else if (item.type === 'WaivedFee') {
-                    typeText = 'إعفاء';
-                    color = '#f59e0b';
-                    sign = '≈';
-                } else {
-                    totalExpense += amount;
-                    typeText = 'مصروف';
-                    color = 'var(--danger)';
-                    sign = '-';
+                if (!groupedData[dateKey]) {
+                    groupedData[dateKey] = {
+                        dateObj: dateObj,
+                        transactions: [],
+                        dailyRevenue: 0,
+                        dailyExpense: 0
+                    };
                 }
                 
-                const dateObj = new Date(item.date);
-                const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
-                const formattedDate = dateObj.toLocaleDateString('ar-EG', options);
+                groupedData[dateKey].transactions.push(item);
+                const amount = parseFloat(item.amount || 0);
+                if (item.type === 'Revenue') {
+                    groupedData[dateKey].dailyRevenue += amount;
+                } else if (item.type !== 'WaivedFee') {
+                    groupedData[dateKey].dailyExpense += amount;
+                }
+            });
 
+            let html = '';
+            
+            for (const [dateKey, group] of Object.entries(groupedData)) {
+                const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+                const formattedDate = group.dateObj.toLocaleDateString('ar-EG', options);
+                
+                const dailyNet = group.dailyRevenue - group.dailyExpense;
+                const netColor = dailyNet >= 0 ? 'var(--success)' : 'var(--danger)';
+                const netSign = dailyNet >= 0 ? '+' : '';
+
+                // Header row for the day summary
                 html += `
-                    <tr>
-                        <td style="font-weight:bold;">${formattedDate}</td>
-                        <td>${item.description}</td>
-                        <td style="color:${color}; font-weight:bold;">${typeText}</td>
-                        <td style="color:${color}; font-weight:bold; font-size:16px;" dir="ltr">${sign} ${amount} ج.م</td>
+                    <tr style="background:#e2e8f0; border-top: 2px solid #cbd5e1;">
+                        <td colspan="2" style="font-weight:bold; font-size: 16px; color: #334155;">📅 ${formattedDate}</td>
+                        <td style="font-weight:bold; text-align:left; color: #475569;">صافي اليوم:</td>
+                        <td style="color:${netColor}; font-weight:bold; font-size:18px;" dir="ltr">${netSign}${dailyNet.toLocaleString('en-US')} ج.م</td>
                     </tr>
                 `;
-            });
+
+                // Transaction rows
+                group.transactions.forEach(item => {
+                    const amount = parseFloat(item.amount || 0);
+                    let typeText = '';
+                    let color = '';
+                    let sign = '';
+                    
+                    if (item.type === 'Revenue') {
+                        totalRevenue += amount;
+                        typeText = 'إيراد';
+                        color = 'var(--success)';
+                        sign = '+';
+                    } else if (item.type === 'WaivedFee') {
+                        typeText = 'إعفاء';
+                        color = '#f59e0b';
+                        sign = '≈';
+                    } else {
+                        totalExpense += amount;
+                        typeText = 'مصروف';
+                        color = 'var(--danger)';
+                        sign = '-';
+                    }
+                    
+                    const tDate = new Date(item.date);
+                    const timeStr = tDate.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+
+                    html += `
+                        <tr>
+                            <td style="color:#64748b; font-size: 13px; padding-right: 30px;">🕒 ${timeStr}</td>
+                            <td>${item.description}</td>
+                            <td style="color:${color}; font-weight:bold;">${typeText}</td>
+                            <td style="color:${color}; font-weight:bold; font-size:15px;" dir="ltr">${sign} ${amount.toLocaleString('en-US')} ج.م</td>
+                        </tr>
+                    `;
+                });
+            }
             tbody.innerHTML = html;
             
             document.getElementById('totalRevenue').textContent = totalRevenue.toLocaleString('en-US') + ' ج.م';

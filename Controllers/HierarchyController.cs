@@ -276,6 +276,10 @@ public class HierarchyController : ControllerBase
         {
             Username = dto.Username.Trim(),
             Email = dto.Email?.Trim(),
+            NameAR = dto.NameAR?.Trim(),
+            PhoneNumber = dto.PhoneNumber?.Trim(),
+            ConfessionFather = dto.ConfessionFather?.Trim(),
+            DateOfBirth = dto.DateOfBirth,
             Role = "Servant",
             Title = string.IsNullOrWhiteSpace(dto.Title) ? "خادم" : dto.Title.Trim(),
             PasswordHash = hash,
@@ -381,6 +385,10 @@ public class AddServantDto
     public string? Email { get; set; }
     public string? Password { get; set; }
     public string? Title { get; set; }
+    public string? NameAR { get; set; }
+    public string? PhoneNumber { get; set; }
+    public string? ConfessionFather { get; set; }
+    public DateTime? DateOfBirth { get; set; }
     public int? ClassRoomId { get; set; }
     public string? SubjectName { get; set; }
     public string? AcademicYear { get; set; }
