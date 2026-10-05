@@ -42,7 +42,6 @@ public class GradesController : ControllerBase
                 return Ok(assignedSubjects);
             }
         }
-        
         return Ok(new string[0]);
     }
 
@@ -143,7 +142,21 @@ public class GradesController : ControllerBase
         var grades = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
 
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Secretary";
-        List<string> subjects = new List<string> { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
+        var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == classId)).FirstOrDefault();
+        string stage = classRoom?.Stage ?? "ابتدائي";
+        bool isFourSubjects = stage.Contains("ابتدائي ب") || stage.Contains("إعدادي") || stage.Contains("اعدادي") || stage.Contains("كبار");
+        
+        List<string> subjects = new List<string> { "أجبية", "الحان", "قبطي" };
+        if (isFourSubjects)
+        {
+            if (term == "ت1") subjects.Add("طقس");
+            else if (term == "ت2") subjects.Add("مواد متغيرة");
+            else { subjects.Add("طقس"); subjects.Add("مواد متغيرة"); }
+        }
+        else
+        {
+            subjects.Add("طقس"); subjects.Add("مواد متغيرة");
+        }
 
         if (role == "Servant")
         {

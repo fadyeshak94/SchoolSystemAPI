@@ -8,8 +8,12 @@
     <style>
         .phone-link { color: var(--primary); font-weight: bold; text-decoration: none; direction: ltr; display: inline-block; }
         @media print { 
-            .back-btn, .controls, .header { display: none; } 
-            @page { size: portrait; margin: 10mm; }
+            .back-btn, .controls, .header { display: none !important; } 
+            @page { size: A4 landscape; margin: 10mm; }
+            table { width: 100% !important; border-collapse: collapse; page-break-inside: auto; }
+            table thead { display: table-header-group; }
+            table tr { page-break-inside: avoid; page-break-after: auto; }
+            #content { padding: 0 !important; background: transparent !important; }
         }
         #studentsExportTable th, #studentsExportTable td {
             white-space: nowrap !important;
@@ -57,7 +61,7 @@
             const classText = sel.options[sel.selectedIndex].text;
 
             let html = `<div style="text-align:center; margin-bottom:15px; font-family:'Aref Ruqaa',serif; color:var(--primary);"><h2 style="margin:0;">📝 سجل حضور وانصراف طلبة: ${classText}</h2></div>`;
-            html += '<table id="studentsExportTable"><thead><tr><th>#</th><th>🆔 ID</th><th style="text-align:right;">👤 الاسم</th><th>📱 التليفون</th><th>🚻 النوع</th><th>✝️ شماس؟</th><th>🏫 السنة الدراسية</th><th>💰 دفع كام</th><th>⏳ عليه كام</th></tr></thead><tbody>';
+            html += '<table id="studentsExportTable" style="width:100%; border-collapse:collapse;"><thead><tr><th>#</th><th>🆔 ID</th><th style="text-align:right;">👤 الاسم</th><th>📱 التليفون</th><th>🚻 النوع</th><th>✝️ شماس؟</th><th>🏫 السنة الدراسية</th><th>💰 دفع كام</th><th>⏳ عليه كام</th></tr></thead><tbody>';
             res.students.forEach((s, idx) => {
                 let phones = [];
                 try { phones = JSON.parse(s.phone) || []; } catch(e) { if(s.phone) phones = [s.phone]; }
@@ -70,8 +74,17 @@
                 let isDeacon = s.isDeacon ? 'نعم' : 'لا';
                 if (gender === 'أنثى') isDeacon = '—';
                 let govGrade = s.govGrade || '—';
+                
+                let paidAmount = s.amountPaid || 0;
                 let paid = s.amountPaid !== undefined ? s.amountPaid + ' ج.م' : '—';
+                
+                let remainingAmount = s.amountRemaining || 0;
                 let remaining = s.amountRemaining !== undefined ? s.amountRemaining + ' ج.م' : '—';
+                
+                // Show remaining amount in green if 0 (خالص), and red if there is debt
+                let remainingHtml = remainingAmount > 0 
+                    ? `<span style="color:var(--danger); font-weight:bold;">${remaining}</span>`
+                    : `<span style="color:var(--success); font-weight:bold;">خالص (0 ج.م)</span>`;
 
                 html += `<tr>
                     <td>${idx + 1}</td>
@@ -82,7 +95,7 @@
                     <td>${isDeacon}</td>
                     <td>${govGrade}</td>
                     <td style="color:var(--success); font-weight:bold;">${paid}</td>
-                    <td style="color:var(--danger); font-weight:bold;">${remaining}</td>
+                    <td>${remainingHtml}</td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -96,7 +109,6 @@
             if (!classId) return;
 
             const element = document.getElementById('content');
-            // Adding a white background temporarily for PDF generation if needed
             element.style.backgroundColor = 'white';
 
             const opt = {
@@ -104,7 +116,8 @@
                 filename:     'Class_Students_' + classId + '.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, backgroundColor: '#ffffff', useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                pagebreak:    { mode: ['css', 'legacy'], avoid: 'tr' }, // Avoid splitting rows
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' } // Landscape for all columns
             };
 
             const btn = document.getElementById('exportPdfBtn');
@@ -131,19 +144,16 @@
             if(!table) return;
 
             let csvContent = "";
-            // Extract rows
             let rows = table.querySelectorAll('tr');
             for(let i=0; i<rows.length; i++){
                 let row = [], cols = rows[i].querySelectorAll('td, th');
                 for(let j=0; j<cols.length; j++){
                     let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, '').replace(/"/g, '""');
-                    // Add quotes to prevent issues with commas inside the content
                     row.push('"' + data + '"');
                 }
                 csvContent += row.join(',') + "\r\n";
             }
 
-            // UTF-8 BOM to ensure Excel reads Arabic correctly
             let bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
             let blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
             let url = window.URL.createObjectURL(blob);

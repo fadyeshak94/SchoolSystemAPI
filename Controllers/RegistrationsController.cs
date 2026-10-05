@@ -87,12 +87,8 @@ public class RegistrationsController : ControllerBase
             if (p.IsRenewal && p.StudentId.HasValue)
             {
                 var studentGrades = grades.Where(g => g.StudentId == p.StudentId.Value).ToList();
-                decimal total = 0;
-                var allSubjects = new[] { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
-                foreach (var sub in allSubjects)
-                {
-                    total += studentGrades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore + g.AttendanceScore);
-                }
+                // Filter by prevYear after we find it below, but since we calculate total before finding prevYear...
+                // Actually, let's just sum all subjects for that specific year, or wait, we just sum everything in the list if we filter later.
 
                 int prevClassId = 0;
                 var archive = studentsArchive.Where(a => a.OriginalStudentId == p.StudentId.Value).OrderByDescending(a => a.Id).FirstOrDefault();
@@ -100,10 +96,6 @@ public class RegistrationsController : ControllerBase
                 {
                     prevYear = archive.AcademicYear;
                     prevClass = archive.ClassName;
-                    // Try to guess stage from ClassName, or default to الابتدائي
-                    string stage = archive.StageName ?? "ابتدائي";
-                    prevPercentage = _resultsService.CalculatePercentage(total, stage);
-                    isPrevPassed = prevPercentage >= 50;
                 }
                 else
                 {
@@ -117,9 +109,19 @@ public class RegistrationsController : ControllerBase
                         
                         var classRoom = classRooms.FirstOrDefault(c => c.Id == cId);
                         string stage = classRoom?.Stage ?? "ابتدائي";
+                        decimal total = studentGrades.Where(g => g.AcademicYear == prevYear).Sum(g => g.ExamScore + g.AttendanceScore);
                         prevPercentage = _resultsService.CalculatePercentage(total, stage);
                         isPrevPassed = prevPercentage >= 50;
                     }
+                }
+                
+                // If we found from archive, recalculate total with correct prevYear
+                if (archive != null)
+                {
+                    string stage = archive.StageName ?? "ابتدائي";
+                    decimal total = studentGrades.Where(g => g.AcademicYear == prevYear).Sum(g => g.ExamScore + g.AttendanceScore);
+                    prevPercentage = _resultsService.CalculatePercentage(total, stage);
+                    isPrevPassed = prevPercentage >= 50;
                 }
             }
 

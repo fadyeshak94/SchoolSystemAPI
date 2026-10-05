@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>💰 تقرير الطلبة المديونين</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .phone-link { color: var(--primary); font-weight: bold; text-decoration: none; direction: ltr; display: inline-block; }
+        .class-header { background: #3b82f6; color: white; padding: 10px; margin-top: 20px; border-radius: 5px; font-weight: bold; font-size: 18px; }
+        .table-container { background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #f8fafc; }
+        @media print { 
+            .back-btn, .controls, .header { display: none !important; } 
+            @page { size: A4 portrait; margin: 10mm; }
+            table { width: 100% !important; border-collapse: collapse; page-break-inside: auto; }
+            table thead { display: table-header-group; }
+            table tr { page-break-inside: avoid; page-break-after: auto; }
+            .table-container { padding: 0 !important; background: transparent !important; box-shadow: none !important; }
+            .class-header { color: black; background: #ddd !important; border: 1px solid #000; -webkit-print-color-adjust: exact; }
+            th, td { border: 1px solid #000 !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="controls" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <select id="academicYearSelect" style="padding: 5px; border-radius: 5px;"></select>
+        <button class="btn btn-search" onclick="loadUnpaidStudents()" style="background: #3b82f6; color: white; padding: 10px 20px; border-radius: 8px;">🔍 عرض التقرير</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة عادية</button>
+    </div>
+
+    <div id="content" style="padding-top: 15px;">
+        <div class="table-container">
+            <div style="text-align:center; padding:20px; color:var(--text-muted);">اختر السنة الدراسية واضغط عرض التقرير</div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => {
+            loadAcademicYearsDropdown('academicYearSelect');
+        };
+
+        async function loadUnpaidStudents() {
+            document.getElementById('content').innerHTML = '<div class="spinner"></div>';
+            
+            const academicYear = document.getElementById('academicYearSelect').value;
+            const res = await fetchApi(`/students/unpaid-report?academicYear=${encodeURIComponent(academicYear)}`);
+            if (!res || !res.students) {
+                document.getElementById('content').innerHTML = '<div class="status-bar error" style="display:block;">❌ حدث خطأ أثناء تحميل التقرير</div>';
+                return;
+            }
+
+            if (res.students.length === 0) {
+                document.getElementById('content').innerHTML = '<div class="table-container"><div style="text-align:center; padding:20px; color:var(--success); font-weight:bold;">🎉 لا يوجد أي طلبة عليهم متأخرات مالية!</div></div>';
+                return;
+            }
+
+            // Group students by class
+            const grouped = {};
+            res.students.forEach(s => {
+                if (!grouped[s.classId]) {
+                    grouped[s.classId] = {
+                        className: s.className,
+                        students: []
+                    };
+                }
+                grouped[s.classId].students.push(s);
+            });
+
+            let html = '';
+            
+            let totalRemainingGlobal = 0;
+
+            for (const classId in grouped) {
+                const group = grouped[classId];
+                let classTotal = 0;
+                
+                html += `<div class="table-container">`;
+                html += `<div class="class-header">🏫 فصل: ${group.className} - (العدد: ${group.students.length})</div>`;
+                html += `<table><thead><tr><th>#</th><th>🆔 ID</th><th style="text-align:right;">👤 الاسم</th><th>📱 التليفون</th><th>💰 دفع كام</th><th>⏳ عليه كام</th></tr></thead><tbody>`;
+                
+                group.students.forEach((s, idx) => {
+                    let phones = [];
+                    try { phones = JSON.parse(s.phone) || []; } catch(e) { if(s.phone) phones = [s.phone]; }
+                    let phoneStr = '—';
+                    if(phones.length > 0) {
+                        let num = typeof phones[0] === 'object' ? phones[0].number : phones[0];
+                        phoneStr = `<a class="phone-link" href="tel:${num}">${num}</a>`;
+                    }
+                    
+                    let paid = s.amountPaid !== undefined ? s.amountPaid + ' ج.م' : '—';
+                    let remaining = s.amountRemaining !== undefined ? s.amountRemaining + ' ج.م' : '—';
+                    classTotal += (s.amountRemaining || 0);
+
+                    html += `<tr>
+                        <td>${idx + 1}</td>
+                        <td>${s.id}</td>
+                        <td style="text-align:right; font-weight:bold;">${s.name}</td>
+                        <td dir="ltr">${phoneStr}</td>
+                        <td style="color:var(--success); font-weight:bold;">${paid}</td>
+                        <td style="color:var(--danger); font-weight:bold;">${remaining}</td>
+                    </tr>`;
+                });
+                
+                totalRemainingGlobal += classTotal;
+
+                html += `<tr style="background:#fff3cd; font-weight:bold;">
+                    <td colspan="5" style="text-align:left;">إجمالي المتأخرات للفصل:</td>
+                    <td style="color:var(--danger);">${classTotal} ج.م</td>
+                </tr>`;
+                
+                html += '</tbody></table></div>';
+            }
+
+            html = `<div style="text-align:center; margin-bottom:20px;">
+                <h2 style="color:var(--danger);">تقرير الطلبة المديونين</h2>
+                <div style="font-size:20px; font-weight:bold; background:#fff3cd; color:#856404; display:inline-block; padding:10px 20px; border-radius:10px;">
+                    إجمالي المتأخرات الكلية: ${totalRemainingGlobal} ج.م
+                </div>
+            </div>` + html;
+
+            document.getElementById('content').innerHTML = html;
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

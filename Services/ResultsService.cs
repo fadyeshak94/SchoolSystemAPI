@@ -10,8 +10,9 @@ public class ResultsService : IResultsService
 {
     public decimal CalculatePercentage(decimal totalScore, string stage)
     {
-        // اللوجيك الخاص بتحديد النهاية العظمى (400 للابتدائي، 500 للباقي)
-        decimal maxScore = stage.Contains("ابتدائي") ? 400m : 500m;
+        // ابتدائي، إعدادي، وكبار أصبح لديهم 4 مواد في التيرم
+        bool isFourSubjects = stage.Contains("ابتدائي") || stage.Contains("إعدادي") || stage.Contains("اعدادي") || stage.Contains("كبار");
+        decimal maxScore = isFourSubjects ? 400m : 500m;
         
         if (maxScore == 0) return 0;
         return (totalScore / maxScore) * 100m;

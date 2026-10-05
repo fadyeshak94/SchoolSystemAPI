@@ -445,6 +445,47 @@ public class StudentsController : ControllerBase
 
         return Ok(new { success = true, students = result });
     }
+
+    [HttpGet("unpaid-report")]
+    public async Task<IActionResult> GetUnpaidStudentsReport([FromQuery] string? academicYear = null)
+    {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
+        var studentsQuery = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ToListAsync();
+        
+        var enrolledStudents = studentsQuery.Where(s => s.Enrollments.Any(e => e.AcademicYear == resolvedYear)).ToList();
+
+        var classes = await _uow.ClassRooms.FindAsync(c => true);
+        var classMap = classes.ToDictionary(c => c.Id, c => c);
+        
+        var stageFeesList = await _uow.StageFees.FindAsync(f => true);
+        var stageFeeMap = stageFeesList.ToDictionary(f => f.StageName, f => f.FeeAmount);
+
+        var result = enrolledStudents.Select(s =>
+        {
+            var enrollment = s.Enrollments.FirstOrDefault(e => e.AcademicYear == resolvedYear);
+            var cRoom = enrollment != null && classMap.ContainsKey(enrollment.ClassRoomId) ? classMap[enrollment.ClassRoomId] : null;
+            
+            decimal baseFee = cRoom != null && !string.IsNullOrEmpty(cRoom.Stage) && stageFeeMap.ContainsKey(cRoom.Stage) ? stageFeeMap[cRoom.Stage] : 0m;
+            decimal requiredFee = s.HasHalfDiscount ? baseFee / 2m : baseFee;
+            decimal remainingAmount = requiredFee - s.AmountPaid;
+            if (remainingAmount < 0) remainingAmount = 0;
+
+            return new
+            {
+                id = s.Id,
+                name = s.Name,
+                className = cRoom?.Name ?? "غير مسجل",
+                classId = cRoom?.Id ?? 0,
+                phone = s.PhonesJson,
+                amountPaid = s.AmountPaid,
+                amountRemaining = remainingAmount
+            };
+        }).Where(s => s.amountRemaining > 0).OrderBy(s => s.classId).ThenBy(s => s.name).ToList();
+
+        return Ok(new { success = true, students = result });
+    }
 }
 
 public class PhoneObj

@@ -33,7 +33,7 @@ public class ResultsController : ControllerBase
             .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
-        var gradesQuery = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
+        var gradesQuery = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear);
         if (term != "all" && !string.IsNullOrEmpty(term))
         {
             gradesQuery = gradesQuery.Where(g => g.Term == term).ToList();
@@ -44,6 +44,19 @@ public class ResultsController : ControllerBase
 
         List<object> columns = new List<object>();
 
+        bool isFourSubjects = stage.Contains("ابتدائي ب") || stage.Contains("إعدادي") || stage.Contains("اعدادي") || stage.Contains("كبار");
+        var allSubjects = new List<string> { "أجبية", "الحان", "قبطي" };
+        if (isFourSubjects)
+        {
+            if (term == "ت1") allSubjects.Add("طقس");
+            else if (term == "ت2") allSubjects.Add("مواد متغيرة");
+            else { allSubjects.Add("طقس"); allSubjects.Add("مواد متغيرة"); }
+        }
+        else
+        {
+            allSubjects.Add("طقس"); allSubjects.Add("مواد متغيرة");
+        }
+
         if (subject != "all" && !string.IsNullOrEmpty(subject))
         {
             gradesQuery = gradesQuery.Where(g => g.SubjectName == subject).ToList();
@@ -52,7 +65,6 @@ public class ResultsController : ControllerBase
         }
         else
         {
-            var allSubjects = new[] { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
             foreach (var sub in allSubjects)
             {
                 columns.Add(new { key = sub, label = sub });
@@ -75,7 +87,6 @@ public class ResultsController : ControllerBase
             }
             else
             {
-                var allSubjects = new[] { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
                 foreach (var sub in allSubjects)
                 {
                     var exam = studentGrades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore);
@@ -123,14 +134,32 @@ public class ResultsController : ControllerBase
         if (student == null) return NotFound(new { success = false, message = "الطالب غير موجود" });
 
         var grades = await _uow.StudentGrades.FindAsync(g => g.StudentId == studentId);
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : "2025/2026"; // Or we can fetch current year, but default to newest enrollment
         var cId = string.IsNullOrEmpty(academicYear) 
             ? (student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.ClassRoomId ?? 0)
             : (student.Enrollments?.FirstOrDefault(e => e.AcademicYear == academicYear)?.ClassRoomId ?? 0);
+        
+        var yearToUse = string.IsNullOrEmpty(academicYear) 
+            ? (student.Enrollments?.OrderByDescending(e => e.AcademicYear).FirstOrDefault()?.AcademicYear ?? "2025/2026")
+            : academicYear;
+            
+        grades = grades.Where(g => g.AcademicYear == yearToUse).ToList();
+
         var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == cId)).FirstOrDefault();
         string stage = classRoom?.Stage ?? "ابتدائي";
 
         decimal total = 0;
-        var allSubjects = new[] { "أجبية", "الحان", "طقس", "قبطي", "مواد متغيرة" };
+        bool isFourSubjects = stage.Contains("ابتدائي ب") || stage.Contains("إعدادي") || stage.Contains("اعدادي") || stage.Contains("كبار");
+        var allSubjects = new List<string> { "أجبية", "الحان", "قبطي" };
+        if (isFourSubjects)
+        {
+            allSubjects.Add("طقس"); allSubjects.Add("مواد متغيرة");
+        }
+        else
+        {
+            allSubjects.Add("طقس"); allSubjects.Add("مواد متغيرة");
+        }
+
         foreach (var sub in allSubjects)
         {
             var exam = grades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore);

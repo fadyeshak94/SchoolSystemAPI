@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace SchoolSystemAPI.Controllers;
 
@@ -134,9 +135,15 @@ public class ExcusesController : ControllerBase
         await _uow.CompleteAsync();
 
         // تحديث درجات الحضور للطالب (حد أقصى 5 درجات)
+        string altTerm = excuse.Term;
+        if (excuse.Term == "ت1") altTerm = "1";
+        else if (excuse.Term == "ت2") altTerm = "2";
+        else if (excuse.Term == "1") altTerm = "ت1";
+        else if (excuse.Term == "2") altTerm = "ت2";
+
         var allRecords = await _uow.AttendanceRecords.FindAsync(a => 
             a.StudentId == excuse.StudentId && 
-            a.Term == excuse.Term && 
+            (a.Term == excuse.Term || a.Term == altTerm) && 
             a.AcademicYear == excuse.AcademicYear);
 
         var presentCount = allRecords.Count(a => a.Status == "Present" || a.IsExcused);
@@ -144,11 +151,36 @@ public class ExcusesController : ControllerBase
 
         var sGrades = await _uow.StudentGrades.FindAsync(g => 
             g.StudentId == excuse.StudentId && 
-            g.Term == excuse.Term);
+            g.Term == excuse.Term &&
+            g.AcademicYear == excuse.AcademicYear);
+
+        var studentEntity = await _uow.Students.GetQueryable()
+            .Where(s => s.Id == excuse.StudentId)
+            .Select(s => new {
+                Stage = s.Enrollments.FirstOrDefault(e => e.AcademicYear == excuse.AcademicYear).ClassRoom.Stage
+            })
+            .FirstOrDefaultAsync();
+            
+        var studentStage = studentEntity?.Stage;
 
         foreach (var grade in sGrades)
         {
-            grade.AttendanceScore = calculatedScore;
+            decimal finalScore = calculatedScore;
+            
+            // تطبيق القاعدة الاستثنائية لسنة 2025/2026 في ابتدائي ب
+            if (excuse.AcademicYear == "2025/2026" && studentStage == "ابتدائي ب")
+            {
+                if (grade.SubjectName == "طقس" && (excuse.Term == "ت2" || excuse.Term == "2"))
+                {
+                    finalScore = 0;
+                }
+                else if (grade.SubjectName == "مواد متغيرة" && (excuse.Term == "ت1" || excuse.Term == "1"))
+                {
+                    finalScore = 0;
+                }
+            }
+
+            grade.AttendanceScore = finalScore;
             _uow.StudentGrades.Update(grade);
         }
 
@@ -169,6 +201,44 @@ public class ExcusesController : ControllerBase
         await _uow.CompleteAsync();
 
         return Ok(new { success = true, message = "تم رفض العذر." });
+    }
+
+    [HttpGet("report")]
+    [Authorize(Roles = "Admin,Secretary,StageSupervisor,HeadSecretary")]
+    public async Task<IActionResult> GetExcusesReport([FromQuery] string? term = null, [FromQuery] string? year = null)
+    {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(year) ? year : (appSettings?.AcademicYear ?? "2024/2025");
+        
+        bool filterByTerm = !string.IsNullOrEmpty(term) && term != "all";
+        var resolvedTerm = filterByTerm ? term : null;
+
+        var excuses = await _uow.Excuses.FindAsync(e => e.AcademicYear == resolvedYear && (!filterByTerm || e.Term == resolvedTerm));
+        var studentIds = excuses.Select(e => e.StudentId).Distinct();
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).Where(s => studentIds.Contains(s.Id)).ToListAsync();
+        
+        var classes = await _uow.ClassRooms.FindAsync(c => true);
+        var classMap = classes.ToDictionary(c => c.Id, c => c);
+
+        var result = excuses.Select(e => {
+            var student = students.FirstOrDefault(s => s.Id == e.StudentId);
+            var enrollment = student?.Enrollments?.FirstOrDefault(en => en.AcademicYear == resolvedYear);
+            var className = enrollment != null && classMap.ContainsKey(enrollment.ClassRoomId) ? classMap[enrollment.ClassRoomId].Name : "غير مسجل";
+            
+            return new {
+                id = e.Id,
+                studentId = e.StudentId,
+                studentName = student?.Name ?? "غير معروف",
+                className = className,
+                date = e.Date.ToString("yyyy-MM-dd"),
+                reason = e.Reason,
+                status = e.Status,
+                term = e.Term,
+                year = e.AcademicYear
+            };
+        }).OrderByDescending(e => e.date).ThenBy(e => e.studentName).ToList();
+
+        return Ok(new { success = true, excuses = result });
     }
 }
 

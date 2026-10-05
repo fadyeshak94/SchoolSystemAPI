@@ -94,24 +94,56 @@ public class AttendanceController : ControllerBase
 
         // تحديث درجات الحضور في جدول الدرجات
         var distinctStudentIds = studentIds.Distinct().ToList();
+        string altTerm = request.Term;
+        if (request.Term == "ت1") altTerm = "1";
+        else if (request.Term == "ت2") altTerm = "2";
+        else if (request.Term == "1") altTerm = "ت1";
+        else if (request.Term == "2") altTerm = "ت2";
+
         var allRecords = await _uow.AttendanceRecords.FindAsync(a => 
             distinctStudentIds.Contains(a.StudentId) && 
-            a.Term == request.Term && 
+            (a.Term == request.Term || a.Term == altTerm) && 
             a.AcademicYear == request.AcademicYear);
             
         var allGrades = await _uow.StudentGrades.FindAsync(g => 
             distinctStudentIds.Contains(g.StudentId) && 
-            g.Term == request.Term);
+            g.Term == request.Term && 
+            g.AcademicYear == request.AcademicYear);
+
+        var studentsWithStage = await _uow.Students.GetQueryable()
+            .Where(s => distinctStudentIds.Contains(s.Id))
+            .Select(s => new {
+                s.Id,
+                Stage = s.Enrollments.FirstOrDefault(e => e.AcademicYear == request.AcademicYear).ClassRoom.Stage
+            })
+            .ToListAsync();
 
         foreach (var sId in distinctStudentIds)
         {
             var presentCount = allRecords.Count(a => a.StudentId == sId && (a.Status == "Present" || a.IsExcused));
             decimal calculatedScore = Math.Min(10, presentCount) * 0.5m;
+            
+            var studentStage = studentsWithStage.FirstOrDefault(x => x.Id == sId)?.Stage;
 
             var sGrades = allGrades.Where(g => g.StudentId == sId).ToList();
             foreach (var grade in sGrades)
             {
-                grade.AttendanceScore = calculatedScore;
+                decimal finalScore = calculatedScore;
+                
+                // تطبيق القاعدة الاستثنائية لسنة 2025/2026 في ابتدائي ب
+                if (request.AcademicYear == "2025/2026" && studentStage == "ابتدائي ب")
+                {
+                    if (grade.SubjectName == "طقس" && (request.Term == "ت2" || request.Term == "2"))
+                    {
+                        finalScore = 0;
+                    }
+                    else if (grade.SubjectName == "مواد متغيرة" && (request.Term == "ت1" || request.Term == "1"))
+                    {
+                        finalScore = 0;
+                    }
+                }
+                
+                grade.AttendanceScore = finalScore;
                 _uow.StudentGrades.Update(grade);
             }
         }
