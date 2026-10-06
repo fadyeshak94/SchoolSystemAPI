@@ -22,9 +22,20 @@ public class UsersController : ControllerBase
 
     [HttpGet]
     [Authorize(Roles = "Admin,HeadSecretary")] // للأدمن وأمين السكرتارية
-    public async Task<IActionResult> GetAllUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 50)
+    public async Task<IActionResult> GetAllUsers([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20, [FromQuery] string? search = null)
     {
         var allUsers = await _uow.Users.FindAsync(u => true);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var lowerSearch = search.ToLower();
+            allUsers = allUsers.Where(u => 
+                (u.Username != null && u.Username.ToLower().Contains(lowerSearch)) ||
+                (u.NameAR != null && u.NameAR.ToLower().Contains(lowerSearch)) ||
+                (u.PhoneNumber != null && u.PhoneNumber.Contains(search))
+            ).ToList();
+        }
+
         var totalRecords = allUsers.Count();
         
         var pagedUsers = allUsers

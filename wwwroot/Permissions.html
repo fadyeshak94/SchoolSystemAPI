@@ -69,12 +69,54 @@
       </div>
     </div>
 
+    <div class="controls" style="display:flex; gap:10px; margin-bottom:15px; align-items:center; flex-wrap:wrap; background:white; padding:15px; border-radius:10px; box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+        <input type="text" id="userSearch" placeholder="بحث باسم المستخدم أو الاسم أو التليفون..." oninput="handleSearch()" style="padding:10px; border-radius:8px; border:1px solid #e2e8f0; flex:1; min-width:250px;">
+        
+        <label style="font-weight:bold;">عرض:</label>
+        <select id="pageSizeSelect" onchange="changePageSize()" style="padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+
     <div id="content"></div>
 
     <script src="/js/app.js"></script>
     <script>
       var classesData = [];
       var stagesData = [];
+      var currentPage = 1;
+      var totalPages = 1;
+      var searchTimer = null;
+
+      function handleSearch() {
+          clearTimeout(searchTimer);
+          searchTimer = setTimeout(() => {
+              currentPage = 1;
+              loadUsers();
+          }, 400);
+      }
+
+      function changePageSize() {
+          currentPage = 1;
+          loadUsers();
+      }
+
+      function prevPage() {
+          if (currentPage > 1) {
+              currentPage--;
+              loadUsers();
+          }
+      }
+
+      function nextPage() {
+          if (currentPage < totalPages) {
+              currentPage++;
+              loadUsers();
+          }
+      }
 
       window.onload = () => {
           requireRole('Admin', 'HeadSecretary');
@@ -99,13 +141,22 @@
 
       async function loadUsers() {
         try {
-            const data = await fetchApi('/users');
+            const pageSize = document.getElementById('pageSizeSelect') ? document.getElementById('pageSizeSelect').value : 20;
+            const search = document.getElementById('userSearch') ? document.getElementById('userSearch').value.trim() : '';
+
+            const data = await fetchApi(`/users?pageNumber=${currentPage}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`);
             if (data && data.success) {
                 classesData = data.classes || [];
                 stagesData = data.stages || [];
                 populateClassSelect(document.getElementById('newClass'));
                 populateStageSelect(document.getElementById('newStage'));
-                renderUsers((data.users && data.users.data) ? data.users.data : (data.users || []));
+                
+                const responseData = data.users; 
+                const usersList = responseData.data || [];
+                totalPages = responseData.totalPages || 1;
+                currentPage = responseData.pageNumber || 1;
+
+                renderUsers(usersList);
             } else {
                 document.getElementById('content').innerHTML = '<div class="error-box">❌ ' + (data?.message || 'خطأ غير معروف') + '</div>';
             }
@@ -195,6 +246,15 @@
         });
 
         html += '</tbody></table></div>';
+
+        html += `
+        <div style="display:flex; justify-content:center; gap:15px; margin-top:20px; align-items:center;">
+            <button class="btn btn-secondary" onclick="prevPage()" ${currentPage === 1 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>السابق</button>
+            <span style="font-weight:bold; color:var(--primary);">صفحة ${currentPage} من ${totalPages}</span>
+            <button class="btn btn-secondary" onclick="nextPage()" ${currentPage >= totalPages ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>التالي</button>
+        </div>
+        `;
+
         document.getElementById('content').innerHTML = html;
 
         document.querySelectorAll('.class-select').forEach(function(select) {
