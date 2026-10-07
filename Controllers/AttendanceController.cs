@@ -143,6 +143,12 @@ public class AttendanceController : ControllerBase
                     }
                 }
                 
+                // إضافة قاعدة لـ ابتدائي أ: لا توجد درجات غياب في مادة "مواد متغيرة"
+                if (studentStage == "ابتدائي أ" && grade.SubjectName == "مواد متغيرة")
+                {
+                    finalScore = 0;
+                }
+                
                 grade.AttendanceScore = finalScore;
                 _uow.StudentGrades.Update(grade);
             }
