@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>الإعفاءات والخصومات المالية 📉</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <div class="controls">
+        <label>العام الدراسي:</label>
+        <select id="yearSelect">
+            <option value="2024-2025">2024-2025</option>
+            <option value="2023-2024">2023-2024</option>
+        </select>
+        <label>سبب الخصم:</label>
+        <select id="reasonSelect">
+            <option value="all">الكل</option>
+            <option value="sibling">إخوة</option>
+            <option value="social">حالة اجتماعية</option>
+            <option value="scholarship">منحة تفوق</option>
+            <option value="staff">أبناء عاملين</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadExemptions()">بحث</button>
+        <button class="btn btn-success" onclick="window.print()">🖨️ طباعة</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم الطالب</th>
+                    <th>الفصل</th>
+                    <th>نوع الخصم</th>
+                    <th>المصروفات الأصلية</th>
+                    <th>قيمة الخصم</th>
+                    <th>المطلوب دفعه</th>
+                    <th>ملاحظات الاعتماد</th>
+                </tr>
+            </thead>
+            <tbody id="exemptionsTable">
+                <!-- Data will be loaded here -->
+            </tbody>
+            <tfoot>
+                <tr style="background:#f1f5f9; font-weight:bold;">
+                    <td colspan="4" style="text-align:left;">إجمالي قيمة الخصومات الممنوحة:</td>
+                    <td id="totalDiscounts" style="color:var(--danger);">0 ج.م</td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadExemptions() {
+            document.getElementById('exemptionsTable').innerHTML = `<tr><td colspan="7"><div class="spinner" style="margin: 20px auto;"></div></td></tr>`;
+
+            const res = await fetchApi('/Financial');
+            if (!res || !res.success) {
+                document.getElementById('exemptionsTable').innerHTML = `<tr><td colspan="7" style="color:red;">حدث خطأ في جلب البيانات المالية.</td></tr>`;
+                return;
+            }
+
+            let html = "";
+            let total = 0;
+            const filterReason = document.getElementById('reasonSelect').value; // We only have HasHalfDiscount from backend currently
+            
+            // Backend returns students. Filter those with HasHalfDiscount
+            const discountedStudents = res.data.filter(st => st.hasHalfDiscount || st.HasHalfDiscount);
+
+            discountedStudents.forEach(st => {
+                if(filterReason !== 'all' && filterReason !== 'sibling') return; // By default HasHalfDiscount is usually for siblings
+                
+                const original = parseFloat(st.requiredFee || st.RequiredFee || 0);
+                const required = parseFloat(st.finalRequiredFee || st.FinalRequiredFee || 0);
+                const discount = original - required;
+                total += discount;
+
+                html += `<tr>
+                    <td style="font-weight:bold;">${st.name || st.Name}</td>
+                    <td>${st.className || st.ClassName || st.stage || st.Stage}</td>
+                    <td><span style="background:var(--secondary); padding:4px 8px; border-radius:6px; font-size:12px;">خصم 50%</span></td>
+                    <td>${original} ج.م</td>
+                    <td style="color:var(--danger); font-weight:bold;">${discount} ج.م</td>
+                    <td style="color:var(--success); font-weight:bold;">${required} ج.م</td>
+                    <td style="color:var(--text-muted); font-size:13px;">${st.type === 'Approved' ? 'طالب' : 'متقدم'}</td>
+                </tr>`;
+            });
+            
+            document.getElementById('exemptionsTable').innerHTML = html || `<tr><td colspan="7">لا توجد خصومات مسجلة في قاعدة البيانات.</td></tr>`;
+            document.getElementById('totalDiscounts').innerText = total + " ج.م";
+        }
+        
+        window.onload = () => loadExemptions();
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

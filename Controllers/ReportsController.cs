@@ -12,10 +12,12 @@ namespace SchoolSystemAPI.Controllers;
 public class ReportsController : ControllerBase
 {
     private readonly IUnitOfWork _uow;
+    private readonly ApplicationDbContext _context;
 
-    public ReportsController(IUnitOfWork uow)
+    public ReportsController(IUnitOfWork uow, ApplicationDbContext context)
     {
         _uow = uow;
+        _context = context;
     }
 
     [HttpGet("classes-performance")]
@@ -195,5 +197,166 @@ public class ReportsController : ControllerBase
         var sorted = allTransactions.OrderByDescending(t => (string)((dynamic)t).Date).ToList();
 
         return Ok(new { success = true, data = sorted });
+    }
+
+    [HttpGet("at-risk")]
+    public async Task<IActionResult> GetAtRiskStudents([FromQuery] string? academicYear)
+    {
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ThenInclude(e => e.ClassRoom).ToListAsync();
+        var allRecords = await _uow.AttendanceRecords.FindAsync(a => string.IsNullOrEmpty(academicYear) || a.AcademicYear == academicYear);
+        var allGrades = await _uow.StudentGrades.FindAsync(g => string.IsNullOrEmpty(academicYear) || g.AcademicYear == academicYear);
+
+        var result = new List<object>();
+
+        foreach (var student in students)
+        {
+            var stRecords = allRecords.Where(r => r.StudentId == student.Id).ToList();
+            var stGrades = allGrades.Where(g => g.StudentId == student.Id).ToList();
+            
+            var currentEnrollment = student.Enrollments.OrderByDescending(e => e.Id).FirstOrDefault(e => string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear);
+            if (currentEnrollment == null) continue;
+
+            int totalDays = stRecords.Count;
+            int absentDays = stRecords.Count(r => r.Status == "Absent" && !r.IsExcused);
+            decimal absencePercentage = totalDays > 0 ? (decimal)absentDays / totalDays * 100m : 0;
+
+            decimal totalScore = stGrades.Sum(g => g.TotalScore);
+            decimal maxScore = currentEnrollment.ClassRoom.Stage.Contains("ابتدائي") ? 400m : 500m;
+            decimal gradePercentage = maxScore > 0 ? (totalScore / maxScore) * 100m : 0;
+
+            // Only add if there is some data
+            if (totalDays > 0 || stGrades.Count > 0)
+            {
+                result.Add(new
+                {
+                    studentId = student.Id,
+                    studentName = student.Name,
+                    className = currentEnrollment.ClassRoom.Name,
+                    absencePercentage = Math.Round(absencePercentage, 1),
+                    gradePercentage = Math.Round(gradePercentage, 1)
+                });
+            }
+        }
+
+        return Ok(new { success = true, data = result });
+    }
+
+    [HttpGet("consecutive-absences")]
+    public async Task<IActionResult> GetConsecutiveAbsences([FromQuery] string? academicYear, [FromQuery] int threshold = 2)
+    {
+        var students = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ThenInclude(e => e.ClassRoom).ToListAsync();
+        var allRecords = await _uow.AttendanceRecords.FindAsync(a => string.IsNullOrEmpty(academicYear) || a.AcademicYear == academicYear);
+        
+        var result = new List<object>();
+
+        foreach (var student in students)
+        {
+            var stRecords = allRecords.Where(r => r.StudentId == student.Id).OrderBy(r => r.Date).ToList();
+            int consecutiveCount = 0;
+            int maxConsecutive = 0;
+            List<string> absenceDates = new();
+
+            foreach (var record in stRecords)
+            {
+                if (record.Status == "Absent" && !record.IsExcused)
+                {
+                    consecutiveCount++;
+                    absenceDates.Add(record.Date.ToString("yyyy-MM-dd"));
+                    if (consecutiveCount > maxConsecutive) maxConsecutive = consecutiveCount;
+                }
+                else
+                {
+                    if (consecutiveCount >= threshold)
+                    {
+                        // Already found a sequence >= threshold, keep max but don't reset to 0 if we want to report the maximum block.
+                        // Or we can just keep tracking.
+                    }
+                    else
+                    {
+                        consecutiveCount = 0;
+                        absenceDates.Clear();
+                    }
+                }
+            }
+
+            if (maxConsecutive >= threshold)
+            {
+                var currentEnrollment = student.Enrollments.OrderByDescending(e => e.Id).FirstOrDefault(e => string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear);
+                result.Add(new
+                {
+                    studentId = student.Id,
+                    studentName = student.Name,
+                    className = currentEnrollment?.ClassRoom?.Name ?? "غير مسجل",
+                    consecutiveAbsencesCount = maxConsecutive,
+                    lastAbsenceDates = absenceDates.TakeLast(threshold)
+                });
+            }
+        }
+
+        return Ok(new { success = true, data = result.OrderByDescending(r => ((dynamic)r).consecutiveAbsencesCount) });
+    }
+
+    [HttpGet("student-profile/{studentId}")]
+    public async Task<IActionResult> GetStudentProfile(int studentId, [FromQuery] string? academicYear)
+    {
+        var student = await _uow.Students.GetQueryable().Include(s => s.Enrollments).ThenInclude(e => e.ClassRoom).Include(s => s.Mother).FirstOrDefaultAsync(s => s.Id == studentId);
+        if (student == null) return NotFound(new { success = false, message = "الطالب غير موجود" });
+
+        var stRecords = await _uow.AttendanceRecords.FindAsync(a => a.StudentId == studentId && (string.IsNullOrEmpty(academicYear) || a.AcademicYear == academicYear));
+        var stGrades = await _uow.StudentGrades.FindAsync(g => g.StudentId == studentId && (string.IsNullOrEmpty(academicYear) || g.AcademicYear == academicYear));
+        var stTransactions = await _uow.SubscriptionPayments.FindAsync(p => p.StudentId == studentId);
+
+        var currentEnrollment = student.Enrollments.OrderByDescending(e => e.Id).FirstOrDefault(e => string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear);
+
+        int totalDays = stRecords.Count();
+        int presentDays = stRecords.Count(r => r.Status == "Present");
+        int absentDays = stRecords.Count(r => r.Status == "Absent");
+        int excusedDays = stRecords.Count(r => r.IsExcused);
+        decimal absencePercentage = totalDays > 0 ? (decimal)absentDays / totalDays * 100m : 0;
+
+        decimal baseRequiredAmount = 0;
+        if (currentEnrollment?.ClassRoom != null)
+        {
+            var stageFee = await _context.StageFees.FirstOrDefaultAsync(s => s.StageName == currentEnrollment.ClassRoom.Stage);
+            if (stageFee != null) baseRequiredAmount = stageFee.FeeAmount;
+        }
+
+        decimal discount = student.HasHalfDiscount ? (baseRequiredAmount / 2) : 0;
+        decimal finalRequired = baseRequiredAmount - discount;
+        
+        // Use student's AmountPaid instead of SubscriptionPayments sum, as FinancialController relies on AmountPaid directly
+        decimal paidAmount = student.AmountPaid; 
+        decimal debt = finalRequired - paidAmount;
+        
+        var gradesList = stGrades.Select(g => new { 
+            subject = g.SubjectName, 
+            term = g.Term,
+            academicYear = g.AcademicYear,
+            examScore = g.ExamScore,
+            attendanceScore = g.AttendanceScore,
+            totalScore = g.TotalScore
+        }).OrderByDescending(g => g.academicYear).ThenBy(g => g.term).ThenBy(g => g.subject).ToList();
+
+        return Ok(new {
+            success = true,
+            data = new {
+                id = student.Id,
+                name = student.Name,
+                code = $"ST-{student.Id}",
+                className = currentEnrollment?.ClassRoom?.Name ?? "غير مسجل",
+                parentName = student.Mother?.Name ?? "غير مسجل",
+                phone = student.Mother?.Phone ?? "غير مسجل",
+                
+                attendance = new {
+                    totalDays, presentDays, absentDays, excusedDays, percentage = Math.Round(absencePercentage, 1)
+                },
+                
+                financial = new {
+                    required = baseRequiredAmount, paid = paidAmount, discount, debt
+                },
+
+                grades = gradesList
+            }
+        });
     }
 }

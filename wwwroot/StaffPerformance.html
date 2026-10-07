@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>تقييم أداء المعلمين / الخدام 👨‍🏫</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .performance-card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: var(--box-shadow); margin-bottom: 20px; border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .staff-info { display: flex; align-items: center; gap: 15px; }
+        .staff-avatar { width: 50px; height: 50px; border-radius: 50%; background: #e2e8f0; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .staff-details h4 { margin: 0; color: var(--text-dark); font-size: 1.1rem; }
+        .staff-details p { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+        .stats-group { display: flex; gap: 30px; }
+        .stat-item { text-align: center; }
+        .stat-item .label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 5px; }
+        .stat-item .value { font-size: 18px; font-weight: bold; color: var(--primary); }
+        .progress-container { width: 100px; height: 8px; background: #e2e8f0; border-radius: 4px; margin-top: 5px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--success); }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label>المرحلة / الصف:</label>
+        <select id="stageSelect">
+            <option value="all">جميع المراحل</option>
+            <option value="primary">الابتدائي</option>
+            <option value="prep">الإعدادي</option>
+        </select>
+        <button class="btn btn-primary" onclick="loadPerformance()">تحديث</button>
+        <button class="btn btn-success" onclick="window.print()">🖨️ طباعة</button>
+    </div>
+
+    <div id="performanceList">
+        <!-- Data will be loaded here -->
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        async function loadStages() {
+            const res = await fetchApi('/Servants/stages');
+            if (res && res.success && res.data.length > 0) {
+                const select = document.getElementById('stageSelect');
+                select.innerHTML = '<option value="all">جميع المراحل</option>';
+                res.data.forEach(stage => {
+                    if (stage) {
+                        select.innerHTML += `<option value="${stage}">${stage}</option>`;
+                    }
+                });
+            }
+        }
+
+        async function loadPerformance() {
+            document.getElementById('performanceList').innerHTML = '<div class="spinner" style="margin: 50px auto;"></div>';
+
+            const res = await fetchApi('/Servants/performance');
+            if (!res || !res.success) {
+                document.getElementById('performanceList').innerHTML = '<p style="color:red; text-align:center;">حدث خطأ في جلب بيانات الخدام.</p>';
+                return;
+            }
+
+            let html = "";
+            res.data.forEach(staff => {
+                let absenceColor = staff.absencePercentage > 15 ? "var(--danger)" : "var(--success)";
+                let attendanceRate = 100 - staff.absencePercentage;
+                html += `
+                <div class="performance-card">
+                    <div class="staff-info">
+                        <div class="staff-avatar">👨‍🏫</div>
+                        <div class="staff-details">
+                            <h4>${staff.servantName}</h4>
+                            <p>${staff.title} | <strong>الفصول/المواد:</strong> ${staff.classes || 'غير مسجل'}</p>
+                        </div>
+                    </div>
+                    <div class="stats-group">
+                        <div class="stat-item">
+                            <span class="label">نسبة الحضور</span>
+                            <span class="value" style="color:${attendanceRate >= 85 ? 'var(--success)' : 'var(--warning)'}">${attendanceRate.toFixed(1)}%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">إجمالي أيام الدراسة</span>
+                            <span class="value">${staff.totalDays}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="label">الغياب</span>
+                            <span class="value" style="color:${absenceColor}">${staff.absentDays} أيام</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('performanceList').innerHTML = html || '<p style="text-align:center;">لا يوجد خدام مسجلين حالياً.</p>';
+        }
+        
+        window.onload = () => loadPerformance();
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

@@ -28,6 +28,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Excuse> Excuses { get; set; }
     public DbSet<SubscriptionPayment> SubscriptionPayments { get; set; }
     public DbSet<AuditLog> AuditLogs { get; set; }
+    public DbSet<ServantAttendance> ServantAttendances { get; set; }
     public DbSet<PendingRegistration> PendingRegistrations { get; set; }
     public DbSet<Family> Families { get; set; }
     public DbSet<ServantAssignment> ServantAssignments { get; set; }
@@ -237,6 +238,18 @@ public class ApplicationDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.AppUserId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ==========================================
+        // 10. ServantAttendance Configuration
+        // ==========================================
+        modelBuilder.Entity<ServantAttendance>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(a => a.Servant)
+                  .WithMany()
+                  .HasForeignKey(a => a.ServantId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 

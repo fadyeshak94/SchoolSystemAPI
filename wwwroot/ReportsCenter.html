@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>مركز التقارير 🗂️</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .reports-container {
+            padding: 20px 0;
+        }
+        .category-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 15px;
+            margin-top: 30px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .report-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            text-decoration: none;
+            color: var(--text-dark);
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            position: relative;
+            overflow: hidden;
+        }
+        .report-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            border-color: var(--primary);
+        }
+        .report-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background: var(--primary);
+            opacity: 0;
+            transition: 0.3s;
+        }
+        .report-card:hover::before {
+            opacity: 1;
+        }
+        .report-icon {
+            font-size: 32px;
+            background: #f1f5f9;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+        .report-info h4 {
+            margin: 0 0 5px 0;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+        .report-info p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="reports-container">
+        
+        <div style="background: linear-gradient(135deg, var(--primary), var(--primary-hover)); color: white; padding: 30px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 10px 20px rgba(30, 58, 138, 0.2);">
+            <h2 style="margin:0 0 10px 0; font-size: 2rem;">مرحباً بك في مركز التقارير</h2>
+            <p style="margin:0; opacity: 0.9; font-size: 1.1rem;">يمكنك الوصول السريع إلى جميع الإحصائيات والتقارير المتعلقة بالنظام من هنا.</p>
+        </div>
+
+        <!-- الشؤون الأكاديمية -->
+        <h3 class="category-title"><span>🎓</span> الشؤون الأكاديمية والدرجات</h3>
+        <div class="reports-grid">
+            <a href="/StudentComprehensiveProfile.html" class="report-card">
+                <div class="report-icon">👤</div>
+                <div class="report-info">
+                    <h4>ملف الطالب الشامل</h4>
+                    <p>تقرير يجمع درجات الطالب، غيابه، ومدفوعاته في شاشة واحدة.</p>
+                </div>
+            </a>
+            <a href="/ClassResults.html" class="report-card">
+                <div class="report-icon">🏆</div>
+                <div class="report-info">
+                    <h4>نتائج الفصول</h4>
+                    <p>استعراض وتحليل نتائج الطلاب في فصل معين بالتفصيل.</p>
+                </div>
+            </a>
+            <a href="/AllResultsPrint.html" class="report-card">
+                <div class="report-icon">🖨️</div>
+                <div class="report-info">
+                    <h4>طباعة كل النتائج</h4>
+                    <p>طباعة تقارير وشهادات نجاح جميع الطلاب دفعة واحدة.</p>
+                </div>
+            </a>
+            <a href="/TopStudentsPoster.html" class="report-card">
+                <div class="report-icon">🖼️</div>
+                <div class="report-info">
+                    <h4>لوحة الشرف والأوائل</h4>
+                    <p>استخراج صور وتصميمات لأوائل الطلبة لكل مرحلة.</p>
+                </div>
+            </a>
+            <a href="/ClassesPerformance.html" class="report-card">
+                <div class="report-icon">📈</div>
+                <div class="report-info">
+                    <h4>أداء الفصول</h4>
+                    <p>مقارنة أداء الفصول والمراحل ببعضها البعض.</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- الحضور والأعذار -->
+        <h3 class="category-title"><span>📅</span> الحضور والغياب</h3>
+        <div class="reports-grid">
+            <a href="/ConsecutiveAbsences.html" class="report-card">
+                <div class="report-icon">📉</div>
+                <div class="report-info">
+                    <h4>الغياب المتتالي (المنقطعين)</h4>
+                    <p>تقرير بالطلاب الذين غابوا يومين أو أكثر بشكل متتالي.</p>
+                </div>
+            </a>
+            <a href="/AtRiskStudents.html" class="report-card">
+                <div class="report-icon">⚠️</div>
+                <div class="report-info">
+                    <h4>الطلاب المعرضين للخطر</h4>
+                    <p>فلترة الطلاب بناءً على نسب الغياب المرتفعة وضعف المستوى.</p>
+                </div>
+            </a>
+            <a href="/AttendanceDashboard.html" class="report-card">
+                <div class="report-icon">📊</div>
+                <div class="report-info">
+                    <h4>لوحة الغياب</h4>
+                    <p>إحصائيات شاملة لحضور وغياب الطلاب اليومي.</p>
+                </div>
+            </a>
+            <a href="/AttendanceReport.html" class="report-card">
+                <div class="report-icon">📋</div>
+                <div class="report-info">
+                    <h4>تقرير الغياب التفصيلي</h4>
+                    <p>متابعة أيام الغياب بالأسماء واستخراج قوائم للمتابعة.</p>
+                </div>
+            </a>
+            <a href="/ExcusesReport.html" class="report-card">
+                <div class="report-icon">📝</div>
+                <div class="report-info">
+                    <h4>سجل الأعذار</h4>
+                    <p>استعراض الأعذار المقدمة من الطلاب وأسبابها.</p>
+                </div>
+            </a>
+            <a href="/MotherAttendance.html" class="report-card">
+                <div class="report-icon">👩‍👧‍👦</div>
+                <div class="report-info">
+                    <h4>غياب وحضور الأمهات</h4>
+                    <p>متابعة نشاط وتواجد الأمهات في الأنشطة المدرسية.</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- المحاسبة والماليات -->
+        <h3 class="category-title"><span>💰</span> المحاسبة والماليات</h3>
+        <div class="reports-grid">
+            <a href="/FinancialExemptions.html" class="report-card">
+                <div class="report-icon">📉</div>
+                <div class="report-info">
+                    <h4>الخصومات والإعفاءات</h4>
+                    <p>مراجعة الطلاب الحاصلين على خصومات لأسباب اجتماعية أو تفوق.</p>
+                </div>
+            </a>
+            <a href="/DailyRevenue.html" class="report-card">
+                <div class="report-icon">💵</div>
+                <div class="report-info">
+                    <h4>التحصيل اليومي</h4>
+                    <p>تقرير بإيرادات اليوم التفصيلية والإجمالية.</p>
+                </div>
+            </a>
+            <a href="/UnpaidStudents.html" class="report-card">
+                <div class="report-icon">⚠️</div>
+                <div class="report-info">
+                    <h4>الطلاب الغير مسددين</h4>
+                    <p>حصر المديونيات والطلاب المتأخرين عن دفع المصروفات.</p>
+                </div>
+            </a>
+            <a href="/Financial.html" class="report-card">
+                <div class="report-icon">🏦</div>
+                <div class="report-info">
+                    <h4>المحاسبة الشاملة</h4>
+                    <p>إدارة الحسابات العامة، الخصومات، والاشتراكات.</p>
+                </div>
+            </a>
+        </div>
+
+        <!-- شؤون الطلاب -->
+        <h3 class="category-title"><span>👥</span> شؤون الطلاب</h3>
+        <div class="reports-grid">
+            <a href="/StudentsStatus.html" class="report-card">
+                <div class="report-icon">📊</div>
+                <div class="report-info">
+                    <h4>حالة الطلاب</h4>
+                    <p>إحصائيات بأعداد الطلاب، المنتظمين والمنقطعين.</p>
+                </div>
+            </a>
+            <a href="/ClassStudents.html" class="report-card">
+                <div class="report-icon">📋</div>
+                <div class="report-info">
+                    <h4>قوائم الفصول</h4>
+                    <p>استخراج قوائم الطلاب لكل فصل بصيغة للطباعة.</p>
+                </div>
+            </a>
+            <a href="/UnregisteredStudents.html" class="report-card">
+                <div class="report-icon">❌</div>
+                <div class="report-info">
+                    <h4>الطلاب غير المسجلين</h4>
+                    <p>الطلاب القدامى الذين لم يسجلوا في العام الحالي.</p>
+                </div>
+            </a>
+            <a href="/ArchiveRegistrations.html" class="report-card">
+                <div class="report-icon">🗄️</div>
+                <div class="report-info">
+                    <h4>أرشيف التسجيلات</h4>
+                    <p>سجل التسجيلات والاشتراكات عبر السنوات السابقة.</p>
+                </div>
+            </a>
+        </div>
+        
+        <!-- النظام والأمان -->
+        <h3 class="category-title"><span>⚙️</span> الإدارة والهيكل</h3>
+        <div class="reports-grid">
+            <a href="/StaffPerformance.html" class="report-card">
+                <div class="report-icon">👨‍🏫</div>
+                <div class="report-info">
+                    <h4>أداء المعلمين والخدام</h4>
+                    <p>تقييم الأداء بناءً على نسب نجاح وحضور الطلاب في فصولهم.</p>
+                </div>
+            </a>
+            <a href="/AuditLogs.html" class="report-card">
+                <div class="report-icon">📜</div>
+                <div class="report-info">
+                    <h4>سجل العمليات</h4>
+                    <p>مراقبة حركات المستخدمين والتعديلات التي تمت على النظام.</p>
+                </div>
+            </a>
+            <a href="/Statistics.html" class="report-card">
+                <div class="report-icon">📉</div>
+                <div class="report-info">
+                    <h4>الإحصائيات العامة</h4>
+                    <p>أرقام ورسوم بيانية سريعة لمديري النظام.</p>
+                </div>
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Layout script handles sidebar and header -->
+    <script src="/js/layout.js"></script>
+</body>
+</html>

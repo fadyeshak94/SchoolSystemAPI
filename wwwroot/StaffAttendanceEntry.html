@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>تسجيل حضور الخدام 📖</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .attendance-toggle {
+            display: inline-flex;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .attendance-toggle button {
+            border: none;
+            background: #f8fafc;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #64748b;
+            border-left: 1px solid #cbd5e1;
+            transition: all 0.2s ease;
+        }
+        .attendance-toggle button:last-child {
+            border-left: none;
+        }
+        .attendance-toggle button:hover {
+            background: #e2e8f0;
+        }
+        .attendance-toggle button.active-present {
+            background: var(--success);
+            color: white;
+            font-weight: bold;
+        }
+        .attendance-toggle button.active-absent {
+            background: var(--danger);
+            color: white;
+            font-weight: bold;
+        }
+        .attendance-toggle button.active-excused {
+            background: var(--warning);
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label>تاريخ يوم الجمعة:</label>
+        <input type="date" id="dateInput">
+        <button class="btn btn-primary" onclick="loadServants()">عرض الخدام</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>اسم الخادم</th>
+                    <th>المادة</th>
+                    <th>الفصل/المرحلة</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody id="servantsTable">
+                <tr><td colspan="4" style="text-align:center;">اختر التاريخ واضغط عرض</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div style="text-align:left; margin-top:15px;">
+        <button class="btn btn-primary" onclick="saveAttendance()" id="saveBtn" style="display:none; width:200px;">💾 حفظ غياب الخدام</button>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        // Set today to nearest Friday
+        let d = new Date();
+        while(d.getDay() !== 5) { d.setDate(d.getDate() - 1); }
+        document.getElementById('dateInput').value = d.toISOString().split('T')[0];
+
+        let servantsList = [];
+
+        async function loadServants() {
+            const date = document.getElementById('dateInput').value;
+            if(!date) return alert('يرجى اختيار التاريخ');
+
+            const selectedDate = new Date(date);
+            if(selectedDate.getDay() !== 5) {
+                alert('عفواً، الغياب مسموح للخدام يوم الجمعة فقط!');
+                return;
+            }
+
+            document.getElementById('servantsTable').innerHTML = '<tr><td colspan="4"><div class="spinner" style="margin:20px auto;"></div></td></tr>';
+            
+            // Fetch assignments (Servants)
+            const assignRes = await fetchApi('/Servants/assignments');
+            if(!assignRes || !assignRes.success) {
+                document.getElementById('servantsTable').innerHTML = '<tr><td colspan="4">خطأ في جلب بيانات الخدام</td></tr>';
+                return;
+            }
+            servantsList = assignRes.data;
+
+            // Fetch existing attendance for this date
+            const attRes = await fetchApi(`/Servants/attendance?date=${date}`);
+            const existingAtt = (attRes && attRes.success) ? attRes.data : [];
+
+            let html = "";
+            servantsList.forEach(srv => {
+                const att = existingAtt.find(a => a.servantId === srv.userId);
+                const status = att ? att.status : 'Present'; // Default to Present
+                const isExcused = att ? att.isExcused : false;
+                let presentActive = (status === 'Present') ? 'active-present' : '';
+                let absentActive = (status === 'Absent' && !isExcused) ? 'active-absent' : '';
+                let excusedActive = (status === 'Absent' && isExcused) ? 'active-excused' : '';
+
+                html += `<tr>
+                    <td style="font-weight:bold;">${srv.servantName}</td>
+                    <td>${srv.subjectName}</td>
+                    <td>${srv.className}</td>
+                    <td>
+                        <div class="attendance-toggle" id="toggle-${srv.userId}" data-status="${status}" data-excused="${isExcused}">
+                            <button class="btn-present ${presentActive}" onclick="setAttendance(${srv.userId}, 'Present', false)">حاضر ✓</button>
+                            <button class="btn-excused ${excusedActive}" onclick="setAttendance(${srv.userId}, 'Absent', true)">بعذر ⚠️</button>
+                            <button class="btn-absent ${absentActive}" onclick="setAttendance(${srv.userId}, 'Absent', false)">غائب ✗</button>
+                        </div>
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById('servantsTable').innerHTML = html || '<tr><td colspan="4">لا يوجد خدام مسجلين في النظام.</td></tr>';
+            document.getElementById('saveBtn').style.display = servantsList.length > 0 ? 'inline-block' : 'none';
+        }
+
+        function setAttendance(servantId, status, isExcused) {
+            const container = document.getElementById(`toggle-${servantId}`);
+            
+            // Remove active classes
+            container.querySelectorAll('button').forEach(b => {
+                b.classList.remove('active-present', 'active-absent', 'active-excused');
+            });
+
+            // Add active class to clicked button
+            if (status === 'Present') {
+                container.querySelector('.btn-present').classList.add('active-present');
+            } else if (status === 'Absent' && !isExcused) {
+                container.querySelector('.btn-absent').classList.add('active-absent');
+            } else if (status === 'Absent' && isExcused) {
+                container.querySelector('.btn-excused').classList.add('active-excused');
+            }
+            
+            // Store new status in dataset
+            container.setAttribute('data-status', status);
+            container.setAttribute('data-excused', isExcused ? 'true' : 'false');
+        }
+
+        async function saveAttendance() {
+            const date = document.getElementById('dateInput').value;
+            const records = [];
+            
+            const toggles = document.querySelectorAll('.attendance-toggle');
+            toggles.forEach(toggle => {
+                const servantId = parseInt(toggle.id.replace('toggle-', ''));
+                const status = toggle.getAttribute('data-status');
+                const isExcused = toggle.getAttribute('data-excused') === 'true';
+
+                records.push({ servantId, status, isExcused });
+            });
+
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true;
+            btn.innerText = 'جاري الحفظ...';
+
+            const res = await fetchApi('/Servants/attendance', 'POST', {
+                date: date,
+                academicYear: "2024-2025",
+                records: records
+            });
+
+            if (res && res.success) {
+                alert('تم حفظ الغياب بنجاح!');
+            } else {
+                alert(res?.message || 'حدث خطأ أثناء الحفظ.');
+            }
+
+            btn.disabled = false;
+            btn.innerText = '💾 حفظ غياب الخدام';
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

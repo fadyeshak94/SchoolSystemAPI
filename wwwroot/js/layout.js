@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
             title: "الرئيسية",
             links: [
                 { path: "/Dashboard.html", icon: "📊", text: "لوحة التحكم" },
+                { path: "/ReportsCenter.html", icon: "🗂️", text: "مركز التقارير" },
                 { path: "/Registration.html", icon: "💳", text: "التسجيل والاشتراكات" },
                 { path: "/Renewals.html", icon: "📞", text: "تجديد الاشتراكات" }
             ]
@@ -35,8 +36,10 @@ document.addEventListener("DOMContentLoaded", () => {
         {
             title: "شؤون الطلاب",
             links: [
+                { path: "/StudentComprehensiveProfile.html", icon: "👤", text: "ملف الطالب الشامل" },
                 { path: "/StudentManage.html", icon: "✏️", text: "الطلاب" },
                 { path: "/ClassStudents.html", icon: "📋", text: "قوائم الفصول" },
+                { path: "/AtRiskStudents.html", icon: "⚠️", text: "الطلاب المعرضين للخطر" },
                 { path: "/IDCard.html", icon: "🪪", text: "الكارنيهات" },
                 { path: "/UnregisteredStudents.html", icon: "📋", text: "الطلاب غير المسجلين" }
             ]
@@ -47,6 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 (userRole !== "Servant") ? { path: "/AttendanceEntry.html", icon: "✓", text: "تسجيل الحضور" } : null,
                 { path: "/AttendanceTrack.html", icon: "📅", text: "متابعة الحضور" },
                 (userRole !== "Servant") ? { path: "/AttendanceDashboard.html", icon: "📊", text: "لوحة الغياب" } : null,
+                { path: "/ConsecutiveAbsences.html", icon: "📉", text: "الغياب المتكرر" },
                 (userRole !== "Servant") ? { path: "/Excuses.html", icon: "📝", text: "تقديم الأعذار" } : null
             ].filter(l => l !== null)
         },
@@ -79,11 +83,14 @@ document.addEventListener("DOMContentLoaded", () => {
             links: [
                 (userRole !== "Secretary") ? { path: "/SchoolHierarchy.html", icon: "🏢", text: "الهيكل الإداري والمدرسي" } : null,
                 { path: "/ServantsDirectory.html", icon: "📖", text: "دليل الخدام" },
+                { path: "/StaffAttendanceEntry.html", icon: "✓", text: "غياب الخدام" },
+                { path: "/StaffPerformance.html", icon: "👨‍🏫", text: "أداء الخدام" },
                 { path: "/ManageRegistrations.html", icon: "📋", text: "إدارة التسجيلات" },
                 { path: "/ArchiveRegistrations.html", icon: "🗄️", text: "أرشيف التسجيلات" },
                 { path: "/FixOldClasses.html", icon: "🛠️", text: "إصلاح الفصول القديمة" },
                 { path: "/Financial.html", icon: "💰", text: "المحاسبة المالية" },
                 { path: "/DailyRevenue.html", icon: "📊", text: "تقرير التحصيل اليومي" },
+                { path: "/FinancialExemptions.html", icon: "📉", text: "الإعفاءات المالية" },
                 { path: "/UnpaidStudents.html", icon: "💰", text: "تقرير المديونين" },
                 (userRole !== "Secretary") ? { path: "/ManageExcuses.html", icon: "⚙️", text: "إدارة الأعذار" } : null,
                 { path: "/ExcusesReport.html", icon: "📝", text: "تقرير الأعذار" },
@@ -154,6 +161,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 <button id="sidebarToggle" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--primary);">☰</button>
                 <div class="page-title">${pageTitle}</div>
             </div>
+            
+            <div class="global-search-container" style="position: relative; flex: 1; max-width: 400px; margin: 0 20px;">
+                <input type="text" id="globalSearchInput" placeholder="🔍 ابحث عن أي تقرير أو صفحة (مثال: غياب، ماليات)..." style="width: 100%; border-radius: 20px; padding: 10px 15px 10px 40px; border: 1px solid var(--border-color); background: #f8fafc; font-size: 14px;">
+                <div id="globalSearchResults" style="display: none; position: absolute; top: 100%; right: 0; width: 100%; background: #fff; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 1001; max-height: 300px; overflow-y: auto; margin-top: 5px;"></div>
+            </div>
+
             <div class="user-info">
                 <span id="userNameDisplay">مرحباً بك</span>
                 <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
@@ -203,6 +216,40 @@ document.addEventListener("DOMContentLoaded", () => {
     
     if (overlay) {
         overlay.addEventListener("click", toggleSidebar);
+    }
+
+    // Bind Global Search
+    const searchInput = document.getElementById("globalSearchInput");
+    const searchResults = document.getElementById("globalSearchResults");
+    if (searchInput && searchResults) {
+        searchInput.addEventListener("input", function() {
+            const query = this.value.toLowerCase().trim();
+            if (query.length === 0) {
+                searchResults.style.display = "none";
+                return;
+            }
+            
+            const matchedLinks = allLinks.filter(l => l && l.text.toLowerCase().includes(query));
+            
+            if (matchedLinks.length > 0) {
+                searchResults.innerHTML = matchedLinks.map(l => `
+                    <a href="${l.path}" style="display: block; padding: 10px 15px; text-decoration: none; color: var(--text-dark); border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px;">
+                        <span>${l.icon}</span> <span style="font-weight: 600;">${l.text}</span>
+                    </a>
+                `).join('');
+                searchResults.style.display = "block";
+            } else {
+                searchResults.innerHTML = `<div style="padding: 10px 15px; color: var(--text-muted); text-align: center;">لا توجد نتائج مطابقة</div>`;
+                searchResults.style.display = "block";
+            }
+        });
+
+        // Hide search results when clicking outside
+        document.addEventListener("click", function(e) {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = "none";
+            }
+        });
     }
 
     // Load user info

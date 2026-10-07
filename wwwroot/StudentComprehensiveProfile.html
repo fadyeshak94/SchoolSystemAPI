@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>ملف الطالب الشامل 👤</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .profile-header { display: flex; align-items: center; gap: 20px; background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: var(--box-shadow); margin-bottom: 25px; border-top: 5px solid var(--primary); }
+        .profile-img { width: 100px; height: 100px; border-radius: 50%; background: var(--secondary); display: flex; align-items: center; justify-content: center; font-size: 40px; color: var(--primary); }
+        .profile-info h2 { margin: 0 0 10px 0; color: var(--primary); }
+        .profile-info p { margin: 5px 0; color: var(--text-muted); font-size: 15px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .section-card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: var(--box-shadow); border: 1px solid var(--border-color); }
+        .section-card h3 { border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-top: 0; color: var(--text-dark); display: flex; align-items: center; gap: 10px; }
+        .data-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color); }
+        .data-row:last-child { border-bottom: none; }
+        .data-row span:first-child { font-weight: bold; color: var(--text-muted); }
+        @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } .profile-header { flex-direction: column; text-align: center; } }
+        @media print { .controls, .top-header, .sidebar, .btn-print { display: none !important; } .main-wrapper { margin: 0 !important; } }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label>ابحث عن طالب لاستخراج التقرير:</label>
+        <div style="display: flex; gap: 10px; flex: 1;">
+            <input type="text" id="searchInput" placeholder="اكتب اسم الطالب أو الكود..." style="flex:1;">
+            <button class="btn btn-primary" onclick="searchStudent()">بحث</button>
+        </div>
+        <button class="btn btn-success btn-print" onclick="window.print()" style="display:none;" id="printBtn">🖨️ طباعة التقرير</button>
+    </div>
+
+    <div id="content" style="display: none;">
+        <div class="profile-header">
+            <div class="profile-img">👤</div>
+            <div class="profile-info">
+                <h2 id="stName">اسم الطالب</h2>
+                <p><strong>كود الطالب:</strong> <span id="stCode">---</span> | <strong>الفصل:</strong> <span id="stClass">---</span></p>
+                <p><strong>ولي الأمر:</strong> <span id="stParent">---</span> | <strong>الهاتف:</strong> <span id="stPhone">---</span></p>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- درجات الأكاديمي -->
+            <div class="section-card">
+                <h3><span>🎓</span> السجل الأكاديمي والدرجات</h3>
+                <div class="table-container" style="margin-top: 15px;">
+                    <table>
+                        <thead><tr><th>المادة</th><th>الدرجة</th><th>النسبة</th></tr></thead>
+                        <tbody id="gradesTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- الحضور والغياب -->
+            <div class="section-card">
+                <h3><span>📅</span> سجل الحضور والغياب</h3>
+                <div class="data-row"><span>إجمالي أيام الدراسة</span><span id="attTotal">---</span></div>
+                <div class="data-row"><span>أيام الحضور</span><span id="attPresent" style="color:var(--success); font-weight:bold;">---</span></div>
+                <div class="data-row"><span>أيام الغياب</span><span id="attAbsent" style="color:var(--danger); font-weight:bold;">---</span></div>
+                <div class="data-row"><span>نسبة الغياب</span><span id="attPercentage">---</span></div>
+                <div class="data-row"><span>الأعذار المقبولة</span><span id="attExcuses">---</span></div>
+            </div>
+
+            <!-- المدفوعات والماليات -->
+            <div class="section-card">
+                <h3><span>💰</span> السجل المالي</h3>
+                <div class="data-row"><span>المصروفات المطلوبة</span><span id="finTotal">--- ج.م</span></div>
+                <div class="data-row"><span>المبلغ المدفوع</span><span id="finPaid" style="color:var(--success); font-weight:bold;">--- ج.م</span></div>
+                <div class="data-row"><span>الخصم / الإعفاء</span><span id="finDiscount">--- ج.م</span></div>
+                <div class="data-row"><span>المتبقي (مديونية)</span><span id="finDebt" style="color:var(--danger); font-weight:bold;">--- ج.م</span></div>
+            </div>
+
+            <!-- ملاحظات السلوك -->
+            <div class="section-card">
+                <h3><span>📝</span> ملاحظات وشؤون الطلاب</h3>
+                <div id="notesContainer" style="padding: 10px; background: #fef3c7; border-left: 4px solid var(--warning); border-radius: 4px; font-size: 14px; color: #92400e;">
+                    لا توجد ملاحظات سلوكية سلبية مقيدة لهذا الطالب حتى الآن.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+    <script>
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            if (id) {
+                document.getElementById('searchInput').value = id;
+                searchStudent();
+            }
+        };
+
+        async function searchStudent() {
+            const query = document.getElementById('searchInput').value;
+            if(!query) return alert('برجاء كتابة كود الطالب'); // ID only for now
+            
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('content').innerHTML = '<div class="spinner" style="margin:50px auto;"></div>';
+
+            const res = await fetchApi(`/Reports/student-profile/${query}`);
+            
+            if (!res || !res.success) {
+                document.getElementById('content').innerHTML = '<div style="color:red; text-align:center; padding:20px;">' + (res?.message || 'حدث خطأ في جلب بيانات الطالب. تأكد أن الكود صحيح (رقم فقط).') + '</div>';
+                document.getElementById('printBtn').style.display = 'none';
+                return;
+            }
+
+            const data = res.data;
+            document.getElementById('printBtn').style.display = 'inline-flex';
+
+            let contentHtml = `
+            <div class="profile-header">
+                <div class="profile-img">👤</div>
+                <div class="profile-info">
+                    <h2 id="stName">${data.name}</h2>
+                    <p><strong>كود الطالب:</strong> <span id="stCode">${data.code}</span> | <strong>الفصل:</strong> <span id="stClass">${data.className}</span></p>
+                    <p><strong>ولي الأمر:</strong> <span id="stParent">${data.parentName}</span> | <strong>الهاتف:</strong> <span id="stPhone">${data.phone}</span></p>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- درجات الأكاديمي -->
+                <div class="section-card">
+                    <h3><span>🎓</span> السجل الأكاديمي والدرجات</h3>
+                    <div class="table-container" style="margin-top: 15px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>العام الدراسي</th>
+                                    <th>التيرم</th>
+                                    <th>المادة</th>
+                                    <th>درجة الامتحان</th>
+                                    <th>درجة الغياب</th>
+                                    <th>الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gradesTable">
+                                ${data.grades.length > 0 ? data.grades.map(g => `
+                                <tr>
+                                    <td style="font-size:13px; color:#555;">${g.academicYear}</td>
+                                    <td>${g.term}</td>
+                                    <td style="font-weight:bold;">${g.subject}</td>
+                                    <td>${g.examScore}</td>
+                                    <td>${g.attendanceScore}</td>
+                                    <td style="font-weight:bold; color:var(--primary);">${g.totalScore}</td>
+                                </tr>`).join('') : '<tr><td colspan="6">لا توجد درجات</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- الحضور والغياب -->
+                <div class="section-card">
+                    <h3><span>📅</span> سجل الحضور والغياب</h3>
+                    <div class="data-row"><span>إجمالي أيام الدراسة</span><span id="attTotal">${data.attendance.totalDays} يوم</span></div>
+                    <div class="data-row"><span>أيام الحضور</span><span id="attPresent" style="color:var(--success); font-weight:bold;">${data.attendance.presentDays} يوم</span></div>
+                    <div class="data-row"><span>أيام الغياب</span><span id="attAbsent" style="color:var(--danger); font-weight:bold;">${data.attendance.absentDays} يوم</span></div>
+                    <div class="data-row"><span>نسبة الغياب</span><span id="attPercentage">${data.attendance.percentage}%</span></div>
+                    <div class="data-row"><span>الأعذار المقبولة</span><span id="attExcuses">${data.attendance.excusedDays}</span></div>
+                </div>
+
+                <!-- المدفوعات والماليات -->
+                <div class="section-card">
+                    <h3><span>💰</span> السجل المالي</h3>
+                    <div class="data-row"><span>المصروفات المطلوبة</span><span id="finTotal">${data.financial.required} ج.م</span></div>
+                    <div class="data-row"><span>المبلغ المدفوع</span><span id="finPaid" style="color:var(--success); font-weight:bold;">${data.financial.paid} ج.م</span></div>
+                    <div class="data-row"><span>الخصم / الإعفاء</span><span id="finDiscount">${data.financial.discount} ج.م</span></div>
+                    <div class="data-row"><span>المتبقي (مديونية)</span><span id="finDebt" style="color:var(--danger); font-weight:bold;">${data.financial.debt} ج.م</span></div>
+                </div>
+
+                <!-- ملاحظات السلوك -->
+                <div class="section-card">
+                    <h3><span>📝</span> ملاحظات وشؤون الطلاب</h3>
+                    <div id="notesContainer" style="padding: 10px; background: #fef3c7; border-left: 4px solid var(--warning); border-radius: 4px; font-size: 14px; color: #92400e;">
+                        لا توجد ملاحظات سلوكية سلبية مقيدة لهذا الطالب حتى الآن.
+                    </div>
+                </div>
+            </div>`;
+            
+            document.getElementById('content').innerHTML = contentHtml;
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>
