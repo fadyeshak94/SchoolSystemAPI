@@ -16,17 +16,25 @@
         .data-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color); }
         .data-row:last-child { border-bottom: none; }
         .data-row span:first-child { font-weight: bold; color: var(--text-muted); }
+        .search-container { position: relative; flex: 1; min-width: 250px; }
+        .search-input { width: 100%; padding: 12px 15px; border: 2px solid var(--primary); border-radius: 10px; font-size: 15px; box-sizing: border-box; }
+        .search-results { position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: white; border: 1px solid #ddd; border-radius: 8px; max-height: 280px; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.15); display: none; }
+        .search-result-item { padding: 12px 15px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background 0.2s; text-align: right; }
+        .search-result-item:hover { background: #f8fafc; }
+        .search-result-item .name { font-weight: bold; color: var(--primary); font-size: 15px; }
+        .search-result-item .details { font-size: 13px; color: var(--text-muted); display: flex; gap: 15px; margin-top: 4px; flex-wrap: wrap; }
         @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } .profile-header { flex-direction: column; text-align: center; } }
         @media print { .controls, .top-header, .sidebar, .btn-print { display: none !important; } .main-wrapper { margin: 0 !important; } }
     </style>
 </head>
 <body>
-    <div class="controls">
-        <label>ابحث عن طالب لاستخراج التقرير:</label>
-        <div style="display: flex; gap: 10px; flex: 1;">
-            <input type="text" id="searchInput" placeholder="اكتب اسم الطالب أو الكود..." style="flex:1;">
-            <button class="btn btn-primary" onclick="searchStudent()">بحث</button>
+    <div class="controls" style="align-items: center; position: relative;">
+        <label style="margin-bottom: 0; font-weight: bold; white-space: nowrap;">🔍 بحث عن طالب:</label>
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="🔍 اكتب جزء من اسم الطالب (مثلاً: مينا كيرلس) أو الكود..." oninput="handleSearch()" onkeydown="if(event.key==='Enter') onSearchSubmit()" autocomplete="off">
+            <div id="searchResults" class="search-results"></div>
         </div>
+        <button class="btn btn-primary" onclick="onSearchSubmit()">🔍 بحث</button>
         <button class="btn btn-success btn-print" onclick="window.print()" style="display:none;" id="printBtn">🖨️ طباعة التقرير</button>
     </div>
 
@@ -83,31 +91,131 @@
 
     <script src="/js/app.js"></script>
     <script>
+        let searchTimer = null;
+
         window.onload = () => {
             const params = new URLSearchParams(window.location.search);
             const id = params.get('id');
             if (id) {
-                document.getElementById('searchInput').value = id;
-                searchStudent();
+                loadStudentProfile(id);
             }
         };
 
-        async function searchStudent() {
-            const query = document.getElementById('searchInput').value;
-            if(!query) return alert('برجاء كتابة كود الطالب'); // ID only for now
+        function handleSearch() {
+            clearTimeout(searchTimer);
+            const query = document.getElementById('searchInput').value.trim();
+            const resultsBox = document.getElementById('searchResults');
             
-            document.getElementById('content').style.display = 'block';
-            document.getElementById('content').innerHTML = '<div class="spinner" style="margin:50px auto;"></div>';
+            if (query.length < 2) {
+                resultsBox.style.display = 'none';
+                return;
+            }
 
-            const res = await fetchApi(`/Reports/student-profile/${query}`);
+            searchTimer = setTimeout(async () => {
+                const isNumeric = /^\d+$/.test(query);
+                const url = isNumeric 
+                    ? `/students/search?id=${query}` 
+                    : `/students/search?name=${encodeURIComponent(query)}`;
+
+                const res = await fetchApi(url);
+                if (res && res.students && res.students.length > 0) {
+                    let html = '';
+                    res.students.forEach(s => {
+                        let phoneStr = "بدون رقم";
+                        try { 
+                            let parsedPhones = JSON.parse(s.phone);
+                            if (parsedPhones.length > 0) {
+                                phoneStr = typeof parsedPhones[0] === 'object' ? parsedPhones[0].number : parsedPhones[0];
+                            }
+                        } catch(e) {}
+
+                        const safeName = (s.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        html += `
+                        <div class="search-result-item" onclick="selectStudent(${s.id}, '${safeName}')">
+                            <div class="name">${s.name} <span style="font-size:12px; color:#64748b; font-weight:normal;">(كود: ${s.id})</span></div>
+                            <div class="details">
+                                <span>📱 ${phoneStr}</span>
+                                <span>🏫 الفصل: ${s.className || 'غير مسجل'}</span>
+                                <span>🎓 المرحلة: ${s.stage || '-'}</span>
+                            </div>
+                        </div>`;
+                    });
+                    resultsBox.innerHTML = html;
+                    resultsBox.style.display = 'block';
+                } else {
+                    resultsBox.innerHTML = '<div style="padding:15px; text-align:center; color:#666;">لم يتم العثور على طالب بهذا الاسم أو الكود.</div>';
+                    resultsBox.style.display = 'block';
+                }
+            }, 300);
+        }
+
+        function selectStudent(studentId, studentName) {
+            document.getElementById('searchInput').value = studentName;
+            document.getElementById('searchResults').style.display = 'none';
+
+            // تحديث رابط الصفحة بالكود بدون إعادة تحميل
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('id', studentId);
+            window.history.pushState({}, '', newUrl);
+
+            loadStudentProfile(studentId);
+        }
+
+        async function onSearchSubmit() {
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                alert('يرجى كتابة اسم الطالب أو الكود');
+                return;
+            }
+
+            // لو رقم فقط، نحمله مباشرة
+            if (/^\d+$/.test(query)) {
+                document.getElementById('searchResults').style.display = 'none';
+                loadStudentProfile(query);
+                return;
+            }
+
+            // لو اسم، نبحث وإذا كانت نتيجة واحدة نختارها، غير ذلك نعرض القائمة
+            clearTimeout(searchTimer);
+            const res = await fetchApi(`/students/search?name=${encodeURIComponent(query)}`);
+            if (res && res.students && res.students.length > 0) {
+                if (res.students.length === 1) {
+                    selectStudent(res.students[0].id, res.students[0].name);
+                } else {
+                    handleSearch();
+                }
+            } else {
+                const resultsBox = document.getElementById('searchResults');
+                resultsBox.innerHTML = '<div style="padding:15px; text-align:center; color:#666;">لم يتم العثور على طالب بهذا الاسم.</div>';
+                resultsBox.style.display = 'block';
+            }
+        }
+
+        // إغلاق قائمة البحث عند الضغط بالخارج
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.search-container')) {
+                const resultsBox = document.getElementById('searchResults');
+                if (resultsBox) resultsBox.style.display = 'none';
+            }
+        });
+
+        async function loadStudentProfile(studentId) {
+            if (!studentId) return;
+
+            const content = document.getElementById('content');
+            content.style.display = 'block';
+            content.innerHTML = '<div class="spinner" style="margin:50px auto;"></div>';
+
+            const res = await fetchApi(`/Reports/student-profile/${studentId}`);
             
             if (!res || !res.success) {
-                document.getElementById('content').innerHTML = '<div style="color:red; text-align:center; padding:20px;">' + (res?.message || 'حدث خطأ في جلب بيانات الطالب. تأكد أن الكود صحيح (رقم فقط).') + '</div>';
+                content.innerHTML = '<div style="color:red; text-align:center; padding:20px; font-weight:bold;">' + (res?.message || 'حدث خطأ في جلب بيانات الطالب.') + '</div>';
                 document.getElementById('printBtn').style.display = 'none';
                 return;
             }
 
             const data = res.data;
+            document.getElementById('searchInput').value = data.name;
             document.getElementById('printBtn').style.display = 'inline-flex';
 
             let contentHtml = `
@@ -137,7 +245,7 @@
                                 </tr>
                             </thead>
                             <tbody id="gradesTable">
-                                ${data.grades.length > 0 ? data.grades.map(g => `
+                                ${data.grades && data.grades.length > 0 ? data.grades.map(g => `
                                 <tr>
                                     <td style="font-size:13px; color:#555;">${g.academicYear}</td>
                                     <td>${g.term}</td>
@@ -145,7 +253,7 @@
                                     <td>${g.examScore}</td>
                                     <td>${g.attendanceScore}</td>
                                     <td style="font-weight:bold; color:var(--primary);">${g.totalScore}</td>
-                                </tr>`).join('') : '<tr><td colspan="6">لا توجد درجات</td></tr>'}
+                                </tr>`).join('') : '<tr><td colspan="6" style="text-align:center; padding:15px; color:#888;">لا توجد درجات مسجلة</td></tr>'}
                             </tbody>
                         </table>
                     </div>
@@ -179,7 +287,7 @@
                 </div>
             </div>`;
             
-            document.getElementById('content').innerHTML = contentHtml;
+            content.innerHTML = contentHtml;
         }
     </script>
     <script src="/js/layout.js"></script>

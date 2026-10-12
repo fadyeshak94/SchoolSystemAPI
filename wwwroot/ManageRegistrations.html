@@ -140,9 +140,12 @@
                     ? '<span class="badge badge-old">تجديد طالب قديم</span>' 
                     : '<span class="badge badge-new">طالب جديد</span>';
                 
-                const classOptions = allMyClasses.map(c => 
-                    `<option value="${c.id}" ${c.id === req.classId ? 'selected' : ''}>${c.name} ${c.year ? '('+c.year+')' : ''}</option>`
-                ).join('');
+                const classOptions = allMyClasses.map(c => {
+                    const count = c.studentCount !== undefined ? c.studentCount : 0;
+                    const isFull = count >= 35;
+                    const countBadge = ` (${count} طالب${isFull ? ' - ⚠️ ممتلئ' : ''})`;
+                    return `<option value="${c.id}" ${c.id === req.classId ? 'selected' : ''}>${c.name}${countBadge}</option>`;
+                }).join('');
 
                 const dateObj = new Date(req.requestDate);
                 const dateStr = dateObj.toLocaleDateString('ar-EG') + ' ' + dateObj.toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
@@ -156,9 +159,17 @@
                     } catch(e) {}
                 }
 
-                let classText = allMyClasses.find(c => c.id === req.classId)?.name || 'غير معروف';
+                let currentClassObj = allMyClasses.find(c => c.id === req.classId);
+                let classText = currentClassObj?.name || 'غير معروف';
+                let isCurrentClassFull = (currentClassObj?.studentCount || 0) >= 35;
 
-                let waitlistWarning = req.status === "Waitlisted" ? '<div style="color:var(--danger); font-size: 11px; margin-top:5px; font-weight:bold;">⚠️ في قائمة الانتظار (الفصل ممتلئ)</div>' : '';
+                let waitlistWarning = req.status === "Waitlisted" 
+                    ? '<div style="color:var(--danger); font-size: 11px; margin-top:5px; font-weight:bold;">⚠️ في قائمة الانتظار (الفصل ممتلئ)</div>' 
+                    : '';
+
+                let fullWarningBadge = isCurrentClassFull
+                    ? `<div id="class-warning-${req.id}" style="color:#b91c1c; font-size: 11px; margin-top:4px; font-weight:bold;">⚠️ الفصل ممتلئ (${currentClassObj.studentCount} طالب)</div>`
+                    : `<div id="class-warning-${req.id}" style="color:#b91c1c; font-size: 11px; margin-top:4px; font-weight:bold; display:none;"></div>`;
 
                 html += `
                     <tr id="req-row-${req.id}">
@@ -175,9 +186,10 @@
                         <td>${req.govGrade || '-'}</td>
                         <td style="font-weight:bold; color:var(--success);">${req.amountPaid} ج.م</td>
                         <td>
-                            <select id="class-select-${req.id}" class="class-select" onchange="updateClassText(${req.id})">
+                            <select id="class-select-${req.id}" class="class-select" onchange="updateClassText(${req.id})" style="width:100%; min-width:180px;">
                                 ${classOptions}
                             </select>
+                            ${fullWarningBadge}
                             <input type="hidden" id="class-text-${req.id}" value="${classText}">
                         </td>
                         <td style="text-align:center; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; max-width: 250px;">
@@ -197,6 +209,19 @@
             const select = document.getElementById(`class-select-${id}`);
             const text = select.options[select.selectedIndex].text;
             document.getElementById(`class-text-${id}`).value = text;
+
+            const classId = parseInt(select.value);
+            const classObj = allMyClasses.find(c => c.id === classId);
+            const warningEl = document.getElementById(`class-warning-${id}`);
+            if (warningEl) {
+                if (classObj && (classObj.studentCount || 0) >= 35) {
+                    warningEl.innerHTML = `⚠️ الفصل ممتلئ (${classObj.studentCount} طالب)`;
+                    warningEl.style.display = 'block';
+                } else {
+                    warningEl.innerHTML = '';
+                    warningEl.style.display = 'none';
+                }
+            }
         }
 
         function toggleSelectAll() {
@@ -212,14 +237,27 @@
                 return;
             }
 
-            if (!confirm(`هل أنت متأكد من الموافقة على ${checkboxes.length} طلب دفعة واحدة؟`)) return;
-
             const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
 
-            // Optional: You could update class assignments first before approving bulk if they changed them
-            // but bulk approval usually uses the selected classes in DB. Let's just pass IDs for now.
-            // If they changed the dropdowns, it won't be saved in bulk unless we send it.
-            // To be safe, we will just rely on the backend endpoint as requested, which uses DB ClassId.
+            // Check for any full classes among selected requests
+            let fullClassesList = [];
+            ids.forEach(reqId => {
+                const select = document.getElementById(`class-select-${reqId}`);
+                const cId = select ? parseInt(select.value) : pendingRequests.find(r => r.id === reqId)?.classId;
+                const cObj = allMyClasses.find(c => c.id === cId);
+                if (cObj && (cObj.studentCount || 0) >= 35) {
+                    fullClassesList.push(`${cObj.name} (${cObj.studentCount} طالب)`);
+                }
+            });
+
+            fullClassesList = [...new Set(fullClassesList)];
+
+            let confirmMsg = `هل أنت متأكد من الموافقة على ${checkboxes.length} طلب دفعة واحدة؟`;
+            if (fullClassesList.length > 0) {
+                confirmMsg = `⚠️ تحذير: بعض الفصول المختارة ممتلئة بالفعل وتجاوزت سعة 35 طالب:\n• ${fullClassesList.join('\n• ')}\n\nهل تريد بالتأكيد اعتماد ونقل الطلاب وتجاوز السعة لهذه الفصول؟`;
+            }
+
+            if (!confirm(confirmMsg)) return;
 
             try {
                 const res = await fetchApi('/registrations/approve-bulk', 'POST', { ids: ids });
@@ -257,16 +295,28 @@
                 return;
             }
 
-            if (!confirm('هل أنت متأكد من الموافقة على هذا الطلب واعتماد البيانات في النظام؟')) return;
-
             const classId = parseInt(classSelect.value);
+            const selectedClass = allMyClasses.find(c => c.id === classId);
+            const className = selectedClass ? selectedClass.name : 'الفصل المختار';
+            const count = selectedClass?.studentCount || 0;
+            const isFull = count >= 35;
+
+            let confirmMsg = `هل أنت متأكد من الموافقة على هذا الطلب واعتماد البيانات في النظام؟\nالفصل: ${className}`;
+            if (isFull) {
+                confirmMsg = `⚠️ تحذير: الفصل (${className}) ممتلئ بالفعل ويحتوي على ${count} طالب (الحد الأقصى: 35).\n\nهل تريد بالتأكيد نقل وتسكين الطالب في هذا الفصل وتجاوز السعة؟`;
+            }
+
+            if (!confirm(confirmMsg)) return;
             
             try {
-                const res = await fetchApi(`/registrations/${id}/approve`, 'POST', { classId: classId });
+                const res = await fetchApi(`/registrations/${id}/approve`, 'POST', { classId: classId, forceApprove: true });
                 if (res && res.success) {
                     showStatus('statusBar', 'success', `✅ ${res.message}`);
                     document.getElementById(`req-row-${id}`).style.display = 'none';
                     pendingRequests = pendingRequests.filter(r => r.id !== id);
+                    if (selectedClass) {
+                        selectedClass.studentCount = count + 1;
+                    }
                 } else {
                     showStatus('statusBar', 'error', `❌ خطأ: ${res?.message || 'فشل الموافقة على الطلب'}`);
                 }
@@ -274,6 +324,7 @@
                 showStatus('statusBar', 'error', '❌ خطأ في الاتصال بالخادم');
             }
         }
+
 
         async function rejectRequest(id) {
             if (!confirm('هل أنت متأكد من رفض وحذف هذا الطلب المعلق؟')) return;

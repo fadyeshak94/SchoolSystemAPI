@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SchoolSystemAPI.Data;
 using SchoolSystemAPI.Models;
 using SchoolSystemAPI.Services;
@@ -209,12 +210,31 @@ public class UsersController : ControllerBase
         var classIdStr = User.FindFirst("ClassRoomId")?.Value;
         var stageAccess = User.FindFirst("StageAccess")?.Value;
 
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var currentYear = appSettings?.AcademicYear ?? "2024/2025";
+
         var allClassRooms = await _uow.ClassRooms.FindAsync(c => true);
+
+        var classCounts = await _uow.Students.GetQueryable()
+            .SelectMany(s => s.Enrollments)
+            .Where(e => e.AcademicYear == currentYear)
+            .GroupBy(e => e.ClassRoomId)
+            .Select(g => new { ClassRoomId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ClassRoomId, x => x.Count);
+
+        Func<ClassRoom, object> mapClass = c => new 
+        { 
+            id = c.Id, 
+            name = c.Name, 
+            stage = c.Stage, 
+            year = c.Year, 
+            studentCount = classCounts.ContainsKey(c.Id) ? classCounts[c.Id] : 0 
+        };
 
         // الأدمن لديه الرؤية الشاملة لكامل النظام
         if (role == "Admin" || role == "HeadSecretary")
         {
-            return Ok(new { success = true, classes = allClassRooms.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
+            return Ok(new { success = true, classes = allClassRooms.Select(mapClass).ToList() });
         }
 
         if (role == "User")
@@ -224,10 +244,10 @@ public class UsersController : ControllerBase
                 var filtered = allClassRooms.Where(c => c.Id == directClassId).ToList();
                 if (filtered.Any())
                 {
-                    return Ok(new { success = true, classes = filtered.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
+                    return Ok(new { success = true, classes = filtered.Select(mapClass).ToList() });
                 }
             }
-            return Ok(new { success = true, classes = allClassRooms.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
+            return Ok(new { success = true, classes = allClassRooms.Select(mapClass).ToList() });
         }
 
         // السكرتارية وأمين المرحلة: فصول مرحلته أو فصله
@@ -249,7 +269,7 @@ public class UsersController : ControllerBase
 
             if (restricted)
             {
-                return Ok(new { success = true, classes = scopedAllowedClasses.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
+                return Ok(new { success = true, classes = scopedAllowedClasses.Select(mapClass).ToList() });
             }
             else
             {
@@ -271,7 +291,7 @@ public class UsersController : ControllerBase
                 return Ok(new 
                 { 
                     success = true, 
-                    classes = servantClasses.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList(),
+                    classes = servantClasses.Select(mapClass).ToList(),
                     assignments = assignedSubjects
                 });
             }
@@ -288,7 +308,7 @@ public class UsersController : ControllerBase
             allowedClasses = allowedClasses.Where(c => c.Stage == stageAccess);
         }
 
-        return Ok(new { success = true, classes = allowedClasses.Select(c => new { id = c.Id, name = c.Name, stage = c.Stage, year = c.Year }).ToList() });
+        return Ok(new { success = true, classes = allowedClasses.Select(mapClass).ToList() });
     }
 }
 

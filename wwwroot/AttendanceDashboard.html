@@ -33,8 +33,158 @@
         .summary-card .value { font-size: 24px; font-weight: bold; color: var(--primary); }
         .summary-card.green .value { color: #10b981; }
         .summary-card.red .value { color: #ef4444; }
+
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 2000; padding: 15px; }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.3s ease; }
+        .modal-card { background: white; border-radius: 16px; width: 100%; max-width: 1050px; max-height: 92vh; display: flex; flex-direction: column; box-shadow: 0 15px 35px rgba(0,0,0,0.2); overflow: hidden; }
+        .modal-card-header { padding: 18px 24px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
+        .modal-card-header h3 { margin: 0; color: var(--primary); font-size: 19px; display: flex; align-items: center; gap: 8px; }
+        .modal-close-btn { background: none; border: none; font-size: 22px; color: #64748b; cursor: pointer; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-close-btn:hover { background: #fee2e2; color: #ef4444; }
+        .modal-card-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
+        .summary-pill { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+        .summary-pill.total { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
+        .summary-pill.green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+        .summary-pill.red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .summary-pill.blue { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+        .controls select {
+            width: auto !important;
+            min-width: 170px;
+            height: 42px;
+        }
+        .modal-card select {
+            width: auto !important;
+            min-width: 150px;
+            height: 38px;
+        }
+
+        /* Print Styles */
+        #exportPrintArea {
+            display: none;
+        }
+
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 8mm 6mm;
+            }
+            html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            body * {
+                visibility: hidden !important;
+            }
+            #exportPrintArea, #exportPrintArea * {
+                visibility: visible !important;
+            }
+            #exportPrintArea {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 5px !important;
+                background: #ffffff !important;
+                z-index: 99999 !important;
+            }
+            #layout-wrapper, .main-wrapper, main {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                display: block !important;
+                background: none !important;
+                box-shadow: none !important;
+                border: none !important;
+            }
+            .sidebar, .top-header, #sidebarOverlay, .controls, #statusBar, 
+            .summary-cards, .dashboard-grid, .modal-overlay, .modal-card {
+                display: none !important;
+            }
+
+            .print-header {
+                text-align: center;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+                border-bottom: 2px solid #1e3a8a;
+            }
+            .print-header h2 {
+                margin: 0 0 6px 0;
+                font-size: 19px;
+                color: #1e3a8a !important;
+                font-weight: 800;
+            }
+            .print-meta-grid {
+                font-size: 12px;
+                color: #1e293b;
+                display: flex;
+                justify-content: center;
+                gap: 20px;
+                flex-wrap: wrap;
+                margin-bottom: 6px;
+            }
+            .print-summary-line {
+                font-size: 11.5px;
+                display: flex;
+                justify-content: center;
+                gap: 12px;
+                flex-wrap: wrap;
+                margin-top: 5px;
+                font-weight: 700;
+            }
+            .print-summary-line .summary-pill {
+                padding: 3px 8px !important;
+                font-size: 11px !important;
+                border: 1px solid #cbd5e1 !important;
+                border-radius: 6px !important;
+            }
+            .print-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                font-size: 11.5px !important;
+                text-align: center !important;
+            }
+            .print-table th, .print-table td {
+                border: 1px solid #334155 !important;
+                padding: 5px 6px !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .print-table thead tr {
+                background-color: #1e3a8a !important;
+                color: #ffffff !important;
+            }
+            .print-table thead th {
+                background-color: #1e3a8a !important;
+                color: #ffffff !important;
+                font-weight: 700 !important;
+                font-size: 11.5px !important;
+            }
+            .print-table tbody tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            .print-footer {
+                margin-top: 10px;
+                display: flex;
+                justify-content: space-between;
+                font-size: 10px;
+                color: #64748b;
+                border-top: 1px solid #cbd5e1;
+                padding-top: 4px;
+            }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
     <div id="statusBar" class="status-bar"></div>
@@ -47,6 +197,7 @@
             <option value="ت2">التيرم الثاني</option>
         </select>
         <button class="btn btn-primary" onclick="loadDashboard()">🔄 تحديث البيانات</button>
+        <button class="btn" style="background:#166534; color:white; display:flex; align-items:center; gap:8px;" onclick="openExportModal()">🖨️ طباعة كشف غياب الجمعة (PDF)</button>
     </div>
 
     <div id="summarySection" class="summary-cards" style="display: none;">
@@ -88,10 +239,106 @@
         </div>
     </div>
 
+    <!-- Modal for Export PDF -->
+    <div id="exportModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-card-header">
+                <h3>📄 كشف متابعة تسجيل غياب الفصول ليوم الجمعة (PDF)</h3>
+                <button class="modal-close-btn" onclick="closeExportModal()">✖</button>
+            </div>
+            <div class="modal-card-body">
+                <!-- Filters Bar -->
+                <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:#f8fafc; padding:15px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:15px;">
+                    <div>
+                        <label style="margin-bottom:4px; font-weight:bold; font-size:13px; color:#475569;">📅 تاريخ الجمعة:</label>
+                        <select id="exportDateSelect" onchange="renderExportPreview()" style="padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; min-width:180px;"></select>
+                    </div>
+                    <div>
+                        <label style="margin-bottom:4px; font-weight:bold; font-size:13px; color:#475569;">🏫 المرحلة:</label>
+                        <select id="exportStageSelect" onchange="renderExportPreview()" style="padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; min-width:140px;"></select>
+                    </div>
+                    <div>
+                        <label style="margin-bottom:4px; font-weight:bold; font-size:13px; color:#475569;">🔍 فلترة الحالة:</label>
+                        <select id="exportStatusFilter" onchange="renderExportPreview()" style="padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; min-width:170px;">
+                            <option value="all">الكل (المسجل وغير المسجل)</option>
+                            <option value="missing">❌ الفصول التي لم تسجل الغياب فقط</option>
+                            <option value="recorded">✅ الفصول التي سجلت الغياب فقط</option>
+                        </select>
+                    </div>
+                    <div style="margin-top:auto; display:flex; gap:10px; margin-right:auto; align-items:center; flex-wrap:wrap;">
+                        <button class="btn btn-primary" style="padding:10px 22px; font-weight:bold; font-size:14px; display:flex; align-items:center; gap:8px;" onclick="printOnlyTable()">🖨️ طباعة الجدول فقط (حفظ كـ PDF)</button>
+                        <button class="btn" id="btnDownloadPdf" style="background:#166534; color:white; padding:10px 18px; font-weight:bold; font-size:14px; display:flex; align-items:center; gap:8px;" onclick="downloadPdf()">📥 تنزيل كملف PDF مباشر</button>
+                    </div>
+                </div>
+
+                <!-- PDF Export Content Area (Visible preview + captured directly for PDF) -->
+                <div id="exportPdfContent" style="background:#ffffff; padding:15px; border-radius:10px; border:1px solid #e2e8f0; margin-top:10px;">
+                    <!-- Report Header -->
+                    <div id="exportPdfHeader" style="text-align:center; border-bottom:2px solid #1e3a8a; padding-bottom:10px; margin-bottom:12px;">
+                        <h3 style="margin:0 0 6px 0; color:#1e3a8a; font-size:19px; font-weight:800;">📊 كشف متابعة تسجيل غياب الفصول ليوم الجمعة</h3>
+                        <div style="font-size:12px; color:#475569; display:flex; justify-content:center; gap:16px; margin-top:6px; flex-wrap:wrap;">
+                            <span><strong>السنة:</strong> <span id="pdfYear">-</span></span>
+                            <span>|</span>
+                            <span><strong>الفترة:</strong> <span id="pdfTerm">-</span></span>
+                            <span>|</span>
+                            <span><strong>التاريخ:</strong> <span id="pdfDate">-</span></span>
+                            <span>|</span>
+                            <span><strong>المرحلة:</strong> <span id="pdfStage">-</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Live Summary Badges -->
+                    <div id="exportSummaryBadges" style="margin-bottom:12px;"></div>
+
+                    <!-- Preview Table Container -->
+                    <div id="exportTableScrollContainer" class="table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 8px;">
+                        <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:center; background:#ffffff;">
+                            <thead style="position:sticky; top:0; background:#1e3a8a; color:#ffffff; z-index:1; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                                <tr id="previewTableHead"></tr>
+                            </thead>
+                            <tbody id="previewTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Report Footer -->
+                    <div id="exportPdfFooter" style="margin-top:12px; display:flex; justify-content:space-between; font-size:10.5px; color:#64748b; border-top:1px solid #cbd5e1; padding-top:6px;">
+                        <span>نظام إدارة الخدمة والمدارس الأحد</span>
+                        <span id="pdfExportTime"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Printable Area (Only shown during printing) -->
+    <div id="exportPrintArea">
+        <div class="print-header">
+            <h2>📊 كشف متابعة تسجيل غياب الفصول ليوم الجمعة</h2>
+            <div class="print-meta-grid">
+                <div><strong>السنة الدراسية:</strong> <span id="pmYear"></span></div>
+                <div><strong>الفترة:</strong> <span id="pmTerm"></span></div>
+                <div><strong>تاريخ الجمعة:</strong> <span id="pmDate"></span></div>
+                <div><strong>المرحلة:</strong> <span id="pmStage"></span></div>
+            </div>
+            <div class="print-summary-line" id="pmSummary"></div>
+        </div>
+
+        <table class="print-table">
+            <thead id="pmTableHead"></thead>
+            <tbody id="pmTableBody"></tbody>
+        </table>
+
+        <div class="print-footer">
+            <span>نظام إدارة الخدمة والمدارس الأحد</span>
+            <span id="pmTime"></span>
+        </div>
+    </div>
+
     <script src="/js/app.js"></script>
     <script>
         let currentChart = null;
         let dashboardData = [];
+        let allSchoolDates = [];
 
         window.onload = async () => {
             requireRole('Admin', 'HeadSecretary', 'Secretary', 'StageSupervisor', 'BoardMember', 'Principal', 'عضو مجلس إدارة', 'ناظر');
@@ -144,7 +391,40 @@
                 document.getElementById('sumOverallPercentage').innerText = res.summary.overallPercentage.toFixed(1) + '%';
             }
 
-            dashboardData = res.classes;
+            dashboardData = res.classes || [];
+            allSchoolDates = res.allDates || [];
+
+            // Robust fallback if allSchoolDates is missing from backend
+            if (!allSchoolDates || allSchoolDates.length === 0) {
+                const datesSet = new Set();
+                dashboardData.forEach(c => {
+                    (c.history || []).forEach(h => { if (h.date) datesSet.add(h.date); });
+                    (c.fridayStatus || []).forEach(f => { if (f.date) datesSet.add(f.date); });
+                });
+                allSchoolDates = Array.from(datesSet).sort();
+            }
+
+            // Fallback: if c.fridayStatus is not provided by backend, construct from c.history
+            dashboardData.forEach(c => {
+                if (!c.fridayStatus) {
+                    c.fridayStatus = allSchoolDates.map(d => {
+                        const hist = (c.history || []).find(h => h.date === d);
+                        const isRec = !!hist;
+                        const rate = isRec ? (hist.percentage || 0) : 0;
+                        const estPresent = isRec ? Math.round((rate / 100) * c.totalStudents) : 0;
+                        const estAbsent = isRec ? Math.max(0, c.totalStudents - estPresent) : 0;
+                        return {
+                            date: d,
+                            isRecorded: isRec,
+                            totalStudents: c.totalStudents,
+                            presentCount: estPresent,
+                            absentCount: estAbsent,
+                            percentage: Math.round(rate * 10) / 10
+                        };
+                    });
+                }
+            });
+
             renderClassesList();
         }
 
@@ -282,6 +562,292 @@
                     }
                 }
             });
+        }
+
+        // --- Export to PDF Features ---
+        function openExportModal() {
+            if (!dashboardData || dashboardData.length === 0) {
+                alert('يرجى تحميل بيانات لوحة الغياب أولاً.');
+                return;
+            }
+
+            // Populate Dates
+            const dateSelect = document.getElementById('exportDateSelect');
+            dateSelect.innerHTML = '';
+            
+            const allOpt = document.createElement('option');
+            allOpt.value = 'all';
+            allOpt.textContent = '📅 جميع أيام الجمعة (تقرير شامل)';
+            dateSelect.appendChild(allOpt);
+
+            if (allSchoolDates && allSchoolDates.length > 0) {
+                // Newest first
+                const sortedDates = [...allSchoolDates].sort().reverse();
+                sortedDates.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = 'الجمعة: ' + d;
+                    dateSelect.appendChild(opt);
+                });
+                // Default to newest Friday
+                dateSelect.value = sortedDates[0];
+            }
+
+            // Populate Stages
+            const stageSelect = document.getElementById('exportStageSelect');
+            stageSelect.innerHTML = '<option value="all">جميع المراحل</option>';
+            const stages = [...new Set(dashboardData.map(c => c.stage).filter(Boolean))];
+            stages.forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st;
+                opt.textContent = st;
+                stageSelect.appendChild(opt);
+            });
+
+            document.getElementById('exportStatusFilter').value = 'all';
+
+            renderExportPreview();
+            document.getElementById('exportModal').classList.add('active');
+        }
+
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.remove('active');
+        }
+
+        // Close on clicking overlay outside
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('exportModal');
+            if (e.target === modal) {
+                closeExportModal();
+            }
+        });
+
+        function renderExportPreview() {
+            const selectedDate = document.getElementById('exportDateSelect').value;
+            const selectedStage = document.getElementById('exportStageSelect').value;
+            const selectedStatus = document.getElementById('exportStatusFilter').value;
+
+            // Filter classes by stage
+            let filteredClasses = dashboardData;
+            if (selectedStage !== 'all') {
+                filteredClasses = filteredClasses.filter(c => c.stage === selectedStage);
+            }
+
+            // Collect rows
+            const rows = [];
+            const datesToProcess = selectedDate === 'all' 
+                ? (allSchoolDates && allSchoolDates.length > 0 ? [...allSchoolDates].sort() : [])
+                : [selectedDate];
+
+            if (datesToProcess.length === 0) {
+                document.getElementById('exportSummaryBadges').innerHTML = '<div style="color:#64748b; font-size:14px;">لا توجد تواريخ مسجلة في هذا التيرم.</div>';
+                document.getElementById('previewTableHead').innerHTML = '';
+                document.getElementById('previewTableBody').innerHTML = '<tr><td colspan="7" style="padding:20px; color:#888;">لا توجد بيانات متاحة</td></tr>';
+                return;
+            }
+
+            datesToProcess.forEach(d => {
+                filteredClasses.forEach(c => {
+                    const stat = (c.fridayStatus || []).find(f => f.date === d);
+                    const isRecorded = stat ? stat.isRecorded : false;
+                    const present = stat ? stat.presentCount : 0;
+                    const absent = stat ? stat.absentCount : 0;
+                    const totalSt = stat ? stat.totalStudents : c.totalStudents;
+                    const percentage = stat ? stat.percentage : 0;
+
+                    if (selectedStatus === 'missing' && isRecorded) return;
+                    if (selectedStatus === 'recorded' && !isRecorded) return;
+
+                    rows.push({
+                        date: d,
+                        stage: c.stage || 'عام',
+                        className: c.className,
+                        totalStudents: totalSt,
+                        isRecorded: isRecorded,
+                        presentCount: present,
+                        absentCount: absent,
+                        percentage: percentage
+                    });
+                });
+            });
+
+            // Summary metrics
+            const totalRows = rows.length;
+            const totalRecorded = rows.filter(r => r.isRecorded).length;
+            const totalMissing = rows.filter(r => !r.isRecorded).length;
+            const totalPresent = rows.reduce((acc, r) => acc + r.presentCount, 0);
+            const totalAbsent = rows.reduce((acc, r) => acc + r.absentCount, 0);
+            const overallRate = (totalPresent + totalAbsent) > 0 
+                ? ((totalPresent / (totalPresent + totalAbsent)) * 100).toFixed(1) + '%' 
+                : '0%';
+
+            // Render summary badges
+            document.getElementById('exportSummaryBadges').innerHTML = `
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <span class="summary-pill total">إجمالي الفصول: <b>${totalRows}</b></span>
+                    <span class="summary-pill green">✅ سجلت الغياب: <b>${totalRecorded}</b></span>
+                    <span class="summary-pill red">❌ لم تسجل الغياب: <b>${totalMissing}</b></span>
+                    <span class="summary-pill green">إجمالي الحضور: <b>${totalPresent}</b></span>
+                    <span class="summary-pill red">إجمالي الغياب: <b>${totalAbsent}</b></span>
+                    <span class="summary-pill blue">نسبة الحضور: <b>${overallRate}</b></span>
+                </div>
+            `;
+
+            // Update live preview report header
+            const year = document.getElementById('academicYearSelect').value;
+            const termSelect = document.getElementById('termSelect');
+            const term = termSelect.options[termSelect.selectedIndex] ? termSelect.options[termSelect.selectedIndex].text : '';
+            const dateText = selectedDate === 'all' ? 'جميع أيام الجمعة في التيرم' : 'يوم الجمعة ' + selectedDate;
+            const stageSel = document.getElementById('exportStageSelect');
+            const stageText = stageSel.options[stageSel.selectedIndex] ? stageSel.options[stageSel.selectedIndex].text : 'جميع المراحل';
+            const statusSel = document.getElementById('exportStatusFilter');
+            const statusText = statusSel.options[statusSel.selectedIndex] ? statusSel.options[statusSel.selectedIndex].text : '';
+
+            if (document.getElementById('pdfYear')) document.getElementById('pdfYear').innerText = year || '-';
+            if (document.getElementById('pdfTerm')) document.getElementById('pdfTerm').innerText = term || '-';
+            if (document.getElementById('pdfDate')) document.getElementById('pdfDate').innerText = dateText;
+            if (document.getElementById('pdfStage')) document.getElementById('pdfStage').innerText = stageText + (statusSel.value !== 'all' ? ' (' + statusText + ')' : '');
+            
+            const now = new Date();
+            if (document.getElementById('pdfExportTime')) {
+                document.getElementById('pdfExportTime').innerText = 'تاريخ الاستخراج: ' + now.toLocaleDateString('ar-EG') + ' - ' + now.toLocaleTimeString('ar-EG');
+            }
+
+            // Table headers
+            const isAllDates = selectedDate === 'all';
+            let thHtml = `
+                <th style="padding:10px; border:1px solid #334155; width:45px; background-color:#1e3a8a; color:#ffffff;">م</th>
+                ${isAllDates ? '<th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">التاريخ</th>' : ''}
+                <th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">المرحلة</th>
+                <th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">الفصل</th>
+                <th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">إجمالي المقيدين</th>
+                <th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">حالة أخذ الغياب</th>
+                <th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">عدد الحضور</th>
+                <th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">عدد الغياب</th>
+                <th style="padding:10px; border:1px solid #334155; background-color:#1e3a8a; color:#ffffff;">نسبة الحضور %</th>
+            `;
+            document.getElementById('previewTableHead').innerHTML = thHtml;
+
+            // Table body
+            if (rows.length === 0) {
+                const colSpan = isAllDates ? 9 : 8;
+                document.getElementById('previewTableBody').innerHTML = `<tr><td colspan="${colSpan}" style="padding:25px; color:#888;">لا توجد فصول مطابقة للفلترة المحددة</td></tr>`;
+                return;
+            }
+
+            let tbodyHtml = '';
+            rows.forEach((r, idx) => {
+                const rowBg = r.isRecorded ? '#f8fafc' : '#fef2f2';
+                const statusBadge = r.isRecorded 
+                    ? `<span style="background:#d1fae5; color:#065f46; padding:4px 9px; border-radius:6px; font-size:12px; font-weight:bold; border:1px solid #86efac;">✅ تم التسجيل</span>`
+                    : `<span style="background:#fee2e2; color:#b91c1c; padding:4px 9px; border-radius:6px; font-size:12px; font-weight:bold; border:1px solid #fca5a5;">❌ لم يُؤخذ الغياب</span>`;
+
+                const presentDisplay = r.isRecorded ? `<strong style="color:#166534;">${r.presentCount}</strong>` : `<span style="color:#94a3b8;">-</span>`;
+                const absentDisplay = r.isRecorded ? `<strong style="color:#dc2626;">${r.absentCount}</strong>` : `<span style="color:#94a3b8;">-</span>`;
+                const rateDisplay = r.isRecorded 
+                    ? `<strong style="color:${r.percentage >= 75 ? '#166534' : '#d97706'};">${r.percentage}%</strong>` 
+                    : `<span style="color:#94a3b8;">0%</span>`;
+
+                tbodyHtml += `
+                    <tr style="background:${rowBg}; border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:9px; border:1px solid #cbd5e1; font-weight:600; color:#64748b;">${idx + 1}</td>
+                        ${isAllDates ? `<td style="padding:9px; border:1px solid #cbd5e1; font-weight:bold;">${r.date}</td>` : ''}
+                        <td style="padding:9px; border:1px solid #cbd5e1;">${r.stage}</td>
+                        <td style="padding:9px; border:1px solid #cbd5e1; font-weight:bold; color:#1e3a8a;">${r.className}</td>
+                        <td style="padding:9px; border:1px solid #cbd5e1;">${r.totalStudents}</td>
+                        <td style="padding:9px; border:1px solid #cbd5e1;">${statusBadge}</td>
+                        <td style="padding:9px; border:1px solid #cbd5e1;">${presentDisplay}</td>
+                        <td style="padding:9px; border:1px solid #cbd5e1;">${absentDisplay}</td>
+                        <td style="padding:9px; border:1px solid #cbd5e1;">${rateDisplay}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('previewTableBody').innerHTML = tbodyHtml;
+        }
+
+        function printOnlyTable() {
+            const selectedDate = document.getElementById('exportDateSelect').value;
+            const year = document.getElementById('academicYearSelect').value;
+            const termSelect = document.getElementById('termSelect');
+            const term = termSelect.options[termSelect.selectedIndex] ? termSelect.options[termSelect.selectedIndex].text : '';
+            const dateText = selectedDate === 'all' ? 'جميع أيام الجمعة في التيرم' : 'يوم الجمعة ' + selectedDate;
+            
+            const stageSel = document.getElementById('exportStageSelect');
+            const stageText = stageSel.options[stageSel.selectedIndex] ? stageSel.options[stageSel.selectedIndex].text : 'جميع المراحل';
+
+            const statusSel = document.getElementById('exportStatusFilter');
+            const statusText = statusSel.options[statusSel.selectedIndex] ? statusSel.options[statusSel.selectedIndex].text : '';
+
+            document.getElementById('pmYear').innerText = year || '-';
+            document.getElementById('pmTerm').innerText = term || '-';
+            document.getElementById('pmDate').innerText = dateText;
+            document.getElementById('pmStage').innerText = stageText + (statusSel.value !== 'all' ? ' (' + statusText + ')' : '');
+
+            document.getElementById('pmSummary').innerHTML = document.getElementById('exportSummaryBadges').innerHTML;
+            document.getElementById('pmTableHead').innerHTML = document.getElementById('previewTableHead').innerHTML;
+            document.getElementById('pmTableBody').innerHTML = document.getElementById('previewTableBody').innerHTML;
+            
+            const now = new Date();
+            document.getElementById('pmTime').innerText = 'تاريخ الاستخراج: ' + now.toLocaleDateString('ar-EG') + ' - ' + now.toLocaleTimeString('ar-EG');
+
+            window.print();
+        }
+
+        function printReport() {
+            printOnlyTable();
+        }
+
+        async function downloadPdf() {
+            const btn = document.getElementById('btnDownloadPdf');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ جاري استخراج الـ PDF...';
+            btn.disabled = true;
+
+            const selectedDate = document.getElementById('exportDateSelect').value;
+            const contentEl = document.getElementById('exportPdfContent');
+            const scrollContainer = document.getElementById('exportTableScrollContainer');
+
+            // Temporarily uncap height so html2pdf captures all table rows without scrollbar
+            const origMaxHeight = scrollContainer ? scrollContainer.style.maxHeight : '';
+            const origOverflowY = scrollContainer ? scrollContainer.style.overflowY : '';
+            if (scrollContainer) {
+                scrollContainer.style.maxHeight = 'none';
+                scrollContainer.style.overflowY = 'visible';
+            }
+
+            // Ensure background is solid white for crystal-clear render
+            contentEl.style.backgroundColor = '#ffffff';
+
+            const filename = 'Attendance_Report_' + (selectedDate === 'all' ? 'All_Fridays' : selectedDate) + '.pdf';
+
+            const opt = {
+                margin:       8,
+                filename:     filename,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { 
+                    scale: 2, 
+                    useCORS: true, 
+                    backgroundColor: '#ffffff'
+                },
+                pagebreak:    { mode: ['css', 'legacy'], avoid: 'tr' },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            try {
+                await html2pdf().set(opt).from(contentEl).save();
+            } catch (err) {
+                console.error("PDF generation error:", err);
+                alert("حدث خطأ أثناء إنشاء ملف PDF. يرجى استخدام زر 'طباعة الجدول فقط' لحفظه كـ PDF بأعلى دقة.");
+            } finally {
+                // Restore scroll container styles
+                if (scrollContainer) {
+                    scrollContainer.style.maxHeight = origMaxHeight;
+                    scrollContainer.style.overflowY = origOverflowY;
+                }
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         }
     </script>
     <script src="/js/layout.js"></script>

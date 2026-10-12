@@ -272,9 +272,11 @@ public class AttendanceController : ControllerBase
         else if (term == "1") altTerm = "ت1";
         else if (term == "2") altTerm = "ت2";
 
-        var records = await _uow.AttendanceRecords
-            .FindAsync(a => studentIds.Contains(a.StudentId) && (a.Term == term || a.Term == altTerm) && (a.AcademicYear == normYear1 || a.AcademicYear == normYear2));
+        var records = studentIds.Any()
+            ? await _uow.AttendanceRecords.FindAsync(a => studentIds.Contains(a.StudentId) && (a.Term == term || a.Term == altTerm) && (a.AcademicYear == normYear1 || a.AcademicYear == normYear2))
+            : new List<AttendanceRecord>();
 
+        var allDates = records.Select(r => r.Date.ToString("yyyy-MM-dd")).Distinct().OrderBy(d => d).ToList();
         var result = new List<object>();
 
         int totalSchoolStudents = 0;
@@ -282,16 +284,16 @@ public class AttendanceController : ControllerBase
         int totalSchoolAbsent = 0;
         int totalSchoolRecords = 0;
 
-        foreach (var c in allowedClasses.OrderBy(c => c.Stage).ThenBy(c => c.Name))
+        foreach (var c in allowedClasses.OrderBy(c => c.Stage ?? "").ThenBy(c => c.Name ?? ""))
         {
-            var classStudents = students.Where(s => s.Enrollments.Any(e => e.ClassRoomId == c.Id && (e.AcademicYear == normYear1 || e.AcademicYear == normYear2))).ToList();
+            var classStudents = students.Where(s => s.Enrollments != null && s.Enrollments.Any(e => e.ClassRoomId == c.Id && (e.AcademicYear == normYear1 || e.AcademicYear == normYear2))).ToList();
             if (!classStudents.Any()) continue;
 
             var classStudentIds = classStudents.Select(s => s.Id).ToList();
             var classRecords = records.Where(r => classStudentIds.Contains(r.StudentId)).ToList();
 
             int totalRecords = classRecords.Count;
-            int presentCount = classRecords.Count(r => r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase) || r.IsExcused);
+            int presentCount = classRecords.Count(r => (r.Status != null && r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase)) || r.IsExcused);
             int absentCount = totalRecords - presentCount;
 
             totalSchoolStudents += classStudents.Count;
@@ -309,12 +311,27 @@ public class AttendanceController : ControllerBase
             {
                 var dayRecords = classRecords.Where(r => r.Date.ToString("yyyy-MM-dd") == d).ToList();
                 int dayTotal = dayRecords.Count;
-                int dayPresent = dayRecords.Count(r => r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase) || r.IsExcused);
+                int dayPresent = dayRecords.Count(r => (r.Status != null && r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase)) || r.IsExcused);
                 history.Add(new {
                     date = d,
                     percentage = dayTotal > 0 ? (dayPresent / (double)dayTotal) * 100 : 0
                 });
             }
+
+            var fridayStatus = allDates.Select(d => {
+                var dayRecords = classRecords.Where(r => r.Date.ToString("yyyy-MM-dd") == d).ToList();
+                bool isRecorded = dayRecords.Any();
+                int dayPresent = dayRecords.Count(r => (r.Status != null && r.Status.Equals("Present", StringComparison.OrdinalIgnoreCase)) || r.IsExcused);
+                int dayAbsent = dayRecords.Count - dayPresent;
+                return new {
+                    date = d,
+                    isRecorded = isRecorded,
+                    totalStudents = classStudents.Count,
+                    presentCount = dayPresent,
+                    absentCount = dayAbsent,
+                    percentage = dayRecords.Count > 0 ? Math.Round((dayPresent / (double)dayRecords.Count) * 100, 1) : 0
+                };
+            }).ToList();
 
             result.Add(new {
                 classId = c.Id,
@@ -324,7 +341,8 @@ public class AttendanceController : ControllerBase
                 presentCount = presentCount,
                 absentCount = absentCount,
                 percentage = overallPercentage,
-                history = history
+                history = history,
+                fridayStatus = fridayStatus
             });
         }
 
@@ -338,7 +356,7 @@ public class AttendanceController : ControllerBase
             overallPercentage = schoolPercentage
         };
 
-        return Ok(new { success = true, summary = summary, classes = result });
+        return Ok(new { success = true, summary = summary, allDates = allDates, classes = result });
     }
 }
 

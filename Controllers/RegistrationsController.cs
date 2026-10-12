@@ -287,14 +287,8 @@ public class RegistrationsController : ControllerBase
         var studentsInClassCount = await _uow.Students.GetQueryable()
             .Where(s => s.Enrollments.Any(e => e.ClassRoomId == pending.ClassId && e.AcademicYear == currentYear))
             .CountAsync();
-            
-        if (studentsInClassCount >= 35)
-        {
-            pending.Status = "Waitlisted";
-            _uow.PendingRegistrations.Update(pending);
-            await _uow.CompleteAsync();
-            return BadRequest(new { success = false, message = "الفصل مكتمل العدد (35 طالب أو أكثر). تم تحويل الطلب إلى قائمة الانتظار (Waitlist)." });
-        }
+
+        bool isOverCapacity = studentsInClassCount >= 35;
 
         Student student;
 
@@ -380,7 +374,11 @@ public class RegistrationsController : ControllerBase
 
         await _uow.CompleteAsync();
 
-        return Ok(new { success = true, message = "تمت الموافقة على الطلب وحفظ البيانات بنجاح" });
+        string successMessage = isOverCapacity
+            ? $"تمت الموافقة وتسكين الطالب بنجاح في الفصل (تنبيه: الفصل به الآن {studentsInClassCount + 1} طالب وتجاوز سعة 35)"
+            : "تمت الموافقة على الطلب وحفظ البيانات بنجاح";
+
+        return Ok(new { success = true, message = successMessage, isOverCapacity = isOverCapacity, currentCount = studentsInClassCount + 1 });
     }
 
     [HttpPost("{id}/reject")]
@@ -436,7 +434,7 @@ public class RegistrationsController : ControllerBase
             return BadRequest(new { success = false, message = "لم يتم تحديد أي طلبات للموافقة عليها" });
 
         int approvedCount = 0;
-        int waitlistedCount = 0;
+        int overCapacityCount = 0;
 
         var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
         var currentYear = appSettings?.AcademicYear ?? "2024/2025";
@@ -455,10 +453,7 @@ public class RegistrationsController : ControllerBase
                 
             if (studentsInClassCount >= 35)
             {
-                pending.Status = "Waitlisted";
-                _uow.PendingRegistrations.Update(pending);
-                waitlistedCount++;
-                continue;
+                overCapacityCount++;
             }
 
             Student student;
@@ -538,7 +533,11 @@ public class RegistrationsController : ControllerBase
             approvedCount++;
         }
 
-        return Ok(new { success = true, message = $"تم الموافقة على {approvedCount} طلب، وتم تحويل {waitlistedCount} إلى قائمة الانتظار لعدم وجود أماكن." });
+        string bulkMsg = overCapacityCount > 0
+            ? $"تمت الموافقة بنجاح على {approvedCount} طلب (تنبيه: تم تسكين {overCapacityCount} طالب في فصول مكتملة السعة 35+)."
+            : $"تمت الموافقة بنجاح على {approvedCount} طلب.";
+
+        return Ok(new { success = true, message = bulkMsg, approvedCount = approvedCount, overCapacityCount = overCapacityCount });
     }
 }
 
