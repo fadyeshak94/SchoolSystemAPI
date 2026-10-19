@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✝️ كشف الطلاب المؤهلين للرسامة الشماسية</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        :root {
+            --gold-primary: #b45309;
+            --gold-light: #fef3c7;
+            --gold-border: #fcd34d;
+            --liturgical-blue: #1e3a8a;
+            --liturgical-dark: #0f172a;
+        }
+
+        body {
+            background-color: #f8fafc;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+        }
+
+        .header-card {
+            background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%);
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.25);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #f59e0b;
+        }
+
+        .header-card::after {
+            content: "✝️";
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 80px;
+            opacity: 0.12;
+            pointer-events: none;
+        }
+
+        .header-card h1 {
+            margin: 0 0 8px 0;
+            font-size: 22px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #fef08a;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header-card p {
+            margin: 0;
+            font-size: 13.5px;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        /* Filter Controls */
+        .controls-card {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-group label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .filter-control {
+            padding: 9px 12px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            background: #fff;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .filter-control:focus {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+        }
+
+        .actions-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #e2e8f0;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            color: white;
+            box-shadow: 0 4px 10px rgba(180, 83, 9, 0.25);
+        }
+
+        .btn-gold:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        .btn-print { background: #0284c7; color: white; }
+        .btn-excel { background: #16a34a; color: white; }
+
+        .view-tabs {
+            display: inline-flex;
+            background: #e2e8f0;
+            padding: 3px;
+            border-radius: 8px;
+        }
+
+        .view-tab {
+            border: none;
+            background: transparent;
+            padding: 6px 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #475569;
+            transition: all 0.2s;
+        }
+
+        .view-tab.active {
+            background: #fff;
+            color: var(--gold-primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card.golden {
+            border-top: 4px solid #f59e0b;
+            background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+        }
+
+        .kpi-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .kpi-val {
+            font-size: 26px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .kpi-sub {
+            font-size: 11.5px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* Golden Sheet Styles (Formal Priests Document) */
+        .golden-sheet {
+            background: #ffffff;
+            border: 2px solid #b45309;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 24px rgba(180, 83, 9, 0.08);
+            position: relative;
+        }
+
+        .golden-header {
+            border: 2px solid #d97706;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
+            background: #fffbeb;
+            text-align: center;
+        }
+
+        .church-banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1.5px solid #fcd34d;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #78350f;
+            font-weight: 700;
+        }
+
+        .golden-title {
+            font-size: 20px;
+            font-weight: 900;
+            color: #78350f;
+            margin: 6px 0;
+            letter-spacing: -0.5px;
+        }
+
+        .golden-meta-bar {
+            display: flex;
+            justify-content: space-around;
+            font-size: 12.5px;
+            color: #92400e;
+            font-weight: 600;
+        }
+
+        .golden-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px;
+            margin-top: 15px;
+        }
+
+        .golden-table th {
+            background: #fef3c7;
+            color: #78350f;
+            padding: 10px 8px;
+            border: 1px solid #fcd34d;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .golden-table td {
+            padding: 9px 8px;
+            border: 1px solid #fde68a;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .golden-table tr:nth-child(even) {
+            background: #fffdf5;
+        }
+
+        .golden-table tr:hover {
+            background: #fef9c3;
+        }
+
+        .rank-tag-candidate {
+            display: inline-block;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #f59e0b;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 11.5px;
+        }
+
+        .score-pill {
+            display: inline-block;
+            background: #dcfce7;
+            color: #166534;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-weight: 800;
+            font-size: 11.5px;
+        }
+
+        .golden-footer {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px solid #fcd34d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12.5px;
+            color: #78350f;
+            font-weight: 700;
+        }
+
+        .priest-signature-box {
+            border: 1px dashed #d97706;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-align: center;
+            min-width: 200px;
+            background: #fffdf5;
+        }
+
+        /* Detailed Table View */
+        .detailed-table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            overflow-x: auto;
+        }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .styled-table th {
+            background: #f8fafc;
+            color: #334155;
+            padding: 11px 10px;
+            border-bottom: 2px solid #cbd5e1;
+            font-weight: 800;
+            text-align: right;
+        }
+
+        .styled-table td {
+            padding: 10px;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .empty-placeholder {
+            text-align: center;
+            padding: 50px 20px;
+            color: #64748b;
+        }
+
+        @media print {
+            body { background: white; }
+            .header-card, .controls-card, .view-tabs, .btn-action, .kpi-grid, #sidebar, .navbar {
+                display: none !important;
+            }
+            .golden-sheet {
+                border: 2px solid #000;
+                box-shadow: none;
+                padding: 10px;
+                page-break-after: always;
+            }
+            .golden-header {
+                border-color: #000;
+                background: none;
+            }
+            .golden-table th, .golden-table td {
+                border-color: #444;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Banner -->
+    <div class="header-card">
+        <h1>✝️ تقرير الطلاب المؤهلين للرسامة الشماسية</h1>
+        <p>
+            تصفية الطلاب غير المرتسمين أو المرشحين للترقية، الذين حققوا نسبة حضور عالية وتفوقاً متميزاً في المواد الكنسية (الألحان، القبطي، الطقس).
+            كشف ذهبي رسمي معتمد لتقديمه للآباء الكهنة قبل الأعياد لاختيار المستحقين للرسامة.
+        </p>
+    </div>
+
+    <!-- Filters & Options -->
+    <div class="controls-card">
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label>📅 السنة الدراسية:</label>
+                <select id="academicYearSelect" class="filter-control" onchange="loadReport()"></select>
+            </div>
+
+            <div class="filter-group">
+                <label>🏫 المرحلة الدراسية:</label>
+                <select id="stageSelect" class="filter-control" onchange="onStageChanged()">
+                    <option value="">-- جميع المراحل --</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>👥 الفصل:</label>
+                <select id="classSelect" class="filter-control" onchange="loadReport()">
+                    <option value="">-- كل الفصول --</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>📜 الرتبة المستهدفة:</label>
+                <select id="targetRankSelect" class="filter-control" onchange="loadReport()">
+                    <option value="all">الكل (إبصالتس وترقيات)</option>
+                    <option value="ابصلتس">مرشح لرتبة إبصالتس (مرتل)</option>
+                    <option value="اغنسطس">مرشح للترقية لرتبة أغنسطس (قارئ)</option>
+                    <option value="ابي دياكون">مرشح لرتبة إيبودياكون</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>📈 الحد الأدنى للحضور (%):</label>
+                <input type="number" id="minAttendanceInput" class="filter-control" value="85" min="50" max="100" onchange="loadReport()">
+            </div>
+
+            <div class="filter-group">
+                <label>🎶 أدنى معدل بالمواد الكنسية (%):</label>
+                <input type="number" id="minScoreInput" class="filter-control" value="75" min="50" max="100" onchange="loadReport()">
+            </div>
+        </div>
+
+        <div class="actions-bar">
+            <div class="view-tabs">
+                <button class="view-tab active" id="tabGolden" onclick="switchView('golden')">📜 الكشف الذهبي الرسمي</button>
+                <button class="view-tab" id="tabDetailed" onclick="switchView('detailed')">📊 الجدول والبيانات التفصيلية</button>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+                <button class="btn-action btn-gold" onclick="loadReport()">
+                    🔍 تحديث الكشف
+                </button>
+                <button class="btn-action btn-print" onclick="printReport()">
+                    🖨️ طباعة للآباء الكهنة
+                </button>
+                <button class="btn-action btn-excel" onclick="exportExcel()">
+                    📊 تصدير Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="kpi-grid" id="kpiContainer">
+        <div class="kpi-card golden">
+            <div class="kpi-title">🎓 إجمالي المؤهلين للرسامة</div>
+            <div class="kpi-val" id="kpiTotalEligible">0</div>
+            <div class="kpi-sub">استوفوا معايير الحضور والمواد</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">✝️ ترشيح إبصالتس (جدد)</div>
+            <div class="kpi-val" id="kpiEpsaltos" style="color:#b45309;">0</div>
+            <div class="kpi-sub">طلاب غير مرشومين حتى الآن</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">📖 ترشيح للترقية (أغنسطس)</div>
+            <div class="kpi-val" id="kpiOgnostos" style="color:#1e3a8a;">0</div>
+            <div class="kpi-sub">شمامسة إبصالتس متميزون</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">📈 متوسط نسبة الحضور</div>
+            <div class="kpi-val" id="kpiAvgAttendance" style="color:#16a34a;">0%</div>
+            <div class="kpi-sub">للمرشحين المختارين</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-title">🎶 متوسط درجات الكنسي</div>
+            <div class="kpi-val" id="kpiAvgScore" style="color:#0284c7;">0%</div>
+            <div class="kpi-sub">ألحان - قبطي - طقس</div>
+        </div>
+    </div>
+
+    <!-- Report Content Area -->
+    <div id="reportContentArea">
+        <div class="empty-placeholder">
+            <div style="font-size:40px; margin-bottom:10px;">⏳</div>
+            <h3>جاري تحميل كشف الطلاب المؤهلين...</h3>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/app.js"></script>
+    <script>
+        let reportData = null;
+        let currentView = 'golden'; // 'golden' or 'detailed'
+        let allClasses = [];
+
+        window.onload = async () => {
+            await loadAcademicYearsDropdown('academicYearSelect');
+            await initFilters();
+            await loadReport();
+        };
+
+        async function initFilters() {
+            try {
+                const res = await fetchApi('/users/me/classes');
+                if (res && res.classes) {
+                    allClasses = res.classes;
+                    const stages = Array.from(new Set(allClasses.map(c => c.stage).filter(Boolean))).sort();
+                    const stageSel = document.getElementById('stageSelect');
+                    stages.forEach(st => {
+                        const opt = document.createElement('option');
+                        opt.value = st;
+                        opt.textContent = st;
+                        stageSel.appendChild(opt);
+                    });
+                    populateClasses();
+                }
+            } catch(e) {
+                console.error("Filter init error", e);
+            }
+        }
+
+        function onStageChanged() {
+            populateClasses();
+            loadReport();
+        }
+
+        function populateClasses() {
+            const st = document.getElementById('stageSelect').value;
+            const classSel = document.getElementById('classSelect');
+            const filtered = st ? allClasses.filter(c => c.stage === st) : allClasses;
+
+            classSel.innerHTML = '<option value="">-- كل الفصول --</option>';
+            filtered.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = `${c.name} (${c.stage})`;
+                classSel.appendChild(opt);
+            });
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.getElementById('tabGolden').classList.toggle('active', view === 'golden');
+            document.getElementById('tabDetailed').classList.toggle('active', view === 'detailed');
+            renderContent();
+        }
+
+        async function loadReport() {
+            const container = document.getElementById('reportContentArea');
+            container.innerHTML = '<div class="empty-placeholder"><div class="spinner" style="margin:20px auto;"></div>جاري فحص مؤهلات الطلاب...</div>';
+
+            const academicYear = document.getElementById('academicYearSelect').value;
+            const stage = document.getElementById('stageSelect').value;
+            const classId = document.getElementById('classSelect').value;
+            const targetRank = document.getElementById('targetRankSelect').value;
+            const minAttendance = document.getElementById('minAttendanceInput').value || 85;
+            const minScore = document.getElementById('minScoreInput').value || 75;
+
+            const url = `/reports/deacon-eligibility?academicYear=${encodeURIComponent(academicYear)}&stage=${encodeURIComponent(stage)}&classId=${classId || ''}&targetRank=${encodeURIComponent(targetRank)}&minAttendance=${minAttendance}&minScore=${minScore}`;
+
+            try {
+                const res = await fetchApi(url);
+                if (res && res.success) {
+                    reportData = res;
+                    updateKPIs(res.summary);
+                    renderContent();
+                } else {
+                    container.innerHTML = `<div class="empty-placeholder" style="color:var(--danger);">❌ ${res?.message || 'فشل في تحميل التقرير'}</div>`;
+                }
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<div class="empty-placeholder" style="color:var(--danger);">❌ حدث خطأ في الاتصال بالخادم.</div>';
+            }
+        }
+
+        function updateKPIs(sum) {
+            if (!sum) return;
+            document.getElementById('kpiTotalEligible').textContent = sum.totalEligible || 0;
+            document.getElementById('kpiEpsaltos').textContent = sum.epsaltosCandidates || 0;
+            document.getElementById('kpiOgnostos').textContent = sum.ognostosCandidates || 0;
+            document.getElementById('kpiAvgAttendance').textContent = (sum.avgAttendance || 0) + '%';
+            document.getElementById('kpiAvgScore').textContent = (sum.avgChurchScore || 0) + '%';
+        }
+
+        function renderContent() {
+            const container = document.getElementById('reportContentArea');
+            if (!reportData || !reportData.candidates || reportData.candidates.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-placeholder">
+                        <div style="font-size:45px; margin-bottom:10px;">📭</div>
+                        <h3>لا يوجد طلاب يستوفون هذه الشروط حالياً</h3>
+                        <p style="font-size:13px; color:#94a3b8;">يمكنك تجربة تقليل حد الحضور أو درجات المواد الكنسية لعرض قائمة أكبر.</p>
+                    </div>`;
+                return;
+            }
+
+            if (currentView === 'golden') {
+                renderGoldenSheet(container);
+            } else {
+                renderDetailedTable(container);
+            }
+        }
+
+        function renderGoldenSheet(container) {
+            const academicYear = document.getElementById('academicYearSelect').value || 'الحالية';
+            const stage = document.getElementById('stageSelect').value || 'جميع المراحل';
+            const candidates = reportData.candidates;
+
+            let html = `
+            <div class="golden-sheet" id="goldenSheetToPrint">
+                <!-- Golden Church Banner -->
+                <div class="golden-header">
+                    <div class="church-banner">
+                        <span>⛪ كنيسة السيدة العذراء والشهيد مارجرجس / الشهيد مارمينا</span>
+                        <span>مدرسة الشمامسة والقديس ديديموس الضرير</span>
+                        <span>تاريخ: <strong>${new Date().toLocaleDateString('ar-EG')}</strong></span>
+                    </div>
+                    <h2 class="golden-title">✝️ الكشف الذهبي للطلاب المؤهلين للرسامة الشماسية المباركة ✝️</h2>
+                    <div class="golden-meta-bar">
+                        <div>🏫 المرحلة: <strong>${stage}</strong></div>
+                        <div>📅 السنة الدراسية: <strong>${academicYear}</strong></div>
+                        <div>🎓 عدد المرشحين: <strong>${candidates.length} طالباً</strong></div>
+                    </div>
+                </div>
+
+                <p style="font-size:12.5px; color:#78350f; text-align:center; margin:10px 0 15px 0; font-weight:600;">
+                    مُقدَّم إلى حضرة الآباء الكهنة الأفاضل بالأسماء والدرجات ونسب الحضور للمباركة واختيار المستحقين للرسامة
+                </p>
+
+                <!-- Candidates Golden Table -->
+                <table class="golden-table">
+                    <thead>
+                        <tr>
+                            <th style="width:35px;">#</th>
+                            <th style="width:70px;">كود الطالب</th>
+                            <th>اسم الطالب</th>
+                            <th>الفصل / المرحلة</th>
+                            <th>الرتبة الحالية</th>
+                            <th>الرتبة المرشح لها</th>
+                            <th>نسبة الحضور</th>
+                            <th>معدل المواد الكنسية</th>
+                            <th>ملاحظات الأهلية والتزكية</th>
+                            <th class="no-print">تأكيد الرسامة</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            candidates.forEach((c, idx) => {
+                const rankColor = c.recommendedRank === 'ابصلتس' ? '#b45309' : '#1e3a8a';
+
+                html += `
+                <tr>
+                    <td style="font-weight:bold; color:#78350f;">${idx + 1}</td>
+                    <td style="font-family:monospace; font-weight:bold;">${c.studentId}</td>
+                    <td style="font-weight:bold; text-align:right; font-size:13.5px; color:#0f172a;">
+                        ✝️ ${c.studentName}
+                    </td>
+                    <td>${c.className} <br><span style="font-size:11px; color:#64748b;">(${c.stage})</span></td>
+                    <td style="font-weight:600; color:#475569;">${c.currentRank || 'غير مرشوم'}</td>
+                    <td>
+                        <span class="rank-tag-candidate" style="color:${rankColor}; border-color:${rankColor};">
+                            ${c.recommendedTitle}
+                        </span>
+                    </td>
+                    <td>
+                        <strong style="color:#16a34a;">${c.attendancePercentage}%</strong>
+                        <div style="font-size:10.5px; color:#64748b;">(${c.presentDays} من ${c.totalDays})</div>
+                    </td>
+                    <td>
+                        <span class="score-pill">${c.churchScoreAvg}%</span>
+                    </td>
+                    <td style="font-size:11.5px; color:#64748b; text-align:right;">
+                        ${c.recommendationReason}
+                    </td>
+                    <td class="no-print">
+                        <select onchange="updateDeaconRankDirect(${c.studentId}, this.value, this)" 
+                                style="font-size:11.5px; font-weight:bold; padding:3px 6px; border-radius:5px; border:1px solid #fcd34d; background:white; cursor:pointer;">
+                            <option value="">تعديل...</option>
+                            <option value="ابصلتس">ابصلتس</option>
+                            <option value="اغنسطس">اغنسطس</option>
+                            <option value="ابي دياكون">ابي دياكون</option>
+                            <option value="دياكون">دياكون</option>
+                            <option value="ارشي دياكون">ارشي دياكون</option>
+                        </select>
+                    </td>
+                </tr>`;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+
+                <!-- Priests Signatures Footer -->
+                <div class="golden-footer">
+                    <div>
+                        مسؤول مدرسة الشمامسة: .......................................
+                    </div>
+                    <div class="priest-signature-box">
+                        توقيع ومباركة الآباء الكهنة:<br>
+                        <span style="font-size:11px; color:#94a3b8;">صلوا لأجل تمام الخدمة المقدسة</span>
+                    </div>
+                    <div>
+                        خاتم الكنيسة والبركة: .......................................
+                    </div>
+                </div>
+            </div>`;
+
+            container.innerHTML = html;
+        }
+
+        function renderDetailedTable(container) {
+            const candidates = reportData.candidates;
+
+            let html = `
+            <div class="detailed-table-container">
+                <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>كود</th>
+                            <th>اسم الطالب</th>
+                            <th>الفصل والمرحلة</th>
+                            <th>تليفون ولي الأمر</th>
+                            <th>الرتبة الحالية</th>
+                            <th>الترشيح</th>
+                            <th>الحضور</th>
+                            <th>تفاصيل المواد الكنسية</th>
+                            <th>المعدل العام</th>
+                            <th>تحديث الرتبة</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+
+            candidates.forEach((c, idx) => {
+                let subjectsBadges = '';
+                if (c.churchSubjects && c.churchSubjects.length > 0) {
+                    subjectsBadges = c.churchSubjects.map(s => 
+                        `<span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-size:11px; margin-left:4px; display:inline-block; margin-bottom:2px;">
+                            ${s.subject}: <strong>${s.score}</strong>
+                        </span>`
+                    ).join('');
+                } else {
+                    subjectsBadges = '<span style="color:#94a3b8; font-size:11px;">معدل عام</span>';
+                }
+
+                html += `
+                <tr>
+                    <td style="font-weight:bold; color:#64748b;">${idx + 1}</td>
+                    <td style="font-family:monospace; font-weight:bold; color:#1e3a8a;">${c.studentId}</td>
+                    <td style="font-weight:bold;">${c.studentName}</td>
+                    <td>${c.className} <span style="color:#64748b; font-size:11.5px;">(${c.stage})</span></td>
+                    <td style="direction:ltr; text-align:right; font-family:monospace;">
+                        ${c.phone ? `<a href="tel:${c.phone}" style="color:inherit; text-decoration:none;">${c.phone}</a>` : '—'}
+                    </td>
+                    <td>${c.currentRank || 'غير مرشوم'}</td>
+                    <td>
+                        <strong style="color:#b45309;">${c.recommendedTitle}</strong>
+                    </td>
+                    <td>
+                        <span style="color:#16a34a; font-weight:bold;">${c.attendancePercentage}%</span>
+                    </td>
+                    <td style="max-width:240px;">
+                        ${subjectsBadges}
+                    </td>
+                    <td>
+                        <strong style="color:#0284c7;">${c.overallScoreAvg}%</strong>
+                    </td>
+                    <td>
+                        <select onchange="updateDeaconRankDirect(${c.studentId}, this.value, this)" 
+                                style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; font-weight:bold; cursor:pointer;">
+                            <option value="">تعديل...</option>
+                            <option value="ابصلتس">ابصلتس</option>
+                            <option value="اغنسطس">اغنسطس</option>
+                            <option value="ابي دياكون">ابي دياكون</option>
+                            <option value="دياكون">دياكون</option>
+                            <option value="ارشي دياكون">ارشي دياكون</option>
+                        </select>
+                    </td>
+                </tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+        }
+
+        async function updateDeaconRankDirect(studentId, newRank, selectEl) {
+            if (!newRank) return;
+            selectEl.disabled = true;
+            selectEl.style.background = '#fef3c7';
+
+            try {
+                const res = await fetchApi(`/students/${studentId}/deacon-rank`, 'PATCH', { deaconRank: newRank });
+                if (res && res.success) {
+                    selectEl.style.background = '#dcfce7';
+                    alert(`✅ تم تحديث رتبة الطالب بنجاح إلى (${newRank})`);
+                    await loadReport();
+                } else {
+                    alert(res?.message || 'فشل تحديث الرتبة');
+                    selectEl.style.background = '#fff';
+                }
+            } catch (e) {
+                console.error(e);
+                alert('حدث خطأ أثناء حفظ الرتبة');
+                selectEl.style.background = '#fff';
+            } finally {
+                selectEl.disabled = false;
+            }
+        }
+
+        function printReport() {
+            if (currentView !== 'golden') {
+                switchView('golden');
+            }
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        }
+
+        function exportExcel() {
+            if (!reportData || !reportData.candidates || reportData.candidates.length === 0) {
+                alert('لا توجد بيانات لتصديرها');
+                return;
+            }
+
+            const candidates = reportData.candidates;
+            let csv = "\uFEFF";
+            csv += "#,كود الطالب,اسم الطالب,المرحلة,الفصل,الرتبة الحالية,الرتبة المرشح لها,نسبة الحضور %,درجة المواد الكنسية %,المعدل العام %,تليفون ولي الأمر\n";
+
+            candidates.forEach((c, idx) => {
+                const row = [
+                    `"${idx + 1}"`,
+                    `"${c.studentId}"`,
+                    `"${c.studentName}"`,
+                    `"${c.stage}"`,
+                    `"${c.className}"`,
+                    `"${c.currentRank || 'غير مرشوم'}"`,
+                    `"${c.recommendedTitle}"`,
+                    `"${c.attendancePercentage}"`,
+                    `"${c.churchScoreAvg}"`,
+                    `"${c.overallScoreAvg}"`,
+                    `"${c.phone || ''}"`
+                ];
+                csv += row.join(",") + "\n";
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `كشف_المرشحين_للرسامة_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

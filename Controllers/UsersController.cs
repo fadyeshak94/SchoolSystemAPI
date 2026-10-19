@@ -57,6 +57,7 @@ public class UsersController : ControllerBase
             phoneNumber = u.PhoneNumber,
             confessionFather = u.ConfessionFather,
             dateOfBirth = u.DateOfBirth,
+            deaconRank = u.DeaconRank ?? "",
             hasPassword = !string.IsNullOrEmpty(u.PasswordHash),
             canAccessSmartMother = u.CanAccessSmartMother
         }).ToList();
@@ -96,6 +97,7 @@ public class UsersController : ControllerBase
             PhoneNumber = dto.PhoneNumber,
             ConfessionFather = dto.ConfessionFather,
             DateOfBirth = dto.DateOfBirth,
+            DeaconRank = dto.DeaconRank ?? "",
             PasswordHash = hash,
             Salt = salt,
             PendingReset = (dto.Role == "Servant"),
@@ -127,6 +129,7 @@ public class UsersController : ControllerBase
         {
             user.Role = dto.Role;
         }
+        if (dto.DeaconRank != null) user.DeaconRank = dto.DeaconRank;
         if (dto.CanAccessSmartMother.HasValue)
         {
             user.CanAccessSmartMother = dto.CanAccessSmartMother.Value;
@@ -163,6 +166,7 @@ public class UsersController : ControllerBase
         user.PhoneNumber = dto.PhoneNumber;
         user.ConfessionFather = dto.ConfessionFather;
         user.DateOfBirth = dto.DateOfBirth;
+        if (dto.DeaconRank != null) user.DeaconRank = dto.DeaconRank;
 
         _uow.Users.Update(user);
         await _uow.CompleteAsync();
@@ -319,6 +323,7 @@ public class AddUserDto
     public string Email { get; set; } = string.Empty;
     public string Role { get; set; } = "Secretary";
     public string? Title { get; set; }
+    public string? DeaconRank { get; set; }
     public string? PhoneNumber { get; set; }
     public string? ConfessionFather { get; set; }
     public DateTime? DateOfBirth { get; set; }
@@ -334,6 +339,7 @@ public class UpdateUserDto
     public string? StageAccess { get; set; }
     public string? Role { get; set; }
     public string? Title { get; set; }
+    public string? DeaconRank { get; set; }
     public string? NameAR { get; set; }
     public string? PhoneNumber { get; set; }
     public string? ConfessionFather { get; set; }
@@ -344,6 +350,7 @@ public class UpdateUserDto
 public class UpdatePersonalDataDto
 {
     public string? NameAR { get; set; }
+    public string? DeaconRank { get; set; }
     public string? PhoneNumber { get; set; }
     public string? ConfessionFather { get; set; }
     public DateTime? DateOfBirth { get; set; }

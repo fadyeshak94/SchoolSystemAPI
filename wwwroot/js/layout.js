@@ -60,6 +60,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 { path: "/SubjectGrades.html", icon: "✏️", text: "رصد الدرجات" },
                 { path: "/GradesReview.html", icon: "📝", text: "مراجعة الدرجات" },
                 { path: "/ClassResults.html", icon: "🏆", text: "النتائج" },
+                { path: "/DeaconOrdinationReport.html", icon: "✝️", text: "المؤهلون للرسامة" },
+                { path: "/SubjectDifficultyReport.html", icon: "📊", text: "صعوبات المواد والرسوب" },
                 { path: "/AllResultsPrint.html", icon: "🖨️", text: "طباعة كل النتائج" },
                 { path: "/TopStudentsPoster.html", icon: "🖼️", text: "بوستر الأوائل" },
                 { path: "/AnnouncementsPoster.html", icon: "📢", text: "صانع الإعلانات" }
@@ -84,7 +86,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 (userRole !== "Secretary") ? { path: "/SchoolHierarchy.html", icon: "🏢", text: "الهيكل الإداري والمدرسي" } : null,
                 { path: "/ServantsDirectory.html", icon: "📖", text: "دليل الخدام" },
                 { path: "/StaffAttendanceEntry.html", icon: "✓", text: "غياب الخدام" },
-                { path: "/StaffPerformance.html", icon: "👨‍🏫", text: "أداء الخدام" },
+                { path: "/StaffPerformance.html", icon: "📊", text: "أداء الخدام" },
+                { path: "/ServantsAttendanceReport.html", icon: "👨‍🏫", text: "انتظام والتزام الخدام" },
                 { path: "/ManageRegistrations.html", icon: "📋", text: "إدارة التسجيلات" },
                 { path: "/ArchiveRegistrations.html", icon: "🗄️", text: "أرشيف التسجيلات" },
                 { path: "/FixOldClasses.html", icon: "🛠️", text: "إصلاح الفصول القديمة" },

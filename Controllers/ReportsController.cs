@@ -597,4 +597,398 @@ public class ReportsController : ControllerBase
             }
         });
     }
+
+    [HttpGet("deacon-eligibility")]
+    public async Task<IActionResult> GetDeaconEligibility(
+        [FromQuery] string? academicYear,
+        [FromQuery] string? term,
+        [FromQuery] string? stage,
+        [FromQuery] int? classId,
+        [FromQuery] decimal minAttendance = 85m,
+        [FromQuery] decimal minScore = 75m,
+        [FromQuery] string? targetRank = "all")
+    {
+        var studentsQuery = _uow.Students.GetQueryable()
+            .Include(s => s.Mother)
+            .Include(s => s.Enrollments).ThenInclude(e => e.ClassRoom)
+            .Where(s => s.Gender == "ذكر" || string.IsNullOrEmpty(s.Gender));
+
+        if (classId.HasValue)
+        {
+            studentsQuery = studentsQuery.Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId.Value && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear)));
+        }
+        else if (!string.IsNullOrEmpty(stage))
+        {
+            studentsQuery = studentsQuery.Where(s => s.Enrollments.Any(e => e.ClassRoom.Stage == stage && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear)));
+        }
+
+        var students = await studentsQuery.ToListAsync();
+
+        var attendanceRecords = await _uow.AttendanceRecords.FindAsync(a => 
+            (string.IsNullOrEmpty(academicYear) || a.AcademicYear == academicYear) && 
+            (string.IsNullOrEmpty(term) || a.Term == term));
+
+        var grades = await _uow.StudentGrades.FindAsync(g => 
+            (string.IsNullOrEmpty(academicYear) || g.AcademicYear == academicYear) && 
+            (string.IsNullOrEmpty(term) || g.Term == term));
+
+        var candidates = new List<object>();
+
+        foreach (var student in students)
+        {
+            var currentEnrollment = student.Enrollments.OrderByDescending(e => e.Id)
+                .FirstOrDefault(e => string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear);
+
+            if (classId.HasValue && currentEnrollment?.ClassRoomId != classId.Value)
+                continue;
+
+            var stAttendance = attendanceRecords.Where(a => a.StudentId == student.Id).ToList();
+            int totalDays = stAttendance.Count;
+            int presentDays = stAttendance.Count(a => a.Status == "Present" || a.IsExcused || a.Status == "حاضر");
+            decimal attPercentage = totalDays > 0 ? Math.Round((decimal)presentDays / totalDays * 100m, 1) : 0m;
+
+            var stGrades = grades.Where(g => g.StudentId == student.Id).ToList();
+            
+            // مواد كنسية: ألحان، قبطي، طقس
+            var churchGrades = stGrades.Where(g => 
+                g.SubjectName.Contains("لحان") || 
+                g.SubjectName.Contains("قبط") || 
+                g.SubjectName.Contains("طقس")).ToList();
+
+            decimal churchAvg = churchGrades.Any() ? Math.Round(churchGrades.Average(g => g.TotalScore), 1) : 
+                                (stGrades.Any() ? Math.Round(stGrades.Average(g => g.TotalScore), 1) : 0m);
+
+            decimal overallAvg = stGrades.Any() ? Math.Round(stGrades.Average(g => g.TotalScore), 1) : 0m;
+
+            // تحديد الرتبة المرشح لها
+            string recommendedRank;
+            string recommendedTitle;
+            string currentRank = !string.IsNullOrEmpty(student.DeaconRank) ? student.DeaconRank : (student.IsDeacon ? "ابصلتس" : "");
+
+            if (string.IsNullOrEmpty(currentRank) || !student.IsDeacon)
+            {
+                recommendedRank = "ابصلتس";
+                recommendedTitle = "إبصالتس (مرتل)";
+            }
+            else if (currentRank == "ابصلتس")
+            {
+                recommendedRank = "اغنسطس";
+                recommendedTitle = "أغنسطس (قارئ)";
+            }
+            else if (currentRank == "اغنسطس")
+            {
+                recommendedRank = "ابي دياكون";
+                recommendedTitle = "إيبودياكون (مساعد شماس)";
+            }
+            else
+            {
+                recommendedRank = currentRank;
+                recommendedTitle = currentRank;
+            }
+
+            // فحص الشروط
+            if (attPercentage < minAttendance) continue;
+            if (churchGrades.Any() && churchAvg < minScore) continue;
+
+            // تصفية بحسب الرتبة المستهدفة
+            if (!string.IsNullOrEmpty(targetRank) && targetRank != "all")
+            {
+                if (recommendedRank != targetRank) continue;
+            }
+
+            candidates.Add(new
+            {
+                studentId = student.Id,
+                studentName = student.Name,
+                code = $"ST-{student.Id}",
+                className = currentEnrollment?.ClassRoom?.Name ?? "غير مسجل",
+                stage = currentEnrollment?.ClassRoom?.Stage ?? "غير محدد",
+                currentRank = string.IsNullOrEmpty(currentRank) ? "غير مرشوم" : currentRank,
+                isDeacon = student.IsDeacon,
+                recommendedRank = recommendedRank,
+                recommendedTitle = recommendedTitle,
+                attendancePercentage = attPercentage,
+                presentDays = presentDays,
+                totalDays = totalDays,
+                churchScoreAvg = churchAvg,
+                overallScoreAvg = overallAvg,
+                phone = student.Mother?.Phone ?? "",
+                parentName = student.Mother?.Name ?? "",
+                churchSubjects = churchGrades.Select(cg => new { subject = cg.SubjectName, score = cg.TotalScore, exam = cg.ExamScore, attendance = cg.AttendanceScore }).ToList(),
+                recommendationReason = $"نسبة حضور {attPercentage}% ومعدل تميز كنسي {churchAvg}%"
+            });
+        }
+
+        var orderedCandidates = candidates
+            .OrderByDescending(c => ((dynamic)c).churchScoreAvg)
+            .ThenByDescending(c => ((dynamic)c).attendancePercentage)
+            .ToList();
+
+        return Ok(new
+        {
+            success = true,
+            summary = new
+            {
+                totalEligible = orderedCandidates.Count,
+                epsaltosCandidates = orderedCandidates.Count(c => ((dynamic)c).recommendedRank == "ابصلتس"),
+                ognostosCandidates = orderedCandidates.Count(c => ((dynamic)c).recommendedRank == "اغنسطس"),
+                avgAttendance = orderedCandidates.Any() ? Math.Round(orderedCandidates.Average(c => (decimal)((dynamic)c).attendancePercentage), 1) : 0m,
+                avgChurchScore = orderedCandidates.Any() ? Math.Round(orderedCandidates.Average(c => (decimal)((dynamic)c).churchScoreAvg), 1) : 0m
+            },
+            candidates = orderedCandidates
+        });
+    }
+
+    [HttpGet("subject-difficulty")]
+    public async Task<IActionResult> GetSubjectDifficulty(
+        [FromQuery] string? academicYear,
+        [FromQuery] string? term,
+        [FromQuery] string? stage,
+        [FromQuery] int? classId)
+    {
+        var gradesQuery = _uow.StudentGrades.GetQueryable()
+            .Include(g => g.Student).ThenInclude(s => s.Enrollments).ThenInclude(e => e.ClassRoom)
+            .Where(g => (string.IsNullOrEmpty(academicYear) || g.AcademicYear == academicYear) &&
+                        (string.IsNullOrEmpty(term) || g.Term == term));
+
+        if (classId.HasValue)
+        {
+            gradesQuery = gradesQuery.Where(g => g.Student.Enrollments.Any(e => e.ClassRoomId == classId.Value && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear)));
+        }
+        else if (!string.IsNullOrEmpty(stage))
+        {
+            gradesQuery = gradesQuery.Where(g => g.Student.Enrollments.Any(e => e.ClassRoom.Stage == stage && (string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear)));
+        }
+
+        var allGrades = await gradesQuery.ToListAsync();
+
+        if (!allGrades.Any())
+        {
+            return Ok(new { success = true, subjects = new List<object>(), summary = new { totalExams = 0, avgPassRate = 0m } });
+        }
+
+        var groupedBySubject = allGrades.GroupBy(g => string.IsNullOrWhiteSpace(g.SubjectName) ? "غير محدد" : g.SubjectName.Trim()).ToList();
+
+        var subjectsReport = new List<object>();
+
+        foreach (var group in groupedBySubject)
+        {
+            int total = group.Count();
+            int passed = group.Count(g => g.TotalScore >= 50m);
+            int failed = group.Count(g => g.TotalScore < 50m);
+            decimal passRate = total > 0 ? Math.Round((decimal)passed / total * 100m, 1) : 0m;
+            decimal failRate = total > 0 ? Math.Round((decimal)failed / total * 100m, 1) : 0m;
+            decimal avgExam = Math.Round(group.Average(g => g.ExamScore), 1);
+            decimal avgAttendance = Math.Round(group.Average(g => g.AttendanceScore), 1);
+            decimal avgTotal = Math.Round(group.Average(g => g.TotalScore), 1);
+
+            string difficultyLevel;
+            string statusColor;
+            if (failRate >= 35m)
+            {
+                difficultyLevel = "صعبة جداً / رسوب مرتفع ⚠️";
+                statusColor = "danger";
+            }
+            else if (failRate >= 15m)
+            {
+                difficultyLevel = "متوسطة الصعوبة ⚖️";
+                statusColor = "warning";
+            }
+            else
+            {
+                difficultyLevel = "استيعاب ممتاز ✅";
+                statusColor = "success";
+            }
+
+            var failingStudents = group.Where(g => g.TotalScore < 50m)
+                .OrderBy(g => g.TotalScore)
+                .Take(20)
+                .Select(g =>
+                {
+                    var enrollment = g.Student?.Enrollments?.OrderByDescending(e => e.Id)
+                        .FirstOrDefault(e => string.IsNullOrEmpty(academicYear) || e.AcademicYear == academicYear);
+                    return new
+                    {
+                        studentId = g.StudentId,
+                        studentName = g.Student?.Name ?? "غير معروف",
+                        className = enrollment?.ClassRoom?.Name ?? "غير مسجل",
+                        totalScore = g.TotalScore,
+                        examScore = g.ExamScore,
+                        attendanceScore = g.AttendanceScore
+                    };
+                }).ToList();
+
+            subjectsReport.Add(new
+            {
+                subjectName = group.Key,
+                totalStudents = total,
+                passedCount = passed,
+                failedCount = failed,
+                passRate = passRate,
+                failRate = failRate,
+                avgExamScore = avgExam,
+                avgAttendanceScore = avgAttendance,
+                avgTotalScore = avgTotal,
+                maxScore = group.Max(g => g.TotalScore),
+                minScore = group.Min(g => g.TotalScore),
+                difficultyLevel = difficultyLevel,
+                statusColor = statusColor,
+                failingStudents = failingStudents
+            });
+        }
+
+        var orderedSubjects = subjectsReport.OrderByDescending(s => ((dynamic)s).failRate).ToList();
+
+        return Ok(new
+        {
+            success = true,
+            summary = new
+            {
+                totalExamsRecorded = allGrades.Count,
+                subjectsCount = orderedSubjects.Count,
+                avgPassRate = Math.Round(allGrades.Count(g => g.TotalScore >= 50m) / (decimal)allGrades.Count * 100m, 1),
+                mostDifficultSubject = orderedSubjects.FirstOrDefault() != null ? ((dynamic)orderedSubjects.First()).subjectName : "—"
+            },
+            subjects = orderedSubjects
+        });
+    }
+
+    [HttpGet("servants-attendance")]
+    public async Task<IActionResult> GetServantsAttendanceReport(
+        [FromQuery] string? academicYear,
+        [FromQuery] string? stage,
+        [FromQuery] string? deaconRank,
+        [FromQuery] string? commitmentLevel)
+    {
+        var usersQuery = _context.Users
+            .Include(u => u.ServantAssignments).ThenInclude(sa => sa.ClassRoom)
+            .Where(u => u.ServantAssignments.Any());
+
+        if (!string.IsNullOrEmpty(stage))
+        {
+            usersQuery = usersQuery.Where(u => u.ServantAssignments.Any(sa => sa.ClassRoom.Stage == stage));
+        }
+
+        if (!string.IsNullOrEmpty(deaconRank))
+        {
+            usersQuery = usersQuery.Where(u => u.DeaconRank == deaconRank);
+        }
+
+        var users = await usersQuery.ToListAsync();
+
+        var attendances = await _context.ServantAttendances
+            .Where(a => string.IsNullOrEmpty(academicYear) || a.AcademicYear == academicYear)
+            .OrderBy(a => a.Date)
+            .ToListAsync();
+
+        var servantsReport = new List<object>();
+
+        foreach (var u in users)
+        {
+            var stRecords = attendances.Where(r => r.ServantId == u.Id).OrderBy(r => r.Date).ToList();
+            int totalDays = stRecords.Count;
+            int presentDays = stRecords.Count(r => r.Status == "Present");
+            int absentDays = stRecords.Count(r => r.Status == "Absent" && !r.IsExcused);
+            int excusedDays = stRecords.Count(r => r.IsExcused);
+
+            decimal attendancePercentage = totalDays > 0 ? Math.Round((decimal)(presentDays + excusedDays) / totalDays * 100m, 1) : 0m;
+
+            // حساب الغياب المتتالي من آخر تواريخ
+            int consecutiveAbsences = 0;
+            var reversedRecords = stRecords.OrderByDescending(r => r.Date).ToList();
+            foreach (var r in reversedRecords)
+            {
+                if (r.Status == "Absent" && !r.IsExcused)
+                {
+                    consecutiveAbsences++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            string badge;
+            string level;
+            string badgeClass;
+
+            if (totalDays == 0)
+            {
+                badge = "لم يُسجل حضور";
+                level = "no_data";
+                badgeClass = "secondary";
+            }
+            else if (consecutiveAbsences >= 3 || attendancePercentage < 50m)
+            {
+                badge = "منقطع / افتقاد عاجل 🛑";
+                level = "disconnected";
+                badgeClass = "danger";
+            }
+            else if (consecutiveAbsences >= 2 || attendancePercentage < 75m)
+            {
+                badge = "يحتاج تشجيع ⚠️";
+                level = "at_risk";
+                badgeClass = "warning";
+            }
+            else if (attendancePercentage >= 90m)
+            {
+                badge = "خادم متميز ومنتظم 🌟";
+                level = "excellent";
+                badgeClass = "success";
+            }
+            else
+            {
+                badge = "انتظام جيد 🔹";
+                level = "good";
+                badgeClass = "info";
+            }
+
+            if (!string.IsNullOrEmpty(commitmentLevel) && commitmentLevel != "all")
+            {
+                if (level != commitmentLevel) continue;
+            }
+
+            var classesAssigned = string.Join("، ", u.ServantAssignments.Select(sa => $"{sa.SubjectName} ({sa.ClassRoom.Name})"));
+            var stagesAssigned = string.Join("، ", u.ServantAssignments.Select(sa => sa.ClassRoom.Stage).Distinct());
+
+            servantsReport.Add(new
+            {
+                servantId = u.Id,
+                servantName = u.NameAR ?? u.Username,
+                title = u.Title ?? "خادم",
+                deaconRank = string.IsNullOrEmpty(u.DeaconRank) ? "غير مرشوم" : u.DeaconRank,
+                phoneNumber = u.PhoneNumber ?? "",
+                confessionFather = u.ConfessionFather ?? "",
+                classes = classesAssigned,
+                stage = stagesAssigned,
+                totalDays = totalDays,
+                presentDays = presentDays,
+                absentDays = absentDays,
+                excusedDays = excusedDays,
+                attendancePercentage = attendancePercentage,
+                consecutiveAbsences = consecutiveAbsences,
+                commitmentBadge = badge,
+                commitmentLevel = level,
+                badgeClass = badgeClass
+            });
+        }
+
+        var orderedReport = servantsReport.OrderBy(r => ((dynamic)r).attendancePercentage).ToList();
+
+        return Ok(new
+        {
+            success = true,
+            summary = new
+            {
+                totalServants = servantsReport.Count,
+                excellentCount = servantsReport.Count(r => ((dynamic)r).commitmentLevel == "excellent"),
+                goodCount = servantsReport.Count(r => ((dynamic)r).commitmentLevel == "good"),
+                atRiskCount = servantsReport.Count(r => ((dynamic)r).commitmentLevel == "at_risk"),
+                disconnectedCount = servantsReport.Count(r => ((dynamic)r).commitmentLevel == "disconnected"),
+                avgAttendance = servantsReport.Any() ? Math.Round(servantsReport.Average(r => (decimal)((dynamic)r).attendancePercentage), 1) : 0m
+            },
+            servants = orderedReport
+        });
+    }
 }
+

@@ -6,6 +6,7 @@ public class Student
     public string Name { get; set; } = string.Empty; 
     public string Gender { get; set; } = string.Empty; // النوع
     public bool IsDeacon { get; set; } // مرشوم
+    public string DeaconRank { get; set; } = string.Empty; // رتبة الشماس: ابصلتس، اغنسطس، ابي دياكون، دياكون، ارشي دياكون
     public string GovGrade { get; set; } = string.Empty; // السنة الحكومية
     public string PhonesJson { get; set; } = "[]"; // الهواتف كـ JSON
     public decimal AmountPaid { get; set; } // المصروفات المدفوعة

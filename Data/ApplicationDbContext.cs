@@ -56,6 +56,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Email).HasMaxLength(150);
             entity.Property(e => e.Role).HasMaxLength(30).HasDefaultValue("User");
             entity.Property(e => e.Title).HasMaxLength(150);
+            entity.Property(e => e.DeaconRank).HasMaxLength(50).HasDefaultValue("");
             
             // Relation with ClassRoom (Optional)
             entity.HasOne(e => e.ClassRoom)
@@ -95,6 +96,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Gender).HasMaxLength(20);
             entity.Property(e => e.GovGrade).HasMaxLength(50);
+            entity.Property(e => e.DeaconRank).HasMaxLength(50).HasDefaultValue("");
             entity.Property(e => e.AmountPaid).HasColumnType("decimal(18,2)").HasDefaultValue(0);
 
             // Relation with Family

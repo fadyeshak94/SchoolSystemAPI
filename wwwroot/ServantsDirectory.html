@@ -199,12 +199,23 @@
                     dobStr = d.toLocaleDateString('ar-EG');
                 }
 
+                const deaconBadge = s.deaconRank 
+                    ? `<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:800; border:1px solid #fde68a;">✝️ ${s.deaconRank}</span>` 
+                    : '';
+
                 html += `
                 <div class="servant-card">
-                    <div class="s-name">${s.nameAR || s.username}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <div class="s-name" style="margin-bottom:0;">${s.nameAR || s.username}</div>
+                        ${deaconBadge}
+                    </div>
                     <div class="s-title">${s.title}</div>
                     
                     <div class="s-details" id="details-${s.username}">
+                        <div class="s-details-row">
+                            <span class="s-label">✝️ الرتبة الشماسية:</span>
+                            <span class="s-val">${s.deaconRank || '—'}</span>
+                        </div>
                         <div class="s-details-row">
                             <span class="s-label">📞 تليفون:</span>
                             <span class="s-val">${s.phoneNumber || '-'}</span>
@@ -222,6 +233,14 @@
 
                     <div class="s-details" id="edit-${s.username}" style="display:none; background:#fff8f1; border:1px solid #fed7aa;">
                         <input type="text" id="namear-${s.username}" value="${s.nameAR || ''}" placeholder="الاسم عربي (ثلاثي أو رباعي)" style="width:100%; margin-bottom:5px; padding:6px; border:1px solid #fdba74; border-radius:5px;">
+                        <select id="rank-${s.username}" style="width:100%; margin-bottom:5px; padding:6px; border:1px solid #fdba74; border-radius:5px; background:white; font-weight:bold;">
+                            <option value="" ${!s.deaconRank ? 'selected' : ''}>— غير مرشوم</option>
+                            <option value="ابصلتس" ${s.deaconRank === 'ابصلتس' ? 'selected' : ''}>ابصلتس</option>
+                            <option value="اغنسطس" ${s.deaconRank === 'اغنسطس' ? 'selected' : ''}>اغنسطس</option>
+                            <option value="ابي دياكون" ${s.deaconRank === 'ابي دياكون' ? 'selected' : ''}>ابي دياكون</option>
+                            <option value="دياكون" ${s.deaconRank === 'دياكون' ? 'selected' : ''}>دياكون</option>
+                            <option value="ارشي دياكون" ${s.deaconRank === 'ارشي دياكون' ? 'selected' : ''}>ارشي دياكون</option>
+                        </select>
                         <input type="text" id="phone-${s.username}" value="${s.phoneNumber || ''}" placeholder="رقم التليفون" style="width:100%; margin-bottom:5px; padding:6px; border:1px solid #fdba74; border-radius:5px;">
                         <input type="text" id="cf-${s.username}" value="${s.confessionFather || ''}" placeholder="أب الاعتراف" style="width:100%; margin-bottom:5px; padding:6px; border:1px solid #fdba74; border-radius:5px;">
                         <input type="date" id="dob-${s.username}" value="${s.dateOfBirth ? s.dateOfBirth.split('T')[0] : ''}" style="width:100%; margin-bottom:10px; padding:6px; border:1px solid #fdba74; border-radius:5px;">
@@ -255,6 +274,7 @@
 
         async function saveServant(username) {
             const namear = document.getElementById(`namear-${username}`).value.trim();
+            const rank = document.getElementById(`rank-${username}`).value;
             const phone = document.getElementById(`phone-${username}`).value.trim();
             const cf = document.getElementById(`cf-${username}`).value.trim();
             const dob = document.getElementById(`dob-${username}`).value || null;
@@ -262,6 +282,7 @@
             try {
                 const res = await fetchApi(`/users/${username}/personal`, 'PUT', {
                     nameAR: namear || null,
+                    deaconRank: rank,
                     phoneNumber: phone,
                     confessionFather: cf,
                     dateOfBirth: dob
@@ -272,6 +293,7 @@
                     const servant = allServants.find(s => s.username === username);
                     if (servant) {
                         servant.nameAR = namear || null;
+                        servant.deaconRank = rank;
                         servant.phoneNumber = phone;
                         servant.confessionFather = cf;
                         if(dob) servant.dateOfBirth = dob + "T00:00:00";

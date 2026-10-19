@@ -69,6 +69,7 @@ public class StudentsController : ControllerBase
                 phone = s.PhonesJson,
                 gender = s.Gender,
                 isDeacon = s.IsDeacon,
+                deaconRank = s.DeaconRank,
                 govGrade = s.GovGrade,
                 amountPaid = s.AmountPaid,
                 amountRemaining = remainingAmount
@@ -76,6 +77,100 @@ public class StudentsController : ControllerBase
         }).OrderBy(s => s.name).ToList();
 
         return Ok(new { students = result });
+    }
+
+    // 1b. جلب طلاب مرحلة بالكامل مقسمين حسب الفصول (للطباعة والكشوفات)
+    [HttpGet("stage")]
+    public async Task<IActionResult> GetStudentsByStage([FromQuery] string? stageName, [FromQuery] string? academicYear)
+    {
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        var userClassId = User.FindFirst("ClassRoomId")?.Value;
+        var stageAccess = User.FindFirst("StageAccess")?.Value;
+
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(academicYear) ? academicYear : (appSettings?.AcademicYear ?? "2024/2025");
+        var normYear1 = resolvedYear.Replace("-", "/");
+        var normYear2 = resolvedYear.Replace("/", "-");
+
+        var classes = await _uow.ClassRooms.FindAsync(c => string.IsNullOrEmpty(stageName) || c.Stage == stageName);
+
+        // Permissions filter
+        if (userRole != "Admin" && userRole != "HeadSecretary")
+        {
+            if (userRole == "StageSupervisor" && !string.IsNullOrEmpty(stageAccess))
+            {
+                classes = classes.Where(c => !string.IsNullOrEmpty(c.Stage) && stageAccess.Contains(c.Stage)).ToList();
+            }
+            else if (!string.IsNullOrEmpty(userClassId))
+            {
+                classes = classes.Where(c => c.Id.ToString() == userClassId).ToList();
+            }
+        }
+
+        var classIds = classes.Select(c => c.Id).ToList();
+
+        var students = await _uow.Students.GetQueryable()
+            .Include(s => s.Mother)
+            .Include(s => s.Enrollments)
+            .Where(s => s.Enrollments.Any(e => classIds.Contains(e.ClassRoomId) && (e.AcademicYear == normYear1 || e.AcademicYear == normYear2)))
+            .ToListAsync();
+
+        var result = classes.OrderBy(c => c.Stage).ThenBy(c => c.Name).Select(cls =>
+        {
+            var classStudents = students
+                .Where(s => s.Enrollments.Any(e => e.ClassRoomId == cls.Id && (e.AcademicYear == normYear1 || e.AcademicYear == normYear2)))
+                .OrderBy(s => s.Name)
+                .Select(s =>
+                {
+                    string primaryPhone = s.Mother?.Phone ?? "";
+                    if (!string.IsNullOrEmpty(s.PhonesJson) && s.PhonesJson.StartsWith("["))
+                    {
+                        try
+                        {
+                            if (s.PhonesJson.Contains("\"number\""))
+                            {
+                                var arr = System.Text.Json.JsonSerializer.Deserialize<List<PhoneObj>>(s.PhonesJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                if (arr != null && arr.Any()) primaryPhone = arr.FirstOrDefault()?.number ?? primaryPhone;
+                            }
+                            else
+                            {
+                                var arr = System.Text.Json.JsonSerializer.Deserialize<List<string>>(s.PhonesJson);
+                                if (arr != null && arr.Any()) primaryPhone = arr.FirstOrDefault() ?? primaryPhone;
+                            }
+                        }
+                        catch { }
+                    }
+
+                    return new
+                    {
+                        id = s.Id,
+                        name = s.Name,
+                        phone = primaryPhone,
+                        academicYear = resolvedYear,
+                        gender = s.Gender,
+                        isDeacon = s.IsDeacon,
+                        deaconRank = s.DeaconRank
+                    };
+                }).ToList();
+
+            return new
+            {
+                classId = cls.Id,
+                className = cls.Name,
+                stage = cls.Stage,
+                year = cls.Year,
+                totalStudents = classStudents.Count,
+                students = classStudents
+            };
+        }).Where(c => c.totalStudents > 0 || !string.IsNullOrEmpty(stageName)).ToList();
+
+        return Ok(new
+        {
+            success = true,
+            academicYear = resolvedYear,
+            stageName = stageName ?? "الكل",
+            classes = result
+        });
     }
 
     // 2. إضافة طالب جديد
@@ -97,7 +192,8 @@ public class StudentsController : ControllerBase
             Name = dto.Name,
             Enrollments = new List<StudentEnrollment> { new StudentEnrollment { ClassRoomId = dto.ClassId, AcademicYear = "2024/2025" } },
             Gender = dto.Gender,
-            IsDeacon = dto.IsDeacon,
+            IsDeacon = dto.Gender == "أنثى" ? false : (dto.IsDeacon || (!string.IsNullOrEmpty(dto.DeaconRank) && dto.DeaconRank != "غير مرشوم")),
+            DeaconRank = dto.Gender == "أنثى" ? "" : (!string.IsNullOrEmpty(dto.DeaconRank) && dto.DeaconRank != "غير مرشوم" ? dto.DeaconRank : (dto.IsDeacon ? "ابصلتس" : "")),
             PhonesJson = dto.PhonesJson,
             GovGrade = dto.GovGrade,
             AmountPaid = dto.AmountPaid
@@ -122,8 +218,30 @@ public class StudentsController : ControllerBase
         // تحديث البيانات
         student.Name = dto.Name ?? student.Name;
         student.Gender = dto.Gender ?? student.Gender;
-        student.IsDeacon = dto.IsDeacon ?? student.IsDeacon;
         student.GovGrade = dto.GovGrade ?? student.GovGrade;
+
+        if (student.Gender == "أنثى")
+        {
+            student.IsDeacon = false;
+            student.DeaconRank = "";
+        }
+        else
+        {
+            if (dto.DeaconRank != null)
+            {
+                student.DeaconRank = dto.DeaconRank.Trim();
+                student.IsDeacon = !string.IsNullOrEmpty(student.DeaconRank) && student.DeaconRank != "غير مرشوم" && student.DeaconRank != "—";
+                if (!student.IsDeacon) student.DeaconRank = "";
+            }
+            else if (dto.IsDeacon.HasValue)
+            {
+                student.IsDeacon = dto.IsDeacon.Value;
+                if (student.IsDeacon && string.IsNullOrEmpty(student.DeaconRank))
+                    student.DeaconRank = "ابصلتس";
+                else if (!student.IsDeacon)
+                    student.DeaconRank = "";
+            }
+        }
         
         var phonesList = new List<PhoneObj>();
         if (!string.IsNullOrWhiteSpace(dto.Phone1)) phonesList.Add(new PhoneObj { number = dto.Phone1, whatsapp = true });
@@ -177,6 +295,31 @@ public class StudentsController : ControllerBase
         await _uow.CompleteAsync();
 
         return Ok(new { success = true, message = "تم حفظ بيانات الطالب بنجاح" });
+    }
+
+    // 3b. تحديث الرتبة الشماسية لطالب مباشرة
+    [HttpPatch("{id}/deacon-rank")]
+    public async Task<IActionResult> UpdateDeaconRank(int id, [FromBody] UpdateDeaconRankDto dto)
+    {
+        var student = await _uow.Students.GetByIdAsync(id);
+        if (student == null)
+            return NotFound(new { success = false, message = "الطالب غير موجود" });
+
+        var rank = dto.DeaconRank?.Trim() ?? "";
+        bool isDeacon = !string.IsNullOrEmpty(rank) && rank != "غير مرشوم" && rank != "—";
+
+        student.DeaconRank = isDeacon ? rank : "";
+        student.IsDeacon = isDeacon;
+
+        _uow.Students.Update(student);
+        await _uow.CompleteAsync();
+
+        return Ok(new { 
+            success = true, 
+            message = isDeacon ? $"تم تحديث الرتبة الشماسية للطالب {student.Name} إلى ({student.DeaconRank})" : $"تم تحديث حالة الطالب {student.Name} إلى غير مرشوم",
+            deaconRank = student.DeaconRank, 
+            isDeacon = student.IsDeacon 
+        });
     }
 
     // 4. البحث المتقدم عن طالب
@@ -502,6 +645,7 @@ public class AddStudentDto
     public int ClassId { get; set; }
     public string Gender { get; set; } = string.Empty;
     public bool IsDeacon { get; set; }
+    public string? DeaconRank { get; set; }
     public string PhonesJson { get; set; } = "[]";
     public string GovGrade { get; set; } = string.Empty;
     public decimal AmountPaid { get; set; }
@@ -513,10 +657,16 @@ public class UpdateStudentDto
     public int? ClassId { get; set; }
     public string? Gender { get; set; }
     public bool? IsDeacon { get; set; }
+    public string? DeaconRank { get; set; }
     public string? GovGrade { get; set; }
     public string? Phone1 { get; set; }
     public string? Phone2 { get; set; }
     public decimal? AmountPaid { get; set; }
     public decimal? AmountWaived { get; set; }
+}
+
+public class UpdateDeaconRankDto
+{
+    public string DeaconRank { get; set; } = string.Empty;
 }
 

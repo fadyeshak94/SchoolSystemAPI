@@ -141,6 +141,9 @@ public class ServantsController : ControllerBase
                 ServantId = u.Id,
                 ServantName = u.NameAR ?? u.Username,
                 Title = u.Title ?? "خادم",
+                DeaconRank = u.DeaconRank ?? "",
+                PhoneNumber = u.PhoneNumber ?? "",
+                ConfessionFather = u.ConfessionFather ?? "",
                 Classes = classesAssigned,
                 TotalDays = totalDays,
                 PresentDays = presentDays,
@@ -152,6 +155,24 @@ public class ServantsController : ControllerBase
 
         return Ok(new { success = true, data = result.OrderBy(r => ((dynamic)r).ServantName) });
     }
+
+    [HttpPatch("{id}/deacon-rank")]
+    [Authorize(Roles = "Admin,HeadSecretary,StageSupervisor")]
+    public async Task<IActionResult> UpdateServantDeaconRank(int id, [FromBody] UpdateServantDeaconRankDto dto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return NotFound(new { success = false, message = "الخادم غير موجود" });
+
+        user.DeaconRank = dto.DeaconRank?.Trim() ?? "";
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true, message = $"تم تحديث الرتبة الشماسية للخادم {user.NameAR ?? user.Username} إلى ({user.DeaconRank})", deaconRank = user.DeaconRank });
+    }
+}
+
+public class UpdateServantDeaconRankDto
+{
+    public string DeaconRank { get; set; } = string.Empty;
 }
 
 public class SaveServantAttendanceDto

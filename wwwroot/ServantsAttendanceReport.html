@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👨‍🏫 تقرير انتظام والتزام الخدام</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+        }
+
+        .header-card {
+            background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 25px -5px rgba(22, 101, 52, 0.25);
+            position: relative;
+            overflow: hidden;
+            border-bottom: 4px solid #86efac;
+        }
+
+        .header-card h1 {
+            margin: 0 0 8px 0;
+            font-size: 22px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #bbf7d0;
+        }
+
+        .header-card p {
+            margin: 0;
+            font-size: 13.5px;
+            color: #dcfce7;
+            line-height: 1.6;
+        }
+
+        .controls-card {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 24px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .filter-group label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .filter-control {
+            padding: 9px 12px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            background: #fff;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .filter-control:focus {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+        }
+
+        .actions-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #e2e8f0;
+            justify-content: flex-end;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-green { background: #16a34a; color: white; }
+        .btn-print { background: #0284c7; color: white; }
+        .btn-excel { background: #15803d; color: white; }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 15px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            text-align: center;
+        }
+
+        .kpi-title {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #64748b;
+            margin-bottom: 6px;
+        }
+
+        .kpi-val {
+            font-size: 24px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .kpi-sub {
+            font-size: 11.5px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* Servants Table */
+        .table-card {
+            background: #ffffff;
+            border-radius: 14px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .data-table th {
+            background: #f8fafc;
+            color: #334155;
+            padding: 11px 12px;
+            border-bottom: 2px solid #cbd5e1;
+            font-weight: 800;
+            text-align: right;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-bottom: 1px solid #f1f5f9;
+            text-align: right;
+            vertical-align: middle;
+        }
+
+        .data-table tr:hover {
+            background: #f8fafc;
+        }
+
+        .progress-track {
+            background: #e2e8f0;
+            border-radius: 10px;
+            height: 8px;
+            width: 100px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 800;
+        }
+
+        .badge-excellent { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .badge-good { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .badge-at_risk { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+        .badge-disconnected { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .badge-no_data { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; }
+
+        .btn-whatsapp {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-whatsapp:hover { opacity: 0.9; }
+
+        .empty-placeholder {
+            text-align: center;
+            padding: 50px 20px;
+            color: #64748b;
+        }
+
+        @media print {
+            .header-card, .controls-card, .btn-action, #sidebar, .navbar, .btn-whatsapp, select {
+                display: none !important;
+            }
+            .data-table { font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Banner -->
+    <div class="header-card">
+        <h1>👨‍🏫 تقرير انتظام والتزام الخدام (Servants Attendance & Commitment)</h1>
+        <p>
+            استثمار جدول حضور الخدام (ServantAttendance) لإظهار نسب التزام الخدام في كل مرحلة وفصل،
+            وحصر الخدام المنقطعين للافتقاد والتشجيع السريع، لأن التزام الخادم ينعكس مباشرة على التزام وثبات فصوله.
+        </p>
+    </div>
+
+    <!-- Filters & Actions -->
+    <div class="controls-card">
+        <div class="filter-grid">
+            <div class="filter-group">
+                <label>📅 السنة الدراسية:</label>
+                <select id="academicYearSelect" class="filter-control" onchange="loadReport()"></select>
+            </div>
+
+            <div class="filter-group">
+                <label>🏫 المرحلة:</label>
+                <select id="stageSelect" class="filter-control" onchange="loadReport()">
+                    <option value="">-- جميع المراحل --</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>✝️ الرتبة الشماسية:</label>
+                <select id="deaconRankSelect" class="filter-control" onchange="loadReport()">
+                    <option value="">-- كل الرتب --</option>
+                    <option value="غير مرشوم">غير مرشوم</option>
+                    <option value="ابصلتس">ابصلتس</option>
+                    <option value="اغنسطس">اغنسطس</option>
+                    <option value="ابي دياكون">ابي دياكون</option>
+                    <option value="دياكون">دياكون</option>
+                    <option value="ارشي دياكون">ارشي دياكون</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>🌟 مستوى الالتزام:</label>
+                <select id="commitmentSelect" class="filter-control" onchange="loadReport()">
+                    <option value="all">الكل</option>
+                    <option value="excellent">خادم متميز ومنتظم (>= 90%)</option>
+                    <option value="good">انتظام جيد (75% - 89%)</option>
+                    <option value="at_risk">يحتاج تشجيع ومتابعة</option>
+                    <option value="disconnected">منقطع / افتقاد عاجل 🛑</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="actions-bar">
+            <button class="btn-action btn-green" onclick="loadReport()">
+                🔍 تحديث التقرير
+            </button>
+            <button class="btn-action btn-print" onclick="window.print()">
+                🖨️ طباعة التقرير
+            </button>
+            <button class="btn-action btn-excel" onclick="exportExcel()">
+                📊 تصدير Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="kpi-card" style="border-top: 4px solid #16a34a;">
+            <div class="kpi-title">👨‍🏫 إجمالي الخدام</div>
+            <div class="kpi-val" id="kpiTotalServants">0</div>
+            <div class="kpi-sub">المسجلون بالخدمة</div>
+        </div>
+
+        <div class="kpi-card" style="border-top: 4px solid #22c55e;">
+            <div class="kpi-title">🌟 متميز ومنتظم</div>
+            <div class="kpi-val" id="kpiExcellentCount" style="color:#16a34a;">0</div>
+            <div class="kpi-sub">حضور أكثر من 90%</div>
+        </div>
+
+        <div class="kpi-card" style="border-top: 4px solid #0284c7;">
+            <div class="kpi-title">🔹 انتظام جيد</div>
+            <div class="kpi-val" id="kpiGoodCount" style="color:#0284c7;">0</div>
+            <div class="kpi-sub">حضور منتظم مستقر</div>
+        </div>
+
+        <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
+            <div class="kpi-title">⚠️ يحتاج تشجيع</div>
+            <div class="kpi-val" id="kpiAtRiskCount" style="color:#d97706;">0</div>
+            <div class="kpi-sub">تذبذب في الحضور</div>
+        </div>
+
+        <div class="kpi-card" style="border-top: 4px solid #ef4444;">
+            <div class="kpi-title">🛑 منقطع للافتقاد</div>
+            <div class="kpi-val" id="kpiDisconnectedCount" style="color:#dc2626;">0</div>
+            <div class="kpi-sub">3 غيابات متتالية أو أكثر</div>
+        </div>
+
+        <div class="kpi-card" style="border-top: 4px solid #8b5cf6;">
+            <div class="kpi-title">📈 متوسط حضور الخدام</div>
+            <div class="kpi-val" id="kpiAvgAttendance" style="color:#7c3aed;">0%</div>
+            <div class="kpi-sub">المعدل العام للمدرسة</div>
+        </div>
+    </div>
+
+    <!-- Table Container -->
+    <div class="table-card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">
+                📋 جدول تفصيلي بحضور والتزام الخدام
+            </h3>
+            <span style="font-size:12px; color:#64748b;">* مرتب تصاعدياً بحسب نسبة الحضور للتركيز على الخدام المحتاجين للافتقاد</span>
+        </div>
+
+        <div id="tableContainer">
+            <div class="empty-placeholder">
+                <div class="spinner" style="margin:20px auto;"></div>
+                جاري إعداد تقرير حضور الخدام...
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/app.js"></script>
+    <script>
+        let reportData = null;
+
+        window.onload = async () => {
+            await loadAcademicYearsDropdown('academicYearSelect');
+            await initStages();
+            await loadReport();
+        };
+
+        async function initStages() {
+            try {
+                const res = await fetchApi('/users/me/classes');
+                if (res && res.classes) {
+                    const stages = Array.from(new Set(res.classes.map(c => c.stage).filter(Boolean))).sort();
+                    const stageSel = document.getElementById('stageSelect');
+                    stages.forEach(st => {
+                        const opt = document.createElement('option');
+                        opt.value = st;
+                        opt.textContent = st;
+                        stageSel.appendChild(opt);
+                    });
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadReport() {
+            const container = document.getElementById('tableContainer');
+            container.innerHTML = '<div class="empty-placeholder"><div class="spinner" style="margin:20px auto;"></div>جاري تحليل حضور الخدام...</div>';
+
+            const academicYear = document.getElementById('academicYearSelect').value;
+            const stage = document.getElementById('stageSelect').value;
+            const deaconRank = document.getElementById('deaconRankSelect').value;
+            const commitment = document.getElementById('commitmentSelect').value;
+
+            const url = `/reports/servants-attendance?academicYear=${encodeURIComponent(academicYear)}&stage=${encodeURIComponent(stage)}&deaconRank=${encodeURIComponent(deaconRank)}&commitmentLevel=${encodeURIComponent(commitment)}`;
+
+            try {
+                const res = await fetchApi(url);
+                if (res && res.success) {
+                    reportData = res;
+                    updateKPIs(res.summary);
+                    renderTable(res.servants);
+                } else {
+                    container.innerHTML = `<div class="empty-placeholder" style="color:var(--danger);">❌ ${res?.message || 'فشل تحميل التقرير'}</div>`;
+                }
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<div class="empty-placeholder" style="color:var(--danger);">❌ حدث خطأ في الاتصال بالخادم.</div>';
+            }
+        }
+
+        function updateKPIs(sum) {
+            if (!sum) return;
+            document.getElementById('kpiTotalServants').textContent = sum.totalServants || 0;
+            document.getElementById('kpiExcellentCount').textContent = sum.excellentCount || 0;
+            document.getElementById('kpiGoodCount').textContent = sum.goodCount || 0;
+            document.getElementById('kpiAtRiskCount').textContent = sum.atRiskCount || 0;
+            document.getElementById('kpiDisconnectedCount').textContent = sum.disconnectedCount || 0;
+            document.getElementById('kpiAvgAttendance').textContent = (sum.avgAttendance || 0) + '%';
+        }
+
+        function renderTable(servants) {
+            const container = document.getElementById('tableContainer');
+            if (!servants || servants.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-placeholder">
+                        <div style="font-size:45px; margin-bottom:10px;">📭</div>
+                        <h3>لا يوجد خدام مطابقون لهذا الاختيار</h3>
+                    </div>`;
+                return;
+            }
+
+            let html = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>اسم الخادم</th>
+                        <th>الرتبة الشماسية</th>
+                        <th>المرحلة والفصول المكلف بها</th>
+                        <th>التليفون</th>
+                        <th>نسبة الحضور %</th>
+                        <th>أيام الحضور</th>
+                        <th>غياب متتالي</th>
+                        <th>حالة الالتزام</th>
+                        <th>إجراءات الافتقاد والتشجيع</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            servants.forEach((s, idx) => {
+                const rateColor = s.attendancePercentage >= 90 ? '#16a34a' : (s.attendancePercentage >= 75 ? '#0284c7' : (s.attendancePercentage >= 50 ? '#d97706' : '#dc2626'));
+                const consecutiveBadge = s.consecutiveAbsences >= 3 
+                    ? `<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px;">⚠️ ${s.consecutiveAbsences} جمعات متتالية</span>`
+                    : (s.consecutiveAbsences > 0 ? `<span style="color:#d97706; font-weight:bold;">${s.consecutiveAbsences}</span>` : `<span style="color:#16a34a;">0</span>`);
+
+                const cleanPhone = (s.phoneNumber || '').replace(/\D/g, '');
+                let waPhone = cleanPhone;
+                if (waPhone.startsWith('01')) waPhone = '2' + waPhone;
+                const waMessage = encodeURIComponent(`سلام ونعمة يا خادم المسيح ${s.servantName}، بنفتقد حضرتك وبنطمن عليك في خدمة مدرسة الشمامسة ومدارس الأحد، محبتك وحضورك بركة كبيرة لفصلك ولأولادنا. محبتنا وصلواتنا.`);
+                const waLink = waPhone ? `https://wa.me/${waPhone}?text=${waMessage}` : '#';
+
+                html += `
+                <tr>
+                    <td style="font-weight:bold; color:#64748b;">${idx + 1}</td>
+                    <td style="font-weight:bold; font-size:13.5px; color:#0f172a;">
+                        👨‍🏫 ${s.servantName}
+                        <div style="font-size:11px; color:#64748b;">(${s.title})</div>
+                    </td>
+                    <td>
+                        <select onchange="updateServantDeaconRankDirect(${s.servantId}, this.value, this)" 
+                                title="تعديل الرتبة الشماسية للخادم"
+                                style="padding:3px 7px; border-radius:6px; border:1px solid #cbd5e1; font-size:11.5px; font-weight:bold; background:#fff; cursor:pointer;">
+                            <option value="" ${!s.deaconRank || s.deaconRank === 'غير مرشوم' ? 'selected' : ''}>غير مرشوم</option>
+                            <option value="ابصلتس" ${s.deaconRank === 'ابصلتس' ? 'selected' : ''}>ابصلتس</option>
+                            <option value="اغنسطس" ${s.deaconRank === 'اغنسطس' ? 'selected' : ''}>اغنسطس</option>
+                            <option value="ابي دياكون" ${s.deaconRank === 'ابي دياكون' ? 'selected' : ''}>ابي دياكون</option>
+                            <option value="دياكون" ${s.deaconRank === 'دياكون' ? 'selected' : ''}>دياكون</option>
+                            <option value="ارشي دياكون" ${s.deaconRank === 'ارشي دياكون' ? 'selected' : ''}>ارشي دياكون</option>
+                        </select>
+                    </td>
+                    <td style="max-width:220px; font-size:12px;">
+                        <strong style="color:#1e3a8a;">${s.stage || '—'}</strong><br>
+                        <span style="color:#475569;">${s.classes || 'بدون تكليفات'}</span>
+                    </td>
+                    <td style="direction:ltr; text-align:right; font-family:monospace;">
+                        ${s.phoneNumber ? `<a href="tel:${s.phoneNumber}" style="color:inherit; text-decoration:none;">${s.phoneNumber}</a>` : '—'}
+                    </td>
+                    <td>
+                        <strong style="color:${rateColor}; font-size:13.5px;">${s.attendancePercentage}%</strong>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width:${s.attendancePercentage}%; background:${rateColor};"></div>
+                        </div>
+                    </td>
+                    <td style="font-size:11.5px;">
+                        <span style="color:#16a34a; font-weight:bold;">${s.presentDays} حاضر</span> / 
+                        <span style="color:#dc2626;">${s.absentDays} غائب</span>
+                        ${s.excusedDays > 0 ? ` / <span style="color:#d97706;">${s.excusedDays} بعذر</span>` : ''}
+                    </td>
+                    <td>${consecutiveBadge}</td>
+                    <td>
+                        <span class="badge-status badge-${s.commitmentLevel}">
+                            ${s.commitmentBadge}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:6px;">
+                            ${waPhone ? `<a href="${waLink}" target="_blank" class="btn-whatsapp" title="إرسال رسالة تشجيع وافتقاد عبر واتساب">
+                                💬 تشجيع واتساب
+                            </a>` : ''}
+                            ${s.phoneNumber ? `<a href="tel:${s.phoneNumber}" style="padding:4px 8px; border-radius:6px; border:1px solid #cbd5e1; background:white; font-size:11.5px; text-decoration:none; color:#1e293b; font-weight:bold;" title="اتصال هاتفي">
+                                📞
+                            </a>` : ''}
+                        </div>
+                    </td>
+                </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        async function updateServantDeaconRankDirect(servantId, newRank, selectEl) {
+            selectEl.disabled = true;
+            selectEl.style.background = '#fef3c7';
+
+            try {
+                const res = await fetchApi(`/servants/${servantId}/deacon-rank`, 'PATCH', { deaconRank: newRank });
+                if (res && res.success) {
+                    selectEl.style.background = '#dcfce7';
+                    setTimeout(() => { selectEl.style.background = '#fff'; }, 1000);
+                    if (typeof showToast === 'function') {
+                        showToast(`تم تحديث رتبة الخادم إلى (${newRank || 'غير مرشوم'})`, 'success');
+                    }
+                } else {
+                    alert(res?.message || 'فشل تحديث الرتبة');
+                    selectEl.style.background = '#fee2e2';
+                }
+            } catch (e) {
+                console.error(e);
+                alert('حدث خطأ أثناء حفظ الرتبة');
+                selectEl.style.background = '#fee2e2';
+            } finally {
+                selectEl.disabled = false;
+            }
+        }
+
+        function exportExcel() {
+            if (!reportData || !reportData.servants || reportData.servants.length === 0) {
+                alert('لا توجد بيانات لتصديرها');
+                return;
+            }
+
+            let csv = "\uFEFF";
+            csv += "#,اسم الخادم,الرتبة الشماسية,المرحلة,التكليفات,التليفون,أب الاعتراف,نسبة الحضور %,أيام الحضور,أيام الغياب,أيام العذر,غياب متتالي,تقييم الالتزام\n";
+
+            reportData.servants.forEach((s, idx) => {
+                const row = [
+                    `"${idx + 1}"`,
+                    `"${s.servantName}"`,
+                    `"${s.deaconRank}"`,
+                    `"${s.stage}"`,
+                    `"${s.classes}"`,
+                    `"${s.phoneNumber}"`,
+                    `"${s.confessionFather}"`,
+                    `"${s.attendancePercentage}"`,
+                    `"${s.presentDays}"`,
+                    `"${s.absentDays}"`,
+                    `"${s.excusedDays}"`,
+                    `"${s.consecutiveAbsences}"`,
+                    `"${s.commitmentBadge}"`
+                ];
+                csv += row.join(",") + "\n";
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `تقرير_التزام_وحضور_الخدام_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+    <script src="/js/layout.js"></script>
+</body>
+</html>

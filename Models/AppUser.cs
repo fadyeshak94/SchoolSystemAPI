@@ -11,6 +11,7 @@ public class AppUser
     public string Salt { get; set; } = string.Empty;
     public string? StageAccess { get; set; }
     public string? Title { get; set; } // مثل: الناظر (العضو المنتدب)، عضو مجلس إدارة، أمين مرحلة حضانة، مسؤولة سكرتارية، خادم
+    public string DeaconRank { get; set; } = string.Empty; // ابصلتس، اغنسطس، ابي دياكون، دياكون، ارشي دياكون
     public string? PhoneNumber { get; set; }
     public string? ConfessionFather { get; set; }
     public DateTime? DateOfBirth { get; set; }
