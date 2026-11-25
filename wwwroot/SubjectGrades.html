@@ -44,7 +44,7 @@
     <script src="/js/app.js"></script>
     <script>
         let currentTerm = "1";
-        let currentYear = "2026-2027";
+        let currentYear = "2026/2027";
         let changedValues = {};
 
         window.onload = async () => {
@@ -61,7 +61,7 @@
             const settings = await fetchApi('/settings');
             if (settings) {
                 currentTerm = settings.currentTerm || "1";
-                currentYear = settings.academicYear || "2026-2027";
+                currentYear = settings.academicYear || "2026/2027";
             }
         };
 

@@ -98,7 +98,7 @@ public class GradesController : ControllerBase
         var studentIds = students.Select(s => s.Id).ToList();
 
         var existingGrades = (await _uow.StudentGrades
-            .FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear))
+            .FindAsync(g => studentIds.Contains(g.StudentId)))
             .Where(g => NormalizeTerm(g.Term) == NormalizeTerm(request.Term) && NormalizeSubject(g.SubjectName) == NormalizeSubject(request.Subject))
             .ToList();
 
@@ -109,10 +109,12 @@ public class GradesController : ControllerBase
             // منع إدخال درجة أكبر من 45 (درجة الامتحان العظمى)
             if (update.ExamScore > 45 || update.ExamScore < 0) continue;
 
-            var grade = existingGrades.FirstOrDefault(g => g.StudentId == update.StudentId);
+            var grade = existingGrades.FirstOrDefault(g => g.StudentId == update.StudentId && g.AcademicYear == resolvedYear)
+                ?? existingGrades.FirstOrDefault(g => g.StudentId == update.StudentId);
             if (grade != null)
             {
                 grade.ExamScore = update.ExamScore;
+                grade.AcademicYear = resolvedYear;
                 _uow.StudentGrades.Update(grade);
             }
             else
@@ -214,7 +216,7 @@ public class GradesController : ControllerBase
             .Where(s => s.Enrollments.Any(e => e.ClassRoomId == request.ClassId && e.AcademicYear == resolvedYear))
             .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
-        var grades = (await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear)).ToList();
+        var grades = (await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId))).ToList();
 
         int savedCount = 0;
         var normalizedTerm = NormalizeTerm(request.Term);
@@ -224,11 +226,13 @@ public class GradesController : ControllerBase
             foreach (var (subject, score) in subjectsDict)
             {
                 var normSub = NormalizeSubject(subject);
-                var grade = grades.FirstOrDefault(g => g.StudentId == studentId && NormalizeSubject(g.SubjectName) == normSub && NormalizeTerm(g.Term) == normalizedTerm);
+                var grade = grades.FirstOrDefault(g => g.StudentId == studentId && NormalizeSubject(g.SubjectName) == normSub && NormalizeTerm(g.Term) == normalizedTerm && g.AcademicYear == resolvedYear)
+                    ?? grades.FirstOrDefault(g => g.StudentId == studentId && NormalizeSubject(g.SubjectName) == normSub && NormalizeTerm(g.Term) == normalizedTerm);
                 
                 if (grade != null)
                 {
                     grade.ExamScore = score;
+                    grade.AcademicYear = resolvedYear;
                     _uow.StudentGrades.Update(grade);
                 }
                 else
