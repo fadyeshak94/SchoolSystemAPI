@@ -19,6 +19,9 @@
 
     <div class="controls">
         <select id="classSelect" onchange="loadGrades()"></select>
+        <select id="academicYearSelect" onchange="loadGrades()" style="padding:10px; border-radius:8px; border:1px solid #ccc; font-family:inherit; min-width:150px;">
+            <option value="">السنة (الافتراضية)</option>
+        </select>
         <select id="termSelect" onchange="loadGrades()">
             <option value="ت1">الترم الأول (ت1)</option>
             <option value="ت2">الترم الثاني (ت2)</option>
@@ -32,18 +35,27 @@
     <script>
         let changes = {};
 
-        window.onload = () => loadClassesDropdown('classSelect');
+        window.onload = async () => {
+            await Promise.all([
+                loadClassesDropdown('classSelect'),
+                loadAcademicYearsDropdown('academicYearSelect')
+            ]);
+        };
 
         async function loadGrades() {
             const classId = document.getElementById('classSelect').value;
             const term = document.getElementById('termSelect').value;
+            const academicYear = document.getElementById('academicYearSelect').value;
             if (!classId) return;
 
             document.getElementById('content').innerHTML = '<div class="spinner"></div>';
             document.getElementById('saveAllBtn').style.display = 'none';
             changes = {};
 
-            const res = await fetchApi(`/grades/class/${classId}/full?term=${term}`); 
+            let url = `/grades/class/${classId}/full?term=${encodeURIComponent(term)}`;
+            if (academicYear) url += `&academicYear=${encodeURIComponent(academicYear)}`;
+
+            const res = await fetchApi(url);
             if (!res || !res.students) return;
 
             let html = '<table><thead><tr><th>#</th><th>الاسم</th>';
@@ -82,6 +94,7 @@
             const payload = { 
                 classId: document.getElementById('classSelect').value, 
                 term: document.getElementById('termSelect').value,
+                academicYear: document.getElementById('academicYearSelect').value || null,
                 updates: changes 
             };
             const res = await fetchApi('/grades/saveAll', 'POST', payload);

@@ -34,9 +34,10 @@ public class ResultsController : ControllerBase
         var studentIds = students.Select(s => s.Id).ToList();
 
         var gradesQuery = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear);
+        var normalizedTerm = NormalizeTerm(term);
         if (term != "all" && !string.IsNullOrEmpty(term))
         {
-            gradesQuery = gradesQuery.Where(g => g.Term == term).ToList();
+            gradesQuery = gradesQuery.Where(g => NormalizeTerm(g.Term) == normalizedTerm).ToList();
         }
 
         var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == classId)).FirstOrDefault();
@@ -45,11 +46,11 @@ public class ResultsController : ControllerBase
         List<object> columns = new List<object>();
 
         bool isFourSubjects = stage.Contains("ابتدائي ب") || stage.Contains("إعدادي") || stage.Contains("اعدادي") || stage.Contains("كبار");
-        var allSubjects = new List<string> { "أجبية", "الحان", "قبطي" };
+        var allSubjects = new List<string> { "أجبية", "ألحان", "قبطي" };
         if (isFourSubjects)
         {
-            if (term == "ت1") allSubjects.Add("طقس");
-            else if (term == "ت2") allSubjects.Add("مواد متغيرة");
+            if (normalizedTerm == "ت1") allSubjects.Add("طقس");
+            else if (normalizedTerm == "ت2") allSubjects.Add("مواد متغيرة");
             else { allSubjects.Add("طقس"); allSubjects.Add("مواد متغيرة"); }
         }
         else
@@ -59,7 +60,8 @@ public class ResultsController : ControllerBase
 
         if (subject != "all" && !string.IsNullOrEmpty(subject))
         {
-            gradesQuery = gradesQuery.Where(g => g.SubjectName == subject).ToList();
+            var normalizedSubject = NormalizeSubject(subject);
+            gradesQuery = gradesQuery.Where(g => NormalizeSubject(g.SubjectName) == normalizedSubject).ToList();
             columns.Add(new { key = "exam", label = "الامتحان" });
             columns.Add(new { key = "attendance", label = "الحضور" });
         }
@@ -89,8 +91,9 @@ public class ResultsController : ControllerBase
             {
                 foreach (var sub in allSubjects)
                 {
-                    var exam = studentGrades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore);
-                    var att = studentGrades.Where(g => g.SubjectName == sub).Sum(g => g.AttendanceScore);
+                    var normSub = NormalizeSubject(sub);
+                    var exam = studentGrades.Where(g => NormalizeSubject(g.SubjectName) == normSub).Sum(g => g.ExamScore);
+                    var att = studentGrades.Where(g => NormalizeSubject(g.SubjectName) == normSub).Sum(g => g.AttendanceScore);
                     colsDict[sub] = new { exam = exam, att = att, total = exam + att };
                     total += exam + att;
                 }
@@ -162,8 +165,9 @@ public class ResultsController : ControllerBase
 
         foreach (var sub in allSubjects)
         {
-            var exam = grades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore);
-            var att = grades.Where(g => g.SubjectName == sub).Sum(g => g.AttendanceScore);
+            var normSub = NormalizeSubject(sub);
+            var exam = grades.Where(g => NormalizeSubject(g.SubjectName) == normSub).Sum(g => g.ExamScore);
+            var att = grades.Where(g => NormalizeSubject(g.SubjectName) == normSub).Sum(g => g.AttendanceScore);
             total += exam + att;
         }
 
@@ -181,5 +185,24 @@ public class ResultsController : ControllerBase
             hasDebt = debt > 0,
             debtAmount = debt
         });
+    }
+
+    private static string NormalizeSubject(string? subject)
+    {
+        if (string.IsNullOrWhiteSpace(subject)) return string.Empty;
+        return subject.Trim()
+            .Replace("أ", "ا")
+            .Replace("إ", "ا")
+            .Replace("آ", "ا")
+            .Replace("_", " ");
+    }
+
+    private static string NormalizeTerm(string? term)
+    {
+        if (string.IsNullOrWhiteSpace(term)) return string.Empty;
+        var t = term.Trim();
+        if (t == "1" || t == "ت1") return "ت1";
+        if (t == "2" || t == "ت2") return "ت2";
+        return t;
     }
 }

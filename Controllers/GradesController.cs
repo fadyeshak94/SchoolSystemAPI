@@ -62,8 +62,10 @@ public class GradesController : ControllerBase
             .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
-        var grades = await _uow.StudentGrades
-            .FindAsync(g => studentIds.Contains(g.StudentId) && g.Term == term && g.SubjectName == subject);
+        var grades = (await _uow.StudentGrades
+            .FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear))
+            .Where(g => NormalizeTerm(g.Term) == NormalizeTerm(term) && NormalizeSubject(g.SubjectName) == NormalizeSubject(subject))
+            .ToList();
 
         var result = students.Select(s => new
         {
@@ -95,8 +97,10 @@ public class GradesController : ControllerBase
             .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
 
-        var existingGrades = await _uow.StudentGrades
-            .FindAsync(g => studentIds.Contains(g.StudentId) && g.Term == request.Term && g.SubjectName == request.Subject);
+        var existingGrades = (await _uow.StudentGrades
+            .FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear))
+            .Where(g => NormalizeTerm(g.Term) == NormalizeTerm(request.Term) && NormalizeSubject(g.SubjectName) == NormalizeSubject(request.Subject))
+            .ToList();
 
         int savedCount = 0;
 
@@ -118,6 +122,7 @@ public class GradesController : ControllerBase
                     StudentId = update.StudentId,
                     Term = request.Term,
                     SubjectName = request.Subject,
+                    AcademicYear = resolvedYear,
                     ExamScore = update.ExamScore,
                     AttendanceScore = 0 // الحضور بيتحدث من مكان تاني
                 });
@@ -139,18 +144,19 @@ public class GradesController : ControllerBase
             .Where(s => s.Enrollments.Any(e => e.ClassRoomId == classId && e.AcademicYear == resolvedYear))
             .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
-        var grades = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId));
+        var grades = await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear);
 
         var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Secretary";
         var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == classId)).FirstOrDefault();
         string stage = classRoom?.Stage ?? "ابتدائي";
         bool isFourSubjects = stage.Contains("ابتدائي ب") || stage.Contains("إعدادي") || stage.Contains("اعدادي") || stage.Contains("كبار");
+        var normalizedTerm = NormalizeTerm(term);
         
-        List<string> subjects = new List<string> { "أجبية", "الحان", "قبطي" };
+        List<string> subjects = new List<string> { "أجبية", "ألحان", "قبطي" };
         if (isFourSubjects)
         {
-            if (term == "ت1") subjects.Add("طقس");
-            else if (term == "ت2") subjects.Add("مواد متغيرة");
+            if (normalizedTerm == "ت1") subjects.Add("طقس");
+            else if (normalizedTerm == "ت2") subjects.Add("مواد متغيرة");
             else { subjects.Add("طقس"); subjects.Add("مواد متغيرة"); }
         }
         else
@@ -174,13 +180,14 @@ public class GradesController : ControllerBase
 
         var result = students.Select(s =>
         {
-            var studentGrades = grades.Where(g => g.StudentId == s.Id && (string.IsNullOrEmpty(term) || g.Term == term)).ToList();
+            var studentGrades = grades.Where(g => g.StudentId == s.Id && (string.IsNullOrEmpty(normalizedTerm) || NormalizeTerm(g.Term) == normalizedTerm)).ToList();
             var subDict = new Dictionary<string, decimal>();
             decimal total = 0;
 
             foreach (var sub in subjects)
             {
-                var score = studentGrades.Where(g => g.SubjectName == sub).Sum(g => g.ExamScore + g.AttendanceScore);
+                var normSub = NormalizeSubject(sub);
+                var score = studentGrades.Where(g => NormalizeSubject(g.SubjectName) == normSub).Sum(g => g.ExamScore + g.AttendanceScore);
                 subDict[sub] = score;
                 total += score;
             }
@@ -200,19 +207,24 @@ public class GradesController : ControllerBase
     [HttpPost("saveAll")]
     public async Task<IActionResult> SaveAllGrades([FromBody] SaveAllGradesDto request)
     {
+        var appSettings = (await _uow.AppSettings.FindAsync(s => true)).FirstOrDefault();
+        var resolvedYear = !string.IsNullOrEmpty(request.AcademicYear) ? request.AcademicYear : (appSettings?.AcademicYear ?? "2024/2025");
+
         var students = await _uow.Students.GetQueryable()
-            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == request.ClassId && (string.IsNullOrEmpty(request.AcademicYear) || e.AcademicYear == request.AcademicYear)))
+            .Where(s => s.Enrollments.Any(e => e.ClassRoomId == request.ClassId && e.AcademicYear == resolvedYear))
             .ToListAsync();
         var studentIds = students.Select(s => s.Id).ToList();
-        var grades = (await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId))).ToList();
+        var grades = (await _uow.StudentGrades.FindAsync(g => studentIds.Contains(g.StudentId) && g.AcademicYear == resolvedYear)).ToList();
 
         int savedCount = 0;
+        var normalizedTerm = NormalizeTerm(request.Term);
 
         foreach (var (studentId, subjectsDict) in request.Updates)
         {
             foreach (var (subject, score) in subjectsDict)
             {
-                var grade = grades.FirstOrDefault(g => g.StudentId == studentId && g.SubjectName == subject && g.Term == request.Term);
+                var normSub = NormalizeSubject(subject);
+                var grade = grades.FirstOrDefault(g => g.StudentId == studentId && NormalizeSubject(g.SubjectName) == normSub && NormalizeTerm(g.Term) == normalizedTerm);
                 
                 if (grade != null)
                 {
@@ -226,6 +238,7 @@ public class GradesController : ControllerBase
                         StudentId = studentId,
                         SubjectName = subject,
                         Term = request.Term,
+                        AcademicYear = resolvedYear,
                         ExamScore = score,
                         AttendanceScore = 0
                     };
@@ -257,13 +270,33 @@ public class GradesController : ControllerBase
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (int.TryParse(userIdStr, out int userId))
             {
+                var normSub = NormalizeSubject(subject);
                 var assignments = await _uow.ServantAssignments.FindAsync(sa => 
-                    sa.UserId == userId && sa.ClassRoomId == classId && sa.SubjectName == subject);
-                return assignments.Any();
+                    sa.UserId == userId && sa.ClassRoomId == classId);
+                return assignments.Any(sa => NormalizeSubject(sa.SubjectName) == normSub);
             }
         }
 
         return false;
+    }
+
+    private static string NormalizeSubject(string? subject)
+    {
+        if (string.IsNullOrWhiteSpace(subject)) return string.Empty;
+        return subject.Trim()
+            .Replace("أ", "ا")
+            .Replace("إ", "ا")
+            .Replace("آ", "ا")
+            .Replace("_", " ");
+    }
+
+    private static string NormalizeTerm(string? term)
+    {
+        if (string.IsNullOrWhiteSpace(term)) return string.Empty;
+        var t = term.Trim();
+        if (t == "1" || t == "ت1") return "ت1";
+        if (t == "2" || t == "ت2") return "ت2";
+        return t;
     }
 }
 
