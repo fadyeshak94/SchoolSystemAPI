@@ -107,7 +107,7 @@ public class AttendanceController : ControllerBase
             
         var allGrades = await _uow.StudentGrades.FindAsync(g => 
             distinctStudentIds.Contains(g.StudentId) && 
-            g.Term == request.Term && 
+            (g.Term == request.Term || g.Term == altTerm) && 
             g.AcademicYear == request.AcademicYear);
 
         var studentsWithStage = await _uow.Students.GetQueryable()

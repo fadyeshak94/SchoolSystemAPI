@@ -102,6 +102,17 @@ public class GradesController : ControllerBase
             .Where(g => NormalizeTerm(g.Term) == NormalizeTerm(request.Term) && NormalizeSubject(g.SubjectName) == NormalizeSubject(request.Subject))
             .ToList();
 
+        var normalizedTerm = NormalizeTerm(request.Term);
+        var normalizedSubject = NormalizeSubject(request.Subject);
+
+        var attendanceRecords = (await _uow.AttendanceRecords
+            .FindAsync(a => studentIds.Contains(a.StudentId) && a.AcademicYear == resolvedYear))
+            .Where(a => NormalizeTerm(a.Term) == normalizedTerm)
+            .ToList();
+
+        var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == request.ClassId)).FirstOrDefault();
+        var studentStage = classRoom?.Stage;
+
         int savedCount = 0;
 
         foreach (var update in request.Updates)
@@ -109,12 +120,16 @@ public class GradesController : ControllerBase
             // منع إدخال درجة أكبر من 45 (درجة الامتحان العظمى)
             if (update.ExamScore > 45 || update.ExamScore < 0) continue;
 
+            var attendanceScore = CalculateAttendanceScore(
+                attendanceRecords, update.StudentId, resolvedYear, normalizedTerm, normalizedSubject, studentStage);
+
             var grade = existingGrades.FirstOrDefault(g => g.StudentId == update.StudentId && g.AcademicYear == resolvedYear)
                 ?? existingGrades.FirstOrDefault(g => g.StudentId == update.StudentId);
             if (grade != null)
             {
                 grade.ExamScore = update.ExamScore;
                 grade.AcademicYear = resolvedYear;
+                grade.AttendanceScore = attendanceScore;
                 _uow.StudentGrades.Update(grade);
             }
             else
@@ -126,7 +141,7 @@ public class GradesController : ControllerBase
                     SubjectName = request.Subject,
                     AcademicYear = resolvedYear,
                     ExamScore = update.ExamScore,
-                    AttendanceScore = 0 // الحضور بيتحدث من مكان تاني
+                    AttendanceScore = attendanceScore
                 });
             }
             savedCount++;
@@ -221,11 +236,22 @@ public class GradesController : ControllerBase
         int savedCount = 0;
         var normalizedTerm = NormalizeTerm(request.Term);
 
+        var attendanceRecords = (await _uow.AttendanceRecords
+            .FindAsync(a => studentIds.Contains(a.StudentId) && a.AcademicYear == resolvedYear))
+            .Where(a => NormalizeTerm(a.Term) == normalizedTerm)
+            .ToList();
+
+        var classRoom = (await _uow.ClassRooms.FindAsync(c => c.Id == request.ClassId)).FirstOrDefault();
+        var studentStage = classRoom?.Stage;
+
         foreach (var (studentId, subjectsDict) in request.Updates)
         {
             foreach (var (subject, score) in subjectsDict)
             {
                 var normSub = NormalizeSubject(subject);
+                var attendanceScore = CalculateAttendanceScore(
+                    attendanceRecords, studentId, resolvedYear, normalizedTerm, normSub, studentStage);
+
                 var grade = grades.FirstOrDefault(g => g.StudentId == studentId && NormalizeSubject(g.SubjectName) == normSub && NormalizeTerm(g.Term) == normalizedTerm && g.AcademicYear == resolvedYear)
                     ?? grades.FirstOrDefault(g => g.StudentId == studentId && NormalizeSubject(g.SubjectName) == normSub && NormalizeTerm(g.Term) == normalizedTerm);
                 
@@ -233,6 +259,7 @@ public class GradesController : ControllerBase
                 {
                     grade.ExamScore = score;
                     grade.AcademicYear = resolvedYear;
+                    grade.AttendanceScore = attendanceScore;
                     _uow.StudentGrades.Update(grade);
                 }
                 else
@@ -244,7 +271,7 @@ public class GradesController : ControllerBase
                         Term = request.Term,
                         AcademicYear = resolvedYear,
                         ExamScore = score,
-                        AttendanceScore = 0
+                        AttendanceScore = attendanceScore
                     };
                     await _uow.StudentGrades.AddAsync(grade);
                     grades.Add(grade);
@@ -282,6 +309,33 @@ public class GradesController : ControllerBase
         }
 
         return false;
+    }
+
+    private static decimal CalculateAttendanceScore(
+        IEnumerable<AttendanceRecord> attendanceRecords,
+        int studentId,
+        string academicYear,
+        string normalizedTerm,
+        string normalizedSubject,
+        string? studentStage)
+    {
+        if (academicYear == "2025/2026" && studentStage == "ابتدائي ب")
+        {
+            if ((normalizedSubject == "طقس" && normalizedTerm == "ت2") ||
+                (normalizedSubject == "مواد متغيرة" && normalizedTerm == "ت1"))
+            {
+                return 0;
+            }
+        }
+
+        if (studentStage == "ابتدائي أ" && normalizedSubject == "مواد متغيرة")
+        {
+            return 0;
+        }
+
+        var presentCount = attendanceRecords.Count(a =>
+            a.StudentId == studentId && (a.Status == "Present" || a.IsExcused));
+        return Math.Min(10, presentCount) * 0.5m;
     }
 
     private static string NormalizeSubject(string? subject)
